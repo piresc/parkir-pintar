@@ -773,3 +773,42 @@ func TestCreateReservation_ShouldReturnError_WhenNonUniqueConstraintError(t *tes
 	repo.AssertExpectations(t)
 	redis.AssertExpectations(t)
 }
+
+// TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches verifies that
+// a user-selected reservation is rejected if the spot's vehicle type does not
+// match the requested vehicle type.
+func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) {
+	ctx := context.Background()
+
+	repo := new(MockRepository)
+	redisClient := new(MockRedisClient)
+	billing := new(MockBillingClient)
+	payment := new(MockPaymentClient)
+	uc := NewUsecase(repo, redisClient, nil, billing, payment)
+
+	// A motorcycle spot.
+	motorcycleSpot := &model.ParkingSpot{
+		ID:          "spot-moto-001",
+		VehicleType: "motorcycle",
+		Status:      "available",
+	}
+
+	repo.On("FindByIdempotencyKey", ctx, "idem-mismatch-001").Return(nil, model.ErrNotFound)
+	repo.On("GetSpotForUpdate", ctx, "spot-moto-001").Return(motorcycleSpot, nil)
+	redisClient.On("SetNX", ctx, "lock:spot:spot-moto-001", "locked", 30*time.Second).Return(true, nil)
+	redisClient.On("Delete", ctx, "lock:spot:spot-moto-001").Return(nil)
+
+	_, err := uc.CreateReservation(ctx, &model.CreateReservationRequest{
+		DriverID:       "driver-001",
+		VehicleType:    "car",
+		AssignmentMode: model.AssignmentUserSelected,
+		SpotID:         "spot-moto-001",
+		IdempotencyKey: "idem-mismatch-001",
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "vehicle type does not match")
+
+	repo.AssertExpectations(t)
+	redisClient.AssertExpectations(t)
+}

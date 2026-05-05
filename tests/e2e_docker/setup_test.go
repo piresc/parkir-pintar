@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/google/uuid"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -24,6 +25,7 @@ type dockerEnvStruct struct {
 	baseURL    string
 	httpClient *http.Client
 	jwtToken   string
+	driverID   string // seeded test driver UUID
 }
 
 // denv is the package-level test environment accessible by all test functions.
@@ -55,8 +57,16 @@ func TestMain(m *testing.M) {
 	}
 	log.Println("Gateway is healthy.")
 
+	// Seed a test driver into Postgres so reservations have a valid FK.
+	driverID := uuid.New().String()
+	if err := seedTestDriver(driverID); err != nil {
+		tearDown()
+		log.Fatalf("seed test driver failed: %v", err)
+	}
+	log.Printf("Seeded test driver: %s", driverID)
+
 	// Generate JWT token matching JWT_SECRET in Docker Compose .env
-	token := testhelpers.GenerateTestJWT("test-driver-001", "driver", "test-jwt-secret")
+	token := testhelpers.GenerateTestJWT(driverID, "driver", "test-jwt-secret")
 
 	// Build authenticated HTTP client
 	client := testhelpers.NewAuthenticatedClient(token)
@@ -65,6 +75,7 @@ func TestMain(m *testing.M) {
 		baseURL:    "http://localhost:8080",
 		httpClient: client,
 		jwtToken:   token,
+		driverID:   driverID,
 	}
 
 	// Run tests
@@ -87,4 +98,29 @@ func tearDown() {
 		// Log warning but don't fail — cleanup is best-effort
 		fmt.Fprintf(os.Stderr, "WARNING: docker compose down failed: %v\n", err)
 	}
+}
+
+// seedTestDriver inserts a single driver row into the Postgres container.
+func seedTestDriver(driverID string) error {
+	phone := fmt.Sprintf("+628%010d", os.Getpid())
+	cmd := exec.Command("docker", "exec", "assessment-postgres", "psql",
+		"-U", getEnv("DB_USERNAME", "parkir_user"),
+		"-d", getEnv("DB_DATABASE", "parkir_pintar"),
+		"-c", fmt.Sprintf(
+			`INSERT INTO drivers (id, name, phone, email, vehicle_type, vehicle_plate) VALUES ('%s', 'E2E Test Driver', '%s', 'e2e@test.local', 'car', 'B 1234 E2E') ON CONFLICT (id) DO NOTHING`,
+			driverID, phone,
+		),
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("seed driver: %w (output: %s)", err, string(out))
+	}
+	return nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
 }

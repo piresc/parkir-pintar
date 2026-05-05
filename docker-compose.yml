@@ -44,7 +44,7 @@ services:
       start_period: 10s
 
   nats:
-    image: nats:latest
+    image: nats:2.11-alpine
     container_name: assessment-nats
     command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
     ports:
@@ -56,7 +56,7 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8222/healthz"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -128,6 +128,12 @@ services:
     networks:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/search || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   reservation:
     build:
@@ -152,6 +158,8 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
+      GRPC_BILLING_TARGET: billing:9090
+      GRPC_PAYMENT_TARGET: payment:9090
     depends_on:
       postgres:
         condition: service_healthy
@@ -159,9 +167,19 @@ services:
         condition: service_healthy
       nats:
         condition: service_healthy
+      billing:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
     networks:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/reservation || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   billing:
     build:
@@ -191,6 +209,12 @@ services:
     networks:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/billing || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   payment:
     build:
@@ -220,6 +244,12 @@ services:
     networks:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/payment || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   presence:
     build:
@@ -254,6 +284,12 @@ services:
     networks:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/presence || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   notification:
     build:
@@ -275,6 +311,12 @@ services:
     networks:
       - backend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/notification || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
 volumes:
   postgres_data:

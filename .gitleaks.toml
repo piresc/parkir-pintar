@@ -1,0 +1,21 @@
+# Gitleaks configuration for secret scanning
+# https://github.com/gitleaks/gitleaks
+
+title = "Assessment Boilerplate Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''go\.sum''',
+  '''go\.mod''',
+  '''vendor/''',
+  '''\.env\.example''',
+  '''config/\.env\.example''',
+  '''example\.env''',
+  '''_mock/''',
+  '''mocks/''',
+  '''.*_test\.go''',
+]

@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package reservation.v1;
+
+option go_package = "parkir-pintar/proto/reservation/v1;reservationv1";
+
+import "google/protobuf/timestamp.proto";
+
+// ReservationService manages the reservation lifecycle.
+service ReservationService {
+  // CreateReservation creates a new parking reservation (idempotent).
+  rpc CreateReservation(CreateReservationRequest) returns (ReservationResponse);
+  // CancelReservation cancels an existing reservation.
+  rpc CancelReservation(CancelReservationRequest) returns (ReservationResponse);
+  // CheckIn marks a reservation as checked in.
+  rpc CheckIn(CheckInRequest) returns (ReservationResponse);
+  // CheckOut completes a reservation and triggers billing.
+  rpc CheckOut(CheckOutRequest) returns (CheckOutResponse);
+  // ExpireReservation expires a no-show reservation.
+  rpc ExpireReservation(ExpireReservationRequest) returns (ReservationResponse);
+}
+
+message CreateReservationRequest {
+  string driver_id = 1;
+  string vehicle_type = 2;       // "car" or "motorcycle"
+  string assignment_mode = 3;    // "system_assigned" or "user_selected"
+  string spot_id = 4;            // required only for user_selected
+  string idempotency_key = 5;
+}
+
+message CancelReservationRequest {
+  string reservation_id = 1;
+}
+
+message CheckInRequest {
+  string reservation_id = 1;
+}
+
+message CheckOutRequest {
+  string reservation_id = 1;
+}
+
+message ExpireReservationRequest {
+  string reservation_id = 1;
+}
+
+message ReservationResponse {
+  string id = 1;
+  string driver_id = 2;
+  string spot_id = 3;
+  string vehicle_type = 4;
+  string assignment_mode = 5;
+  string status = 6;
+  string idempotency_key = 7;
+  google.protobuf.Timestamp confirmed_at = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  google.protobuf.Timestamp checked_in_at = 10;
+  google.protobuf.Timestamp checked_out_at = 11;
+  google.protobuf.Timestamp cancelled_at = 12;
+}
+
+message CheckOutResponse {
+  ReservationResponse reservation = 1;
+  int64 total_amount = 2;
+  string billing_id = 3;
+}

@@ -1,0 +1,294 @@
+// Package handler provides REST handlers for the API Gateway service.
+// It transcodes REST requests to gRPC calls to downstream microservices
+// and maps gRPC status codes to HTTP status codes in responses.
+package handler
+
+import (
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	"parkir-pintar/pkg/middleware"
+	"parkir-pintar/pkg/response"
+
+	paymentv1 "parkir-pintar/proto/payment/v1"
+	presencev1 "parkir-pintar/proto/presence/v1"
+	reservationv1 "parkir-pintar/proto/reservation/v1"
+	searchv1 "parkir-pintar/proto/search/v1"
+)
+
+// Handler holds gRPC client connections for downstream services and
+// provides REST endpoint handlers that transcode to gRPC.
+type Handler struct {
+	reservation reservationv1.ReservationServiceClient
+	search      searchv1.SearchServiceClient
+	payment     paymentv1.PaymentServiceClient
+	presence    presencev1.PresenceServiceClient
+}
+
+// NewHandler creates a new gateway Handler with gRPC clients for each service.
+func NewHandler(
+	reservation reservationv1.ReservationServiceClient,
+	search searchv1.SearchServiceClient,
+	payment paymentv1.PaymentServiceClient,
+	presence presencev1.PresenceServiceClient,
+) *Handler {
+	return &Handler{
+		reservation: reservation,
+		search:      search,
+		payment:     payment,
+		presence:    presence,
+	}
+}
+
+// RegisterRoutes registers all REST API routes on the Gin engine with JWT auth.
+func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, jwtSecret string) {
+	api := engine.Group("/api/v1")
+	api.Use(mw.JWTAuth(jwtSecret))
+
+	// Reservation routes
+	api.POST("/reservations", h.CreateReservation)
+	api.DELETE("/reservations/:id", h.CancelReservation)
+	api.POST("/reservations/:id/checkin", h.CheckIn)
+	api.POST("/reservations/:id/checkout", h.CheckOut)
+
+	// Search routes
+	api.GET("/availability", h.GetAvailability)
+	api.GET("/floors/:floor", h.GetFloorMap)
+	api.GET("/spots/:id", h.GetSpotDetails)
+
+	// Presence routes
+	api.POST("/presence/stream", h.StreamLocation)
+
+	// Payment routes
+	api.GET("/payments/:id/status", h.GetPaymentStatus)
+}
+
+// CreateReservation transcodes POST /api/v1/reservations to ReservationService.CreateReservation.
+func (h *Handler) CreateReservation(c *gin.Context) {
+	var req struct {
+		DriverID       string `json:"driver_id"`
+		VehicleType    string `json:"vehicle_type"`
+		AssignmentMode string `json:"assignment_mode"`
+		SpotID         string `json:"spot_id,omitempty"`
+		IdempotencyKey string `json:"idempotency_key"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	resp, err := h.reservation.CreateReservation(c.Request.Context(), &reservationv1.CreateReservationRequest{
+		DriverId:       req.DriverID,
+		VehicleType:    req.VehicleType,
+		AssignmentMode: req.AssignmentMode,
+		SpotId:         req.SpotID,
+		IdempotencyKey: req.IdempotencyKey,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusCreated, resp)
+}
+
+// CancelReservation transcodes DELETE /api/v1/reservations/:id to ReservationService.CancelReservation.
+func (h *Handler) CancelReservation(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	resp, err := h.reservation.CancelReservation(c.Request.Context(), &reservationv1.CancelReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// CheckIn transcodes POST /api/v1/reservations/:id/checkin to ReservationService.CheckIn.
+func (h *Handler) CheckIn(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	resp, err := h.reservation.CheckIn(c.Request.Context(), &reservationv1.CheckInRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// CheckOut transcodes POST /api/v1/reservations/:id/checkout to ReservationService.CheckOut.
+func (h *Handler) CheckOut(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	resp, err := h.reservation.CheckOut(c.Request.Context(), &reservationv1.CheckOutRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// GetAvailability transcodes GET /api/v1/availability to SearchService.GetAvailability.
+func (h *Handler) GetAvailability(c *gin.Context) {
+	vehicleType := c.Query("vehicle_type")
+
+	resp, err := h.search.GetAvailability(c.Request.Context(), &searchv1.GetAvailabilityRequest{
+		VehicleType: vehicleType,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// GetFloorMap transcodes GET /api/v1/floors/:floor to SearchService.GetFloorMap.
+func (h *Handler) GetFloorMap(c *gin.Context) {
+	floorStr := c.Param("floor")
+	floor, err := strconv.Atoi(floorStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid floor number")
+		return
+	}
+
+	resp, grpcErr := h.search.GetFloorMap(c.Request.Context(), &searchv1.GetFloorMapRequest{
+		FloorNumber: int32(floor),
+	})
+	if grpcErr != nil {
+		writeGRPCError(c, grpcErr)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// GetSpotDetails transcodes GET /api/v1/spots/:id to SearchService.GetSpotDetails.
+func (h *Handler) GetSpotDetails(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "spot id is required")
+		return
+	}
+
+	resp, err := h.search.GetSpotDetails(c.Request.Context(), &searchv1.GetSpotDetailsRequest{
+		SpotId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// StreamLocation transcodes POST /api/v1/presence/stream to a simplified
+// single-location-update call via PresenceService.DetectArrival.
+func (h *Handler) StreamLocation(c *gin.Context) {
+	var req struct {
+		ReservationID string  `json:"reservation_id"`
+		Latitude      float64 `json:"latitude"`
+		Longitude     float64 `json:"longitude"`
+		Accuracy      float64 `json:"accuracy"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	resp, err := h.presence.DetectArrival(c.Request.Context(), &presencev1.DetectArrivalRequest{
+		ReservationId: req.ReservationID,
+		Latitude:      req.Latitude,
+		Longitude:     req.Longitude,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// GetPaymentStatus transcodes GET /api/v1/payments/:id/status to PaymentService.GetPaymentStatus.
+func (h *Handler) GetPaymentStatus(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "payment id is required")
+		return
+	}
+
+	resp, err := h.payment.GetPaymentStatus(c.Request.Context(), &paymentv1.GetPaymentStatusRequest{
+		PaymentId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// grpcCodeToHTTP maps gRPC status codes to HTTP status codes.
+func grpcCodeToHTTP(code codes.Code) int {
+	switch code {
+	case codes.OK:
+		return http.StatusOK
+	case codes.InvalidArgument:
+		return http.StatusBadRequest
+	case codes.NotFound:
+		return http.StatusNotFound
+	case codes.AlreadyExists:
+		return http.StatusConflict
+	case codes.PermissionDenied:
+		return http.StatusForbidden
+	case codes.Unauthenticated:
+		return http.StatusUnauthorized
+	case codes.FailedPrecondition:
+		return http.StatusPreconditionFailed
+	case codes.ResourceExhausted:
+		return http.StatusTooManyRequests
+	case codes.Unavailable:
+		return http.StatusServiceUnavailable
+	case codes.DeadlineExceeded:
+		return http.StatusGatewayTimeout
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+// writeGRPCError extracts the gRPC status from an error and writes the
+// corresponding HTTP error response using pkg/response.
+func writeGRPCError(c *gin.Context, err error) {
+	st, ok := status.FromError(err)
+	if !ok {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	httpCode := grpcCodeToHTTP(st.Code())
+	response.Error(c, httpCode, st.Message())
+}

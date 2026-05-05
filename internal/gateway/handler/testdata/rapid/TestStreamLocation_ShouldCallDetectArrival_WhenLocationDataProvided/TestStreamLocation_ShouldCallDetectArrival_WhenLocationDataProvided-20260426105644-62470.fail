@@ -1,0 +1,88 @@
+# 2026/04/26 10:56:44.546012 [TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided] [rapid] draw latitude: -6.176081461107632e-113
+# 2026/04/26 10:56:44.546016 [TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided] [rapid] draw longitude: -7.99124191775899e-08
+# 2026/04/26 10:56:44.546017 [TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided] [rapid] draw accuracy: 5.392921525590745
+# 2026/04/26 10:56:44.546022 [TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided] [rapid] draw reservationID: "8301091g"
+# 2026/04/26 10:56:44.546060 [TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided] 
+# 	Error Trace:	/Users/pirescerullo/GitHub/assessment/parkir-pintar/internal/gateway/handler/handler_property_test.go:102
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/Users/pirescerullo/GitHub/assessment/parkir-pintar/internal/gateway/handler/handler_property_test.go:71
+# 	            				/Users/pirescerullo/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.darwin-arm64/src/runtime/asm_arm64.s:1268
+# 	Error:      	Not equal: 
+# 	            	expected: 1
+# 	            	actual  : 0
+# 	Test:       	TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided
+# 	Messages:   	DetectArrival should be called exactly once
+# 2026/04/26 10:56:44.546087 [TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided] 
+# 	Error Trace:	/Users/pirescerullo/GitHub/assessment/parkir-pintar/internal/gateway/handler/handler_property_test.go:104
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/Users/pirescerullo/GitHub/assessment/parkir-pintar/internal/gateway/handler/handler_property_test.go:71
+# 	            				/Users/pirescerullo/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.darwin-arm64/src/runtime/asm_arm64.s:1268
+# 	Error:      	Not equal: 
+# 	            	expected: 0
+# 	            	actual  : 1
+# 	Test:       	TestStreamLocation_ShouldCallDetectArrival_WhenLocationDataProvided
+# 	Messages:   	GetPresence should NOT be called — location data should go to DetectArrival
+# 
+v0.4.8#16696160115340629139
+0x1bfe10f695fa52
+0x1a2b505c527227
+0x1ddaae710bd932
+0x174
+0x0
+0xe
+0x30302c9713bb6
+0x1574376a11b83d
+0x121b84b6780f35
+0xc792aace2783d
+0x17
+0x0
+0x25
+0x5738a253b202a
+0xe50927b816120
+0x9a06f9d026de7
+0xd1fd6b05e3dfa
+0x2
+0x1
+0x3f
+0x1925a05393a09
+0xcc4a11e493ea9
+0x0
+0x1c82702ee70c59
+0x3c
+0x24
+0x8
+0x144d4b055dec35
+0x0
+0xaefb9852a9561
+0x3
+0x146fefbafe45cd
+0x0
+0x5473292a1943c
+0x0
+0x187840bef8626d
+0x0
+0xf6b28c2585e20
+0x1
+0x191cab9f53619e
+0x0
+0x900aeb98df8bb
+0x0
+0x5b602b3f06d45
+0x0
+0xa2f82066d1198
+0x9
+0xcbdce03c661d3
+0x0
+0xbdc3172c52905
+0x1
+0x9b78f521be32c
+0x0
+0x18d246b662136a
+0x10
+0x1f2328fb07b391

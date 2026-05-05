@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package notification.v1;
+
+option go_package = "parkir-pintar/proto/notification/v1;notificationv1";
+
+// NotificationService is a stub service that logs notification payloads.
+service NotificationService {
+  // SendPush sends a push notification (stub: logs payload).
+  rpc SendPush(SendPushRequest) returns (NotificationResponse);
+  // SendSMS sends an SMS notification (stub: logs payload).
+  rpc SendSMS(SendSMSRequest) returns (NotificationResponse);
+  // SendEmail sends an email notification (stub: logs payload).
+  rpc SendEmail(SendEmailRequest) returns (NotificationResponse);
+}
+
+message SendPushRequest {
+  string driver_id = 1;
+  string title = 2;
+  string body = 3;
+  map<string, string> data = 4;
+}
+
+message SendSMSRequest {
+  string phone_number = 1;
+  string message = 2;
+}
+
+message SendEmailRequest {
+  string email = 1;
+  string subject = 2;
+  string body = 3;
+}
+
+message NotificationResponse {
+  string id = 1;
+  string channel = 2;   // "push", "sms", "email"
+  string status = 3;    // "logged"
+  string payload = 4;   // JSON payload logged
+}

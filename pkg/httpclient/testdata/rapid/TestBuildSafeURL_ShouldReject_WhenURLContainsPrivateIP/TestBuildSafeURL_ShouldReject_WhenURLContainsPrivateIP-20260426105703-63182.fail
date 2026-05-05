@@ -1,0 +1,27 @@
+# 2026/04/26 10:57:03.461934 [TestBuildSafeURL_ShouldReject_WhenURLContainsPrivateIP] [rapid] draw rangeType: 3
+# 2026/04/26 10:57:03.461940 [TestBuildSafeURL_ShouldReject_WhenURLContainsPrivateIP] [rapid] draw c: 0
+# 2026/04/26 10:57:03.461941 [TestBuildSafeURL_ShouldReject_WhenURLContainsPrivateIP] [rapid] draw d: 123
+# 2026/04/26 10:57:03.461968 [TestBuildSafeURL_ShouldReject_WhenURLContainsPrivateIP] 
+# 	Error Trace:	/Users/pirescerullo/GitHub/assessment/parkir-pintar/pkg/httpclient/security_property_test.go:73
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/Users/pirescerullo/GitHub/assessment/parkir-pintar/pkg/httpclient/security_property_test.go:35
+# 	            				/Users/pirescerullo/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.0.darwin-arm64/src/runtime/asm_arm64.s:1268
+# 	Error:      	An error is expected but got nil.
+# 	Test:       	TestBuildSafeURL_ShouldReject_WhenURLContainsPrivateIP
+# 	Messages:   	buildSafeURL should reject private IP 192.168.0.123 but accepted it (SSRF vulnerability)
+# 
+v0.4.8#8200986616879063715
+0x7be2d4d97c826
+0x1cff92eeb9c94c
+0x7
+0x6
+0x3
+0x70e8bb9e97624
+0x4155201eb12bd
+0x0
+0x14813725af7716
+0x1655b16ce39441
+0x7a

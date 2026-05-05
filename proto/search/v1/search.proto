@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package search.v1;
+
+option go_package = "parkir-pintar/proto/search/v1;searchv1";
+
+// SearchService provides real-time parking availability queries.
+service SearchService {
+  // GetAvailability returns per-floor availability counts filtered by vehicle type.
+  rpc GetAvailability(GetAvailabilityRequest) returns (AvailabilityResponse);
+  // GetFloorMap returns the status of every spot on a specific floor.
+  rpc GetFloorMap(GetFloorMapRequest) returns (FloorMapResponse);
+  // GetSpotDetails returns detailed information for a specific parking spot.
+  rpc GetSpotDetails(GetSpotDetailsRequest) returns (SpotDetailsResponse);
+}
+
+message GetAvailabilityRequest {
+  string vehicle_type = 1; // "car" or "motorcycle"
+}
+
+message AvailabilityResponse {
+  repeated FloorAvailability floors = 1;
+  AvailabilitySummary total = 2;
+}
+
+message FloorAvailability {
+  int32 floor_number = 1;
+  int32 available_car = 2;
+  int32 available_moto = 3;
+  int32 total_car = 4;
+  int32 total_moto = 5;
+}
+
+message AvailabilitySummary {
+  int32 total_available = 1;
+  int32 total_capacity = 2;
+}
+
+message GetFloorMapRequest {
+  int32 floor_number = 1;
+}
+
+message FloorMapResponse {
+  repeated SpotInfo spots = 1;
+}
+
+message SpotInfo {
+  string id = 1;
+  string spot_code = 2;
+  string vehicle_type = 3;
+  string status = 4;
+  int32 floor_number = 5;
+  int32 spot_number = 6;
+}
+
+message GetSpotDetailsRequest {
+  string spot_id = 1;
+}
+
+message SpotDetailsResponse {
+  string id = 1;
+  string spot_code = 2;
+  int32 floor_number = 3;
+  int32 spot_number = 4;
+  string vehicle_type = 5;
+  string status = 6;
+}

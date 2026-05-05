@@ -1,0 +1,241 @@
+// Package e2e_test provides Layer 1 E2E integration tests for ParkirPintar.
+//
+// This file contains TestMain which bootstraps real PostgreSQL, Redis, and
+// NATS JetStream containers via testcontainers-go, applies migrations,
+// wires all repositories and usecases, and tears everything down on exit.
+//
+// Best practices applied (from Go coding standards):
+// - Use context.Context as first parameter for consistency
+// - Handle errors explicitly with proper wrapping
+// - Use keyed fields in struct literals to prevent breakages during refactors
+// - Never ignore errors
+package e2e_test
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	"github.com/nats-io/nats.go"
+	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
+
+	billingrepo "parkir-pintar/internal/billing/repository"
+	billinguc "parkir-pintar/internal/billing/usecase"
+	"parkir-pintar/internal/payment/gateway"
+	paymentrepo "parkir-pintar/internal/payment/repository"
+	paymentuc "parkir-pintar/internal/payment/usecase"
+	presencerepo "parkir-pintar/internal/presence/repository"
+	presenceuc "parkir-pintar/internal/presence/usecase"
+	reservationrepo "parkir-pintar/internal/reservation/repository"
+	reservationuc "parkir-pintar/internal/reservation/usecase"
+	searchrepo "parkir-pintar/internal/search/repository"
+	searchuc "parkir-pintar/internal/search/usecase"
+)
+
+// testEnvStruct holds shared infrastructure and service instances for all
+// Layer 1 E2E tests. It is populated once in TestMain and accessed via the
+// package-level `env` variable.
+type testEnvStruct struct {
+	db              *sqlx.DB
+	redisClient     *redis.Client
+	natsConn        *nats.Conn
+	reservationUC   reservationuc.Usecase
+	billingUC       billinguc.Usecase
+	paymentUC       paymentuc.Usecase
+	presenceUC      presenceuc.Usecase
+	searchUC        searchuc.Usecase
+	reservationRepo reservationrepo.Repository
+	billingRepo     billingrepo.Repository
+	paymentRepo     paymentrepo.Repository
+	presenceRepo    presencerepo.Repository
+	searchRepo      searchrepo.Repository
+	paymentGW       *gateway.StubGateway
+}
+
+// env is the package-level test environment accessible by all test functions.
+var env *testEnvStruct
+
+// TestMain bootstraps real infrastructure containers, applies migrations,
+// wires all domain layers, runs the test suite, and tears down containers.
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	// -----------------------------------------------------------------------
+	// 1. Start containers
+	// -----------------------------------------------------------------------
+
+	// PostgreSQL 14
+	pgContainer, err := tcpostgres.Run(ctx, "postgres:14",
+		tcpostgres.WithDatabase("parkir_pintar_test"),
+		tcpostgres.WithUsername("test"),
+		tcpostgres.WithPassword("test"),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("5432/tcp").WithStartupTimeout(60*time.Second),
+		),
+	)
+	if err != nil {
+		log.Fatalf("start postgres container: %v", err)
+	}
+
+	// Redis 7
+	redisContainer, err := tcredis.Run(ctx, "redis:7")
+	if err != nil {
+		log.Fatalf("start redis container: %v", err)
+	}
+
+	// NATS with JetStream
+	natsContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "nats:latest",
+			ExposedPorts: []string{"4222/tcp"},
+			Cmd:          []string{"-js"},
+			WaitingFor:   wait.ForListeningPort("4222/tcp").WithStartupTimeout(60 * time.Second),
+		},
+		Started: true,
+	})
+	if err != nil {
+		log.Fatalf("start nats container: %v", err)
+	}
+
+	// -----------------------------------------------------------------------
+	// 2. Obtain connection strings
+	// -----------------------------------------------------------------------
+
+	pgConnStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		log.Fatalf("postgres connection string: %v", err)
+	}
+
+	redisEndpoint, err := redisContainer.ConnectionString(ctx)
+	if err != nil {
+		log.Fatalf("redis connection string: %v", err)
+	}
+
+	natsHost, err := natsContainer.Host(ctx)
+	if err != nil {
+		log.Fatalf("nats host: %v", err)
+	}
+	natsPort, err := natsContainer.MappedPort(ctx, "4222")
+	if err != nil {
+		log.Fatalf("nats mapped port: %v", err)
+	}
+	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
+
+	// -----------------------------------------------------------------------
+	// 3. Create clients
+	// -----------------------------------------------------------------------
+
+	db, err := sqlx.Connect("postgres", pgConnStr)
+	if err != nil {
+		log.Fatalf("connect to postgres: %v", err)
+	}
+
+	redisOpts, err := redis.ParseURL(redisEndpoint)
+	if err != nil {
+		log.Fatalf("parse redis URL: %v", err)
+	}
+	redisClient := redis.NewClient(redisOpts)
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		log.Fatalf("ping redis: %v", err)
+	}
+
+	natsConn, err := nats.Connect(natsURL)
+	if err != nil {
+		log.Fatalf("connect to nats: %v", err)
+	}
+
+	// -----------------------------------------------------------------------
+	// 4. Apply migrations
+	// -----------------------------------------------------------------------
+
+	migrations := []string{
+		"../../db/migrations/000001_init.up.sql",
+		"../../db/migrations/000002_parkir_pintar.up.sql",
+	}
+	for _, path := range migrations {
+		sql, err := os.ReadFile(path)
+		if err != nil {
+			log.Fatalf("read migration %s: %v", path, err)
+		}
+		if _, err := db.ExecContext(ctx, string(sql)); err != nil {
+			log.Fatalf("apply migration %s: %v", path, err)
+		}
+	}
+
+	// -----------------------------------------------------------------------
+	// 5. Wire repositories, adapters, and usecases
+	// -----------------------------------------------------------------------
+
+	// Repositories
+	resRepo := reservationrepo.NewRepository(db)
+	billRepo := billingrepo.NewRepository(db)
+	payRepo := paymentrepo.NewRepository(db)
+	presRepo := presencerepo.NewRepository(db)
+	srchRepo := searchrepo.NewRepository(db)
+
+	// Stub / adapters
+	natsStub := &stubNATSClient{}
+	stubGW := gateway.NewStubGateway(false)
+
+	redisAdapter := &reservationRedisAdapter{client: redisClient}
+	presRedisAdapter := &presenceRedisAdapter{client: redisClient}
+	srchRedisAdapter := &searchRedisAdapter{client: redisClient}
+
+	// Usecases
+	billUC := billinguc.NewUsecase(billRepo, natsStub)
+	payUC := paymentuc.NewUsecase(payRepo, stubGW, natsStub)
+
+	billAdapter := &billingAdapter{uc: billUC}
+	payAdapter := &paymentAdapter{uc: payUC}
+
+	resUC := reservationuc.NewUsecase(resRepo, redisAdapter, natsStub, billAdapter, payAdapter)
+	presUC := presenceuc.NewUsecase(presRepo, presRedisAdapter, natsStub)
+	srchUC := searchuc.NewUsecase(srchRepo, srchRedisAdapter)
+
+	// -----------------------------------------------------------------------
+	// 6. Populate test environment
+	// -----------------------------------------------------------------------
+
+	env = &testEnvStruct{
+		db:              db,
+		redisClient:     redisClient,
+		natsConn:        natsConn,
+		reservationUC:   resUC,
+		billingUC:       billUC,
+		paymentUC:       payUC,
+		presenceUC:      presUC,
+		searchUC:        srchUC,
+		reservationRepo: resRepo,
+		billingRepo:     billRepo,
+		paymentRepo:     payRepo,
+		presenceRepo:    presRepo,
+		searchRepo:      srchRepo,
+		paymentGW:       stubGW,
+	}
+
+	// -----------------------------------------------------------------------
+	// 7. Run tests then tear down
+	// -----------------------------------------------------------------------
+
+	code := m.Run()
+
+	// Cleanup
+	db.Close()
+	_ = redisClient.Close()
+	natsConn.Close()
+
+	_ = pgContainer.Terminate(ctx)
+	_ = redisContainer.Terminate(ctx)
+	_ = natsContainer.Terminate(ctx)
+
+	os.Exit(code)
+}

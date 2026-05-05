@@ -1,0 +1,32 @@
+# 2026/04/26 10:56:54.361286 [TestDetectArrival_ShouldReturnInvalidArgument_WhenCoordinatesOutOfRange] [rapid] draw invalidType: 0
+# 2026/04/26 10:56:54.361290 [TestDetectArrival_ShouldReturnInvalidArgument_WhenCoordinatesOutOfRange] [rapid] draw lat: 90.001
+# 2026/04/26 10:56:54.361308 [TestDetectArrival_ShouldReturnInvalidArgument_WhenCoordinatesOutOfRange] [rapid] draw lng: 1
+# 2026/04/26 10:56:54.361333 [TestDetectArrival_ShouldReturnInvalidArgument_WhenCoordinatesOutOfRange] 
+# 	Error Trace:	/Users/pirescerullo/GitHub/assessment/parkir-pintar/internal/presence/handler/handler_property_test.go:104
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/Users/pirescerullo/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/Users/pirescerullo/GitHub/assessment/parkir-pintar/internal/presence/handler/handler_property_test.go:67
+# 	Error:      	An error is expected but got nil.
+# 	Test:       	TestDetectArrival_ShouldReturnInvalidArgument_WhenCoordinatesOutOfRange
+# 	Messages:   	expected error for out-of-range coordinates (lat=90.001000, lng=1.000000)
+# 
+v0.4.8#6894221062436270588
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

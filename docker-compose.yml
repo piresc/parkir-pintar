@@ -1,0 +1,286 @@
+# Docker Compose for ParkirPintar — Smart Parking Marketplace
+# All credentials use ${ENV_VAR} references — no hardcoded secrets.
+# Copy example.env to .env and fill in your values before running.
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: assessment-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: assessment-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  nats:
+    image: nats:latest
+    container_name: assessment-nats
+    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-gateway
+    command: ["/app/gateway"]
+    ports:
+      - "8080:8080"
+    environment:
+      APP_NAME: parkir-pintar-gateway
+      APP_ENV: local
+      SERVER_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET}
+      GRPC_RESERVATION_TARGET: reservation:9090
+      GRPC_SEARCH_TARGET: search:9090
+      GRPC_PAYMENT_TARGET: payment:9090
+      GRPC_PRESENCE_TARGET: presence:9090
+      TRACING_ENABLED: "false"
+    depends_on:
+      reservation:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  search:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-search
+    command: ["/app/search"]
+    ports:
+      - "9092:9090"
+    environment:
+      APP_NAME: parkir-pintar-search
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NATS_URL: nats://nats:4222
+      TRACING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+  reservation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-reservation
+    command: ["/app/reservation"]
+    ports:
+      - "9091:9090"
+    environment:
+      APP_NAME: parkir-pintar-reservation
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NATS_URL: nats://nats:4222
+      TRACING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+  billing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-billing
+    command: ["/app/billing"]
+    ports:
+      - "9093:9090"
+    environment:
+      APP_NAME: parkir-pintar-billing
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      NATS_URL: nats://nats:4222
+      TRACING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+  payment:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-payment
+    command: ["/app/payment"]
+    ports:
+      - "9094:9090"
+    environment:
+      APP_NAME: parkir-pintar-payment
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      NATS_URL: nats://nats:4222
+      TRACING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+  presence:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-presence
+    command: ["/app/presence"]
+    ports:
+      - "9095:9090"
+    environment:
+      APP_NAME: parkir-pintar-presence
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NATS_URL: nats://nats:4222
+      TRACING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+  notification:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: parkir-notification
+    command: ["/app/notification"]
+    ports:
+      - "9096:9090"
+    environment:
+      APP_NAME: parkir-pintar-notification
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      NATS_URL: nats://nats:4222
+      TRACING_ENABLED: "false"
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:
+
+networks:
+  backend:
+    driver: bridge

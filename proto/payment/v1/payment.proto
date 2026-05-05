@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package payment.v1;
+
+option go_package = "parkir-pintar/proto/payment/v1;paymentv1";
+
+import "google/protobuf/timestamp.proto";
+
+// PaymentService processes payments, QRIS transactions, refunds, and status queries.
+service PaymentService {
+  // ProcessPayment processes a payment via the configured payment gateway.
+  rpc ProcessPayment(ProcessPaymentRequest) returns (PaymentResponse);
+  // ProcessQRIS processes a QRIS-specific payment.
+  rpc ProcessQRIS(ProcessQRISRequest) returns (PaymentResponse);
+  // RefundPayment refunds a previously completed payment.
+  rpc RefundPayment(RefundPaymentRequest) returns (PaymentResponse);
+  // GetPaymentStatus returns the current status of a payment.
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (PaymentResponse);
+}
+
+message ProcessPaymentRequest {
+  string billing_id = 1;
+  int64 amount = 2;
+  string payment_method = 3;   // "qris", "credit_card", "debit", "ewallet"
+  string idempotency_key = 4;
+}
+
+message ProcessQRISRequest {
+  string billing_id = 1;
+  int64 amount = 2;
+  string idempotency_key = 3;
+}
+
+message RefundPaymentRequest {
+  string payment_id = 1;
+}
+
+message GetPaymentStatusRequest {
+  string payment_id = 1;
+}
+
+message PaymentResponse {
+  string id = 1;
+  string billing_id = 2;
+  int64 amount = 3;
+  string payment_method = 4;
+  string payment_gateway = 5;
+  string transaction_ref = 6;
+  string idempotency_key = 7;
+  string status = 8;
+  google.protobuf.Timestamp paid_at = 9;
+}

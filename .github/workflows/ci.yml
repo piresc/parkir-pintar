@@ -1,0 +1,123 @@
+# GitHub Actions CI Pipeline
+# Triggers on push to main and pull requests.
+# Stages: secret-scan → lint → test (with race + coverage) → sonar
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Secret scanning via gitleaks
+  # -------------------------------------------------------------------------
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # -------------------------------------------------------------------------
+  # Lint via golangci-lint
+  # -------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout 5m
+
+  # -------------------------------------------------------------------------
+  # Test with race detector + coverage comparison
+  # -------------------------------------------------------------------------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Run tests with race detector and coverage
+        run: |
+          go test -v -race -covermode=atomic -coverprofile=coverage.txt ./...
+
+      - name: Display coverage summary
+        run: go tool cover -func=coverage.txt
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.txt
+
+  # -------------------------------------------------------------------------
+  # Security scan via gosec
+  # -------------------------------------------------------------------------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: Run gosec
+        run: gosec -exclude=G401,G304,G501,G505 -fmt=sonarqube -out=sonar-gosec.json ./...
+
+      - name: Upload gosec report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gosec-report
+          path: sonar-gosec.json
+
+  # -------------------------------------------------------------------------
+  # SonarCloud analysis
+  # -------------------------------------------------------------------------
+  sonar:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gosec-report
+
+      - uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

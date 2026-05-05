@@ -2,8 +2,8 @@
 //
 // Overlap detection tests per PRD §17.1 verify that:
 // - A spot whose status changes between FindAvailableSpot and GetSpotForUpdate is rejected
-// - Different spots can be reserved concurrently without conflict
-// - Boundary edge case when a spot becomes available is handled correctly
+// - Reservations succeed when spots are available (baseline for overlap context)
+// - Different vehicle types can reserve their matching available spots
 package usecase
 
 import (
@@ -67,14 +67,15 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	repo.AssertNotCalled(t, "UpdateSpotStatusTx")
 	billing.AssertNotCalled(t, "StartBilling")
 	natsClient.AssertNotCalled(t, "Publish")
+	payment.AssertNotCalled(t, "ProcessPayment")
 	repo.AssertExpectations(t)
 	redis.AssertExpectations(t)
 }
 
-// TestCreateReservation_ShouldAllow_WhenDifferentSpots verifies that two
-// reservations for different spots succeed without conflict. Creating a
-// reservation for "spot-a" should succeed normally.
-func TestCreateReservation_ShouldAllow_WhenDifferentSpots(t *testing.T) {
+// TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable verifies the baseline
+// happy path: when a spot is available, reservation proceeds normally. This
+// complements the rejection test by confirming the positive case.
+func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
@@ -125,11 +126,11 @@ func TestCreateReservation_ShouldAllow_WhenDifferentSpots(t *testing.T) {
 	billing.AssertExpectations(t)
 }
 
-// TestCreateReservation_ShouldAllow_WhenSpotBecomesAvailableAtBoundary verifies
-// the edge case where a spot's status transitions to "available" exactly at the
-// boundary of another reservation's expiry. Creating a reservation for
-// "spot-boundary" with vehicle_type "motorcycle" should succeed.
-func TestCreateReservation_ShouldAllow_WhenSpotBecomesAvailableAtBoundary(t *testing.T) {
+// TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable verifies
+// that a motorcycle-type reservation succeeds when an available motorcycle
+// spot is found. This ensures vehicle-type filtering in FindAvailableSpot
+// works correctly for the overlap-detection context.
+func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)

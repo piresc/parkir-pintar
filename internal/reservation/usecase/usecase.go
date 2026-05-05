@@ -36,7 +36,7 @@ type BillingClient interface {
 //
 //go:generate mockgen -destination=../mocks/mock_payment_client.go -package=mocks parkir-pintar/internal/reservation/usecase PaymentClient
 type PaymentClient interface {
-	ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) error
+	ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error)
 }
 
 // RedisClient defines the interface for Redis operations used by the reservation usecase.
@@ -345,7 +345,8 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 	}
 
 	paymentIdempotencyKey := fmt.Sprintf("payment-%s", reservation.ID)
-	if err := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingRecord.TotalAmount, "qris", paymentIdempotencyKey); err != nil {
+	paymentID, err := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingRecord.TotalAmount, "qris", paymentIdempotencyKey)
+	if err != nil {
 		return nil, fmt.Errorf("check-out process payment: %w", err)
 	}
 
@@ -360,6 +361,7 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 		Reservation: reservation,
 		TotalAmount: billingRecord.TotalAmount,
 		BillingID:   billingRecord.ID,
+		PaymentID:   paymentID,
 	}, nil
 }
 

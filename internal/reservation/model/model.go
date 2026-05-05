@@ -116,6 +116,7 @@ type CheckOutResponse struct {
 	Reservation *Reservation `json:"reservation"`
 	TotalAmount int64        `json:"total_amount"`
 	BillingID   string       `json:"billing_id"`
+	PaymentID   string       `json:"payment_id"`
 }
 
 // ExpireReservationRequest is the payload for expiring a reservation.

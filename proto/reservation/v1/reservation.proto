@@ -63,4 +63,5 @@ message CheckOutResponse {
   ReservationResponse reservation = 1;
   int64 total_amount = 2;
   string billing_id = 3;
+  string payment_id = 4;
 }

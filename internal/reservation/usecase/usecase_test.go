@@ -143,9 +143,9 @@ type MockPaymentClient struct {
 	mock.Mock
 }
 
-func (m *MockPaymentClient) ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) error {
+func (m *MockPaymentClient) ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error) {
 	args := m.Called(ctx, billingID, amount, paymentMethod, idempotencyKey)
-	return args.Error(0)
+	return args.String(0), args.Error(1)
 }
 
 // MockRedisClient implements RedisClient using testify/mock.
@@ -602,7 +602,7 @@ func TestCheckOut_ShouldCalculateFeeAndProcess_WhenCheckedInState(t *testing.T) 
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-10", "available").Return(nil)
 	billing.On("CalculateFee", mock.Anything, "res-checkout", checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
 	billing.On("GenerateInvoice", mock.Anything, "res-checkout", mock.AnythingOfType("string")).Return(billingRecord, nil)
-	payment.On("ProcessPayment", mock.Anything, "billing-1", int64(15000), "qris", mock.AnythingOfType("string")).Return(nil)
+	payment.On("ProcessPayment", mock.Anything, "billing-1", int64(15000), "qris", mock.AnythingOfType("string")).Return("payment-123", nil)
 	natsClient.On("Publish", "reservation.checked_out", mock.Anything).Return(nil)
 
 	uc := NewUsecase(repo, redis, natsClient, billing, payment)

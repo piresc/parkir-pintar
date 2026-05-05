@@ -18,12 +18,15 @@ func NewPaymentClient(client paymentv1.PaymentServiceClient) *PaymentClient {
 }
 
 // ProcessPayment calls the payment service to process a payment for a billing record.
-func (c *PaymentClient) ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) error {
-	_, err := c.client.ProcessPayment(ctx, &paymentv1.ProcessPaymentRequest{
+func (c *PaymentClient) ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error) {
+	resp, err := c.client.ProcessPayment(ctx, &paymentv1.ProcessPaymentRequest{
 		BillingId:      billingID,
 		Amount:         amount,
 		PaymentMethod:  paymentMethod,
 		IdempotencyKey: idempotencyKey,
 	})
-	return err
+	if err != nil {
+		return "", err
+	}
+	return resp.GetId(), nil
 }

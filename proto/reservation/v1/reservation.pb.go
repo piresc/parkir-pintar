@@ -431,6 +431,7 @@ type CheckOutResponse struct {
 	Reservation *ReservationResponse `protobuf:"bytes,1,opt,name=reservation,proto3" json:"reservation,omitempty"`
 	TotalAmount int64                `protobuf:"varint,2,opt,name=total_amount,json=totalAmount,proto3" json:"total_amount,omitempty"`
 	BillingId   string               `protobuf:"bytes,3,opt,name=billing_id,json=billingId,proto3" json:"billing_id,omitempty"`
+	PaymentId   string               `protobuf:"bytes,4,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
 }
 
 func (x *CheckOutResponse) Reset() {
@@ -482,6 +483,13 @@ func (x *CheckOutResponse) GetTotalAmount() int64 {
 func (x *CheckOutResponse) GetBillingId() string {
 	if x != nil {
 		return x.BillingId
+	}
+	return ""
+}
+
+func (x *CheckOutResponse) GetPaymentId() string {
+	if x != nil {
+		return x.PaymentId
 	}
 	return ""
 }

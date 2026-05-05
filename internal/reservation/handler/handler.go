@@ -109,6 +109,7 @@ func (h *Handler) CheckOut(ctx context.Context, req *reservationv1.CheckOutReque
 		Reservation: reservationToProto(result.Reservation),
 		TotalAmount: result.TotalAmount,
 		BillingId:   result.BillingID,
+		PaymentId:   result.PaymentID,
 	}, nil
 }
 

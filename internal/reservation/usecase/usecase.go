@@ -134,10 +134,13 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		}
 	}()
 
-	// Step 4: Double-check spot availability under lock
+	// Step 4: Double-check spot availability and vehicle-type compatibility under lock
 	spot, err := uc.repo.GetSpotForUpdate(ctx, spotID)
 	if err != nil || spot.Status != "available" {
 		return nil, apperror.New("CONFLICT", "spot no longer available", 409)
+	}
+	if spot.VehicleType != req.VehicleType {
+		return nil, apperror.BadRequest("spot vehicle type does not match requested vehicle type")
 	}
 
 	// Step 5: Create reservation in transaction

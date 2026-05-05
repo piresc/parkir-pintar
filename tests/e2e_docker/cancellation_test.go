@@ -55,16 +55,16 @@ func TestDockerCancellation_ShouldReturnZeroFee_WhenCancelledImmediately(t *test
 	var createResult struct {
 		Status string `json:"status"`
 		Data   struct {
-			ReservationId string `json:"reservation_id"`
+			ID string `json:"id"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createResult); err != nil {
 		t.Fatalf("failed to decode create response: %v", err)
 	}
 
-	reservationID := createResult.Data.ReservationId
+	reservationID := createResult.Data.ID
 	if reservationID == "" {
-		t.Fatal("reservation_id is empty in create response")
+		t.Fatal("reservation id is empty in create response")
 	}
 	t.Logf("Created reservation for cancellation: %s", reservationID)
 

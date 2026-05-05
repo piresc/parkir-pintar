@@ -69,7 +69,7 @@ services:
     container_name: parkir-gateway
     command: ["/app/gateway"]
     ports:
-      - "8080:8080"
+      - "8082:8080"
     environment:
       APP_NAME: parkir-pintar-gateway
       APP_ENV: local

@@ -139,7 +139,9 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	if err != nil || spot.Status != "available" {
 		return nil, apperror.New("CONFLICT", "spot no longer available", 409)
 	}
-	if spot.VehicleType != req.VehicleType {
+	// Vehicle-type validation is only needed for user_selected mode;
+	// system_assigned mode already filters by vehicle type in FindAvailableSpot.
+	if req.AssignmentMode == model.AssignmentUserSelected && spot.VehicleType != req.VehicleType {
 		return nil, apperror.BadRequest("spot vehicle type does not match requested vehicle type")
 	}
 

@@ -285,8 +285,9 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	redis.On("SetNX", mock.Anything, "lock:spot:spot-99", "locked", 30*time.Second).Return(true, nil)
 	redis.On("Delete", mock.Anything, "lock:spot:spot-99").Return(nil)
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-99").Return(&model.ParkingSpot{
-		ID:     "spot-99",
-		Status: "available",
+		ID:          "spot-99",
+		VehicleType: "motorcycle",
+		Status:      "available",
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-99", "reserved").Return(nil)

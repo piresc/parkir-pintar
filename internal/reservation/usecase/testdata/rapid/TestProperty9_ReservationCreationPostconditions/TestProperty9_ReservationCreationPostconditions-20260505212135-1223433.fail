@@ -1,0 +1,26 @@
+# 2026/05/05 21:21:35.831832 [TestProperty9_ReservationCreationPostconditions] [rapid] draw vehicleType: "car"
+# 2026/05/05 21:21:35.832169 [TestProperty9_ReservationCreationPostconditions] 
+# 	Error Trace:	/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:200
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:160
+# 	            				/usr/local/go/src/runtime/asm_amd64.s:1693
+# 	Error:      	Received unexpected error:
+# 	            	spot vehicle type does not match requested vehicle type
+# 	Test:       	TestProperty9_ReservationCreationPostconditions
+# 2026/05/05 21:21:35.832209 [TestProperty9_ReservationCreationPostconditions] 
+# 	Error Trace:	/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:201
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:160
+# 	            				/usr/local/go/src/runtime/asm_amd64.s:1693
+# 	Error:      	Expected value not to be nil.
+# 	Test:       	TestProperty9_ReservationCreationPostconditions
+# 
+v0.4.8#2028353846803578081
+0x0
+0x0

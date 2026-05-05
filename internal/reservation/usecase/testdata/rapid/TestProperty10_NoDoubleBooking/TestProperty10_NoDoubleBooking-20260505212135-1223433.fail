@@ -1,0 +1,25 @@
+# 2026/05/05 21:21:35.844167 [TestProperty10_NoDoubleBooking] [rapid] draw spotID: ""
+# 2026/05/05 21:21:35.844362 [TestProperty10_NoDoubleBooking] 
+# 	Error Trace:	/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:273
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:231
+# 	            				/usr/local/go/src/runtime/asm_amd64.s:1693
+# 	Error:      	Received unexpected error:
+# 	            	spot vehicle type does not match requested vehicle type
+# 	Test:       	TestProperty10_NoDoubleBooking
+# 2026/05/05 21:21:35.844380 [TestProperty10_NoDoubleBooking] 
+# 	Error Trace:	/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:274
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:371
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:380
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:205
+# 	            				/home/piresc/go/pkg/mod/pgregory.net/rapid@v1.2.0/engine.go:120
+# 	            				/home/piresc/.openclaw/workspace-coder/parkir-pintar/internal/reservation/usecase/usecase_property_test.go:231
+# 	            				/usr/local/go/src/runtime/asm_amd64.s:1693
+# 	Error:      	Expected value not to be nil.
+# 	Test:       	TestProperty10_NoDoubleBooking
+# 
+v0.4.8#18401275778927697603
+0x0

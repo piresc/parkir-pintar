@@ -58,19 +58,19 @@ func TestDockerHappyPath_ShouldCompleteFullLifecycle(t *testing.T) {
 	var createResult struct {
 		Status string `json:"status"`
 		Data   struct {
-			ReservationId string `json:"reservation_id"`
-			SpotCode      string `json:"spot_code"`
+			ID     string `json:"id"`
+			SpotID string `json:"spot_id"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(createResp.Body).Decode(&createResult); err != nil {
 		t.Fatalf("failed to decode create response: %v", err)
 	}
 
-	reservationID := createResult.Data.ReservationId
+	reservationID := createResult.Data.ID
 	if reservationID == "" {
-		t.Fatal("reservation_id is empty in create response")
+		t.Fatal("reservation id is empty in create response")
 	}
-	t.Logf("Created reservation: %s, spot: %s", reservationID, createResult.Data.SpotCode)
+	t.Logf("Created reservation: %s, spot: %s", reservationID, createResult.Data.SpotID)
 
 	// --- Act: Check in ---
 	checkinResp, err := denv.httpClient.Post(
@@ -115,7 +115,7 @@ func TestDockerHappyPath_ShouldCompleteFullLifecycle(t *testing.T) {
 	t.Logf("Checkout response data: %+v", checkoutResult.Data)
 
 	// --- Act: Get availability ---
-	availResp, err := denv.httpClient.Get(denv.baseURL + "/api/v1/availability")
+	availResp, err := denv.httpClient.Get(denv.baseURL + "/api/v1/availability?vehicle_type=car")
 	if err != nil {
 		t.Fatalf("GET /api/v1/availability failed: %v", err)
 	}

@@ -28,7 +28,7 @@ func TestDockerPayment_ShouldReturnPaymentStatus(t *testing.T) {
 	// --- Arrange: Create reservation ---
 	idempotencyKey := uuid.New().String()
 	createBody, err := json.Marshal(map[string]string{
-		"driver_id":       "test-driver-001",
+		"driver_id":       denv.driverID,
 		"vehicle_type":    "car",
 		"assignment_mode": "system_assigned",
 		"idempotency_key": idempotencyKey,

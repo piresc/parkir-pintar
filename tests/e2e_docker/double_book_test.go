@@ -51,7 +51,7 @@ func TestDockerDoubleBook_ShouldRejectSecond_WhenSameSpot(t *testing.T) {
 			defer wg.Done()
 
 			body, marshalErr := json.Marshal(map[string]string{
-				"driver_id":       "test-driver-001",
+				"driver_id":       denv.driverID,
 				"vehicle_type":    "motorcycle",
 				"assignment_mode": "system_assigned",
 				"idempotency_key": uuid.New().String(),

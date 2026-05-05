@@ -8,20 +8,24 @@ import (
 	"time"
 
 	"parkir-pintar/internal/natssetup"
-	billingmodel "parkir-pintar/internal/billing/model"
 	reservationhandler "parkir-pintar/internal/reservation/handler"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/internal/reservation/usecase"
 	"parkir-pintar/internal/reservation/worker"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
+	"parkir-pintar/pkg/grpcclient"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
+	billingv1 "parkir-pintar/proto/billing/v1"
+	paymentv1 "parkir-pintar/proto/payment/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
+
+	"parkir-pintar/internal/reservation/client"
 )
 
 func main() {
@@ -64,14 +68,45 @@ func main() {
 	tracedPG := database.NewTracedPostgresClient(pgClient, tracer)
 	tracedRedis := redis.NewTracedRedisClient(redisClient, tracer)
 
-	// Wire domain layers
-	// BillingClient and PaymentClient are stub implementations for now;
-	// in production these would be gRPC client adapters.
+	// Dial downstream billing & payment services.
+	billingTarget := getEnv("GRPC_BILLING_TARGET", "localhost:9093")
+	paymentTarget := getEnv("GRPC_PAYMENT_TARGET", "localhost:9094")
+
+	clientCfg := grpcclient.ClientConfig{
+		DialTimeout:      cfg.GRPC.Client.DialTimeout,
+		KeepAliveTime:    cfg.GRPC.Client.KeepAliveTime,
+		KeepAliveTimeout: cfg.GRPC.Client.KeepAliveTimeout,
+		Tracer:           tracer,
+		Logger:           log,
+	}
+
+	clientCfg.Target = billingTarget
+	billingConn, err := grpcclient.Dial(context.Background(), clientCfg)
+	if err != nil {
+		log.Error("failed to connect to billing service", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	clientCfg.Target = paymentTarget
+	paymentConn, err := grpcclient.Dial(context.Background(), clientCfg)
+	if err != nil {
+		log.Error("failed to connect to payment service", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	billingGRPC := billingv1.NewBillingServiceClient(billingConn)
+	paymentGRPC := paymentv1.NewPaymentServiceClient(paymentConn)
+
+	// Wire domain layers.
 	repo := reservationrepo.NewRepository(tracedPG.GetDB())
-	uc := usecase.NewUsecase(repo, tracedRedis, natsClient, &stubBillingClient{}, &stubPaymentClient{})
+	uc := usecase.NewUsecase(
+		repo, tracedRedis, natsClient,
+		client.NewBillingClient(billingGRPC),
+		client.NewPaymentClient(paymentGRPC),
+	)
 	handler := reservationhandler.NewHandler(uc)
 
-	// Start expiry worker
+	// Start expiry worker.
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go worker.RunExpiryWorker(workerCtx, 30*time.Second, repo, uc)
 
@@ -80,6 +115,8 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { billingConn.Close(); return nil })
+	shutdownMgr.Register(func(_ context.Context) error { paymentConn.Close(); return nil })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
 	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second)
@@ -95,25 +132,9 @@ func main() {
 	}
 }
 
-// stubBillingClient is a minimal billing client for standalone operation.
-type stubBillingClient struct{}
-
-func (s *stubBillingClient) StartBilling(_ context.Context, _ string, _ int64, _ string) error {
-	return nil
-}
-func (s *stubBillingClient) CalculateFee(_ context.Context, _ string, _, _ time.Time) (*billingmodel.BillingRecord, error) {
-	return &billingmodel.BillingRecord{}, nil
-}
-func (s *stubBillingClient) GenerateInvoice(_ context.Context, _ string, _ string) (*billingmodel.BillingRecord, error) {
-	return &billingmodel.BillingRecord{}, nil
-}
-func (s *stubBillingClient) ApplyPenalty(_ context.Context, _ string, _ string, _ int64, _ string) error {
-	return nil
-}
-
-// stubPaymentClient is a minimal payment client for standalone operation.
-type stubPaymentClient struct{}
-
-func (s *stubPaymentClient) ProcessPayment(_ context.Context, _ string, _ int64, _ string, _ string) error {
-	return nil
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
 }

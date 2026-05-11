@@ -47,6 +47,7 @@ func clearEnv(t *testing.T) {
 
 func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	cfg, err := Load("")
 	require.NoError(t, err)
@@ -87,7 +88,7 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, "nats://localhost:4222", cfg.NATS.URL)
 
 	// JWT defaults
-	assert.Equal(t, "", cfg.JWT.Secret)
+	assert.Equal(t, "test-default-secret", cfg.JWT.Secret)
 	assert.Equal(t, 60, cfg.JWT.Expiration)
 	assert.Equal(t, "parkir-pintar", cfg.JWT.Issuer)
 
@@ -228,17 +229,18 @@ func TestLoad_ShouldReturnError_WhenJWTSecretMissingInNonLocal(t *testing.T) {
 	assert.Contains(t, err.Error(), "JWT_SECRET")
 }
 
-func TestLoad_ShouldSucceed_WhenJWTSecretEmptyInLocalEnv(t *testing.T) {
+func TestLoad_ShouldReturnError_WhenJWTSecretEmptyInLocalEnv(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("APP_ENV", "local")
 
-	cfg, err := Load("")
-	require.NoError(t, err)
-	assert.Equal(t, "", cfg.JWT.Secret)
+	_, err := Load("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "JWT_SECRET")
 }
 
 func TestLoad_ShouldLoadDotEnvFile_WhenAppEnvIsLocal(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	// Create a temporary .env file
 	tmpDir := t.TempDir()
@@ -271,6 +273,7 @@ func TestLoad_ShouldNotLoadDotEnvFile_WhenAppEnvIsProduction(t *testing.T) {
 
 func TestLoad_ShouldParseAllowedOrigins_WhenCommaSeparated(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("SERVER_ALLOWED_ORIGINS", "https://a.com,https://b.com,https://c.com")
 
 	cfg, err := Load("")
@@ -280,6 +283,7 @@ func TestLoad_ShouldParseAllowedOrigins_WhenCommaSeparated(t *testing.T) {
 
 func TestLoad_ShouldParseAPIKeys_WhenCommaSeparatedKeyValuePairs(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("AUTH_API_KEYS", "service-a:key-a, service-b:key-b")
 
 	cfg, err := Load("")
@@ -290,6 +294,7 @@ func TestLoad_ShouldParseAPIKeys_WhenCommaSeparatedKeyValuePairs(t *testing.T) {
 
 func TestLoad_ShouldReturnEmptyAPIKeys_WhenEnvVarNotSet(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	cfg, err := Load("")
 	require.NoError(t, err)
@@ -299,6 +304,7 @@ func TestLoad_ShouldReturnEmptyAPIKeys_WhenEnvVarNotSet(t *testing.T) {
 
 func TestLoad_ShouldUseDefaultsForInvalidIntValues(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("SERVER_PORT", "not-a-number")
 
 	cfg, err := Load("")
@@ -309,6 +315,7 @@ func TestLoad_ShouldUseDefaultsForInvalidIntValues(t *testing.T) {
 
 func TestLoad_ShouldUseDefaultsForInvalidBoolValues(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("APP_DEBUG", "not-a-bool")
 
 	cfg, err := Load("")
@@ -318,6 +325,7 @@ func TestLoad_ShouldUseDefaultsForInvalidBoolValues(t *testing.T) {
 
 func TestLoad_ShouldUseDefaultsForInvalidFloatValues(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("TRACING_SAMPLE_RATE", "not-a-float")
 
 	cfg, err := Load("")
@@ -330,6 +338,7 @@ func TestLoad_ShouldUseDefaultsForInvalidFloatValues(t *testing.T) {
 
 func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	cfg, err := Load("")
 	require.NoError(t, err)
@@ -348,6 +357,7 @@ func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
 
 func TestLoad_ShouldParseAllGRPCEnvVars_WhenAllSet(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_SERVER_PORT", "50051")
 	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
@@ -374,6 +384,7 @@ func TestLoad_ShouldParseAllGRPCEnvVars_WhenAllSet(t *testing.T) {
 
 func TestLoad_ShouldParsePartialGRPCEnvVars_WhenSomeSet(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	// Only set port and dial timeout, leave the rest as defaults
 	t.Setenv("GRPC_SERVER_PORT", "8443")
@@ -396,6 +407,7 @@ func TestLoad_ShouldParsePartialGRPCEnvVars_WhenSomeSet(t *testing.T) {
 
 func TestLoad_ShouldIndicateTLSEnabled_WhenBothCertAndKeyPathsProvided(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
 	t.Setenv("GRPC_TLS_KEY_PATH", "/certs/server.key")
@@ -412,6 +424,7 @@ func TestLoad_ShouldIndicateTLSEnabled_WhenBothCertAndKeyPathsProvided(t *testin
 
 func TestLoad_ShouldIndicateNoTLS_WhenOnlyCertPathProvided(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
 	// GRPC_TLS_KEY_PATH not set
@@ -426,6 +439,7 @@ func TestLoad_ShouldIndicateNoTLS_WhenOnlyCertPathProvided(t *testing.T) {
 
 func TestLoad_ShouldIndicateNoTLS_WhenOnlyKeyPathProvided(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_TLS_KEY_PATH", "/certs/server.key")
 	// GRPC_TLS_CERT_PATH not set
@@ -440,6 +454,7 @@ func TestLoad_ShouldIndicateNoTLS_WhenOnlyKeyPathProvided(t *testing.T) {
 
 func TestLoad_ShouldIndicateNoTLS_WhenNeitherCertNorKeyPathProvided(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	cfg, err := Load("")
 	require.NoError(t, err)
@@ -451,6 +466,7 @@ func TestLoad_ShouldIndicateNoTLS_WhenNeitherCertNorKeyPathProvided(t *testing.T
 
 func TestLoad_ShouldUseDefaultGRPCPort_WhenInvalidPortProvided(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_SERVER_PORT", "not-a-number")
 
@@ -463,6 +479,7 @@ func TestLoad_ShouldUseDefaultGRPCPort_WhenInvalidPortProvided(t *testing.T) {
 
 func TestLoad_ShouldUseDefaultDuration_WhenInvalidDurationProvided(t *testing.T) {
 	clearEnv(t)
+	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_DIAL_TIMEOUT", "invalid")
 	t.Setenv("GRPC_KEEPALIVE_TIME", "bad-value")

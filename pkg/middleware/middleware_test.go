@@ -26,7 +26,7 @@ import (
 	"parkir-pintar/pkg/tracing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -753,4 +753,35 @@ func TestDefaultRateLimitConfig_ShouldReturnSensibleDefaults(t *testing.T) {
 	assert.Equal(t, 100, cfg.RequestsPerSecond)
 	assert.Equal(t, 200, cfg.BurstSize)
 	assert.Equal(t, 5*time.Minute, cfg.CleanupInterval)
+}
+
+func TestRateLimiter_ShouldReuseStore_WhenCalledMultipleTimes(t *testing.T) {
+	mw := newTestMiddleware()
+
+	cfg := RateLimitConfig{
+		RequestsPerSecond: 100,
+		BurstSize:         100,
+		CleanupInterval:   5 * time.Minute,
+	}
+
+	mw.RateLimiter(cfg)
+	mw.RateLimiter(cfg)
+
+	assert.NotNil(t, mw.rateStore)
+}
+
+func TestMiddleware_ShouldCleanupStore_WhenShutdown(t *testing.T) {
+	mw := newTestMiddleware()
+
+	cfg := RateLimitConfig{
+		RequestsPerSecond: 100,
+		BurstSize:         100,
+		CleanupInterval:   5 * time.Minute,
+	}
+
+	mw.RateLimiter(cfg)
+	assert.NotNil(t, mw.rateStore)
+
+	mw.Shutdown()
+	assert.NotNil(t, mw.rateStore)
 }

@@ -54,7 +54,8 @@ type ProcessQRISRequest struct {
 
 // RefundPaymentRequest is the payload for refunding a payment.
 type RefundPaymentRequest struct {
-	PaymentID string `json:"payment_id"`
+	PaymentID      string `json:"payment_id"`
+	IdempotencyKey string `json:"idempotency_key"`
 }
 
 // GetPaymentStatusRequest is the payload for querying payment status.

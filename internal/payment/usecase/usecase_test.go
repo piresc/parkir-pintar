@@ -316,3 +316,32 @@ func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)
 	repo.AssertExpectations(t)
 }
+
+func TestRefundPayment_ShouldReturnExisting_WhenIdempotencyKeyExists(t *testing.T) {
+	repo := new(MockRepository)
+	gw := new(MockPaymentGateway)
+	natsClient := new(MockNATSClient)
+
+	existing := &model.Payment{
+		ID:             "existing-refund-id",
+		BillingID:      "bill-1",
+		Amount:         15000,
+		Status:         model.PaymentStatusRefunded,
+		IdempotencyKey: "refund-key-1",
+	}
+	repo.On("GetByIdempotencyKey", mock.Anything, "refund-key-1").Return(existing, nil)
+
+	uc := NewUsecase(repo, gw, natsClient)
+	req := &model.RefundPaymentRequest{
+		PaymentID:      "different-payment",
+		IdempotencyKey: "refund-key-1",
+	}
+
+	result, err := uc.RefundPayment(t.Context(), req)
+
+	require.NoError(t, err)
+	assert.Equal(t, "existing-refund-id", result.ID)
+	assert.Equal(t, model.PaymentStatusRefunded, result.Status)
+	gw.AssertNotCalled(t, "Refund")
+	repo.AssertExpectations(t)
+}

@@ -145,9 +145,20 @@ func (uc *paymentUsecase) ProcessQRIS(ctx context.Context, req *model.ProcessQRI
 
 // RefundPayment refunds a previously completed payment via the gateway.
 func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPaymentRequest) (*model.Payment, error) {
+	if req.IdempotencyKey != "" {
+		existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+		if err == nil && existing != nil {
+			return existing, nil
+		}
+	}
+
 	payment, err := uc.repo.GetByID(ctx, req.PaymentID)
 	if err != nil {
 		return nil, fmt.Errorf("refund payment get: %w", err)
+	}
+
+	if payment.Status != model.PaymentStatusSuccess {
+		return nil, fmt.Errorf("cannot refund payment in status %q", payment.Status)
 	}
 
 	if err := uc.gw.Refund(ctx, payment.TransactionRef); err != nil {
@@ -156,6 +167,9 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 
 	payment.Status = model.PaymentStatusRefunded
 	payment.UpdatedAt = time.Now()
+	if req.IdempotencyKey != "" {
+		payment.IdempotencyKey = req.IdempotencyKey
+	}
 
 	if err := uc.repo.UpdatePayment(ctx, payment); err != nil {
 		return nil, fmt.Errorf("refund payment update: %w", err)

@@ -14,6 +14,7 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -61,6 +62,9 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err == nil && existing != nil {
 		return existing, nil
+	}
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, fmt.Errorf("process payment check idempotency: %w", err)
 	}
 
 	now := time.Now()
@@ -149,6 +153,9 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 		if err == nil && existing != nil {
 			return existing, nil
+		}
+		if err != nil && !errors.Is(err, repository.ErrNotFound) {
+			return nil, fmt.Errorf("refund payment check idempotency: %w", err)
 		}
 	}
 

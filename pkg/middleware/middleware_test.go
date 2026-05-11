@@ -562,6 +562,30 @@ func TestJWTAuth_ShouldReturn401_WhenWrongSecret(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
+func TestJWTAuth_ShouldReturn401_WhenAlgorithmIsNotHS256(t *testing.T) {
+	mw := newTestMiddleware()
+	secret := "test-secret-key"
+	w := httptest.NewRecorder()
+	_, engine := gin.CreateTestContext(w)
+
+	engine.Use(mw.JWTAuth(secret))
+	engine.GET("/protected", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS384, jwt.MapClaims{
+		"user_id": "user-123",
+		"exp":     time.Now().Add(time.Hour).Unix(),
+	})
+	tokenString, _ := token.SignedString([]byte(secret))
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenString)
+	engine.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
 // --- 5.9 APIKeyAuth ---
 
 func TestAPIKeyAuth_ShouldPass_WhenValidKey(t *testing.T) {

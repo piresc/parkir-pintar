@@ -79,7 +79,18 @@ services:
       GRPC_SEARCH_TARGET: search:9090
       GRPC_PAYMENT_TARGET: payment:9090
       GRPC_PRESENCE_TARGET: presence:9090
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
+      SERVER_ALLOWED_ORIGINS: "http://localhost:3000,http://100.79.123.39:3002,http://100.79.123.39:3000"
     depends_on:
       reservation:
         condition: service_healthy
@@ -112,6 +123,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: search
       DB_SSL_MODE: disable
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -152,6 +164,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: reservation
       DB_SSL_MODE: disable
       REDIS_HOST: redis
       REDIS_PORT: "6379"
@@ -160,6 +173,7 @@ services:
       TRACING_ENABLED: "false"
       GRPC_BILLING_TARGET: billing:9090
       GRPC_PAYMENT_TARGET: payment:9090
+      PAYMENT_TIMEOUT_MINUTES: "10"
     depends_on:
       postgres:
         condition: service_healthy
@@ -198,6 +212,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: billing
       DB_SSL_MODE: disable
       NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
@@ -233,6 +248,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: payment
       DB_SSL_MODE: disable
       NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
@@ -268,6 +284,7 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: presence
       DB_SSL_MODE: disable
       REDIS_HOST: redis
       REDIS_PORT: "6379"

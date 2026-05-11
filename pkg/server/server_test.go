@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -156,7 +157,7 @@ func TestNewGracefulServer_ShouldReturnServer_WhenValidParamsProvided(t *testing
 	logger := newTestLogger()
 
 	// Act
-	srv := NewGracefulServer(nil, logger, 8080)
+	srv := NewGracefulServer(nil, logger, 8080, 30*time.Second)
 
 	// Assert
 	require.NotNil(t, srv)

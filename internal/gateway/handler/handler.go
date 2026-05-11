@@ -54,6 +54,8 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 	api.DELETE("/reservations/:id", h.CancelReservation)
 	api.POST("/reservations/:id/checkin", h.CheckIn)
 	api.POST("/reservations/:id/checkout", h.CheckOut)
+	api.POST("/reservations/:id/confirm", h.ConfirmReservation)
+	api.POST("/reservations/:id/complete", h.CompleteCheckout)
 
 	// Search routes
 	api.GET("/availability", h.GetAvailability)
@@ -153,6 +155,44 @@ func (h *Handler) CheckOut(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
+// ConfirmReservation transcodes POST /api/v1/reservations/:id/confirm to ReservationService.ConfirmReservation.
+func (h *Handler) ConfirmReservation(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	resp, err := h.reservation.ConfirmReservation(c.Request.Context(), &reservationv1.ConfirmReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// CompleteCheckout transcodes POST /api/v1/reservations/:id/complete to ReservationService.CompleteCheckout.
+func (h *Handler) CompleteCheckout(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	resp, err := h.reservation.CompleteCheckout(c.Request.Context(), &reservationv1.CompleteCheckoutRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
 // GetAvailability transcodes GET /api/v1/availability to SearchService.GetAvailability.
 func (h *Handler) GetAvailability(c *gin.Context) {
 	vehicleType := c.Query("vehicle_type")
@@ -207,14 +247,14 @@ func (h *Handler) GetSpotDetails(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// StreamLocation transcodes POST /api/v1/presence/stream to a simplified
-// single-location-update call via PresenceService.DetectArrival.
+// StreamLocation transcodes POST /api/v1/presence/stream to PresenceService.DetectArrival.
+// Note: the request body's `accuracy` field (if present) is not forwarded — the
+// DetectArrival RPC uses geofence center coordinates and radius instead.
 func (h *Handler) StreamLocation(c *gin.Context) {
 	var req struct {
 		ReservationID string  `json:"reservation_id"`
 		Latitude      float64 `json:"latitude"`
 		Longitude     float64 `json:"longitude"`
-		Accuracy      float64 `json:"accuracy"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request body")

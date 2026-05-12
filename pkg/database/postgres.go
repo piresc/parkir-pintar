@@ -33,6 +33,10 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 		cfg.SSLMode,
 	)
 
+	if cfg.Schema != "" && cfg.Schema != "public" {
+		dsn += fmt.Sprintf("&search_path=%s,public", url.QueryEscape(cfg.Schema))
+	}
+
 	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)

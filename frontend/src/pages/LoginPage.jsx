@@ -13,18 +13,9 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  function isValidUUID(str) {
-    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    return regex.test(str);
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (!driverId.trim()) return;
-    if (!isValidUUID(driverId.trim())) {
-      setError('Please enter a valid Driver ID (UUID format, e.g. 550e8400-e29b-41d4-a716-446655440000)');
-      return;
-    }
     setLoading(true);
     setError('');
     try {
@@ -46,7 +37,7 @@ export default function LoginPage() {
         <p className="login-subtitle">Smart Parking, Simplified</p>
         <form onSubmit={handleSubmit} className="login-form">
           <label>Driver ID</label>
-          <Input value={driverId} onChange={(e) => setDriverId(e.target.value)} placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000" />
+          <Input value={driverId} onChange={(e) => setDriverId(e.target.value)} placeholder="e.g. driver-1" />
           {error && <p style={{ color: 'var(--error, #ff4444)', fontSize: '0.85em' }}>{error}</p>}
           <Button variant="cta" type="submit" disabled={!driverId.trim() || loading}>
             {loading ? 'Generating...' : 'Enter Garage'}

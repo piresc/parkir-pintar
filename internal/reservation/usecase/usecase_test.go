@@ -429,6 +429,10 @@ func TestCancelReservation_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-cancel-free").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-5", "available").Return(nil)
+	repo.On("GetSpotForUpdate", mock.Anything, "spot-5").Return(&model.ParkingSpot{
+		ID:     "spot-5",
+		Status: "available",
+	}, nil)
 	// No ApplyPenalty call expected since fee is 0
 	natsClient.On("Publish", "reservation.cancelled", mock.Anything).Return(nil)
 
@@ -470,6 +474,10 @@ func TestCancelReservation_ShouldChargeFee_WhenCancelledAfter2Min(t *testing.T) 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-cancel-paid").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-6", "available").Return(nil)
+	repo.On("GetSpotForUpdate", mock.Anything, "spot-6").Return(&model.ParkingSpot{
+		ID:     "spot-6",
+		Status: "available",
+	}, nil)
 	billing.On("ApplyPenalty", mock.Anything, "res-cancel-paid", "cancellation", billingmodel.CancelFee, "cancellation fee").Return(nil)
 	natsClient.On("Publish", "reservation.cancelled", mock.Anything).Return(nil)
 
@@ -546,6 +554,10 @@ func TestCheckIn_ShouldTransitionToCheckedIn_WhenConfirmedState(t *testing.T) {
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-checkin").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-8", "occupied").Return(nil)
+	repo.On("GetSpotForUpdate", mock.Anything, "spot-8").Return(&model.ParkingSpot{
+		ID:     "spot-8",
+		Status: "occupied",
+	}, nil)
 	billing.On("StartBilling", mock.Anything, "res-checkin", int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
 	natsClient.On("Publish", "reservation.checked_in", mock.Anything).Return(nil)
 
@@ -672,6 +684,10 @@ func TestExpireReservation_ShouldReleaseSpot_WhenConfirmedState(t *testing.T) {
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-expire").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-11", "available").Return(nil)
+	repo.On("GetSpotForUpdate", mock.Anything, "spot-11").Return(&model.ParkingSpot{
+		ID:     "spot-11",
+		Status: "available",
+	}, nil)
 	natsClient.On("Publish", "reservation.expired", mock.Anything).Return(nil)
 
 	uc := NewUsecase(repo, locker, natsClient, billing, payment)
@@ -930,6 +946,10 @@ func TestCompleteCheckout_ShouldProcessPaymentAndReleaseSpot_WhenCheckedOut(t *t
 	billing.On("GenerateInvoice", mock.Anything, "res-complete", mock.AnythingOfType("string")).Return(billingRecord, nil)
 	payment.On("ProcessPayment", mock.Anything, "billing-2", int64(15000), "qris", mock.AnythingOfType("string")).Return("pay-2", nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "available").Return(nil)
+	repo.On("GetSpotForUpdate", mock.Anything, "spot-1").Return(&model.ParkingSpot{
+		ID:     "spot-1",
+		Status: "available",
+	}, nil)
 	natsClient.On("Publish", "reservation.checked_out", mock.Anything).Return(nil)
 
 	uc := NewUsecase(repo, locker, natsClient, billing, payment)

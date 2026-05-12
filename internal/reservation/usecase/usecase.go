@@ -573,17 +573,13 @@ func (uc *reservationUsecase) publishSpotUpdated(ctx context.Context, spot *mode
 }
 
 func (uc *reservationUsecase) publishSpotStatusChange(ctx context.Context, spotID string, status string) {
-	data, err := json.Marshal(map[string]interface{}{
-		"id":     spotID,
-		"status": status,
-	})
+	spot, err := uc.repo.GetSpotForUpdate(ctx, spotID)
 	if err != nil {
-		slog.Warn("reservation: failed to marshal spot.updated event", slog.Any("error", err))
+		slog.Warn("reservation: failed to fetch spot for status change event",
+			slog.String("spot_id", spotID), slog.Any("error", err))
 		return
 	}
-	if err := uc.nats.Publish("spot.updated", data); err != nil {
-		slog.Warn("reservation: failed to publish spot.updated event", slog.Any("error", err))
-	}
+	uc.publishSpotUpdated(ctx, spot)
 }
 
 // ExpireReservation transitions a confirmed reservation to expired, releases

@@ -123,9 +123,10 @@ func TestSchema_ShouldHaveCorrectFloorDistribution(t *testing.T) {
 	carFloors := 0
 	motoFloors := 0
 	for _, fc := range counts {
-		if fc.VehicleType == "car" {
+		switch fc.VehicleType {
+		case "car":
 			carFloors++
-		} else if fc.VehicleType == "motorcycle" {
+		case "motorcycle":
 			motoFloors++
 		}
 	}

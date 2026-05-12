@@ -112,10 +112,10 @@ func main() {
 
 	// 6. Setup shutdown manager
 	shutdownMgr := server.NewShutdownManager(log)
-	shutdownMgr.Register(func(_ context.Context) error { reservationConn.Close(); return nil })
-	shutdownMgr.Register(func(_ context.Context) error { searchConn.Close(); return nil })
-	shutdownMgr.Register(func(_ context.Context) error { paymentConn.Close(); return nil })
-	shutdownMgr.Register(func(_ context.Context) error { presenceConn.Close(); return nil })
+	shutdownMgr.Register(func(_ context.Context) error { return reservationConn.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { return searchConn.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { return presenceConn.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
 	// 7. Setup Gin engine with middleware chain
@@ -136,7 +136,7 @@ func main() {
 	pgClient, err := database.NewPostgresClient(cfg.Database)
 	if err == nil {
 		healthSvc.AddChecker("postgres", health.NewPostgresChecker(pgClient))
-		shutdownMgr.Register(func(_ context.Context) error { pgClient.Close(); return nil })
+		shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	}
 
 	redisClient, err := redispkg.NewRedisClient(cfg.Redis)

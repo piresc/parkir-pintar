@@ -81,7 +81,7 @@ func TestNewLocker_ShouldReturnLocker_WhenClientIsValid(t *testing.T) {
 		Host: host, Port: port, PoolSize: 5,
 	})
 	require.NoError(t, err)
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	// Act
 	locker, err := NewLocker(rc, Config{

@@ -130,8 +130,8 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
-	shutdownMgr.Register(func(_ context.Context) error { billingConn.Close(); return nil })
-	shutdownMgr.Register(func(_ context.Context) error { paymentConn.Close(); return nil })
+	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
 	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,

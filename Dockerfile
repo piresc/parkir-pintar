@@ -44,6 +44,8 @@ WORKDIR /app
 # Copy all binaries and migrations from builder
 COPY --from=builder /build/gateway /build/reservation /build/search /build/billing /build/payment /build/presence /build/notification ./
 COPY --from=builder /build/db/migrations ./db/migrations
+COPY --from=builder /build/docs/swagger.yaml ./docs/swagger.yaml
+COPY --from=builder /build/docs/swagger-ui ./docs/swagger-ui
 
 # Switch to non-root user
 USER appuser

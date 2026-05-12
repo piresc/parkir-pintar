@@ -129,7 +129,12 @@ func main() {
 	engine.Use(mw.RateLimiter(middleware.DefaultRateLimitConfig()))
 	engine.Use(mw.TracingHandler())
 
-	// 8. Register health endpoints (before auth middleware)
+	// 8. Serve Swagger UI
+	engine.StaticFile("/swagger/doc.yaml", "./docs/swagger.yaml")
+	engine.StaticFile("/swagger", "./docs/swagger-ui/index.html")
+	engine.StaticFile("/swagger/", "./docs/swagger-ui/index.html")
+
+	// 9. Register health endpoints (before auth middleware)
 	healthSvc := health.NewService(log)
 
 	// Init direct connections for health checks

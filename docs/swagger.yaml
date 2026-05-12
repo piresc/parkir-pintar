@@ -1,0 +1,707 @@
+openapi: 3.0.3
+info:
+  title: Parkir Pintar API
+  description: Smart Parking System REST API Gateway
+  version: 0.0.1
+  contact:
+    name: piresc
+    url: https://github.com/piresc/parkir-pintar
+
+servers:
+  - url: https://staging-parkir-pintar.piresc.dev
+    description: Staging
+  - url: https://parkir-pintar.piresc.dev
+    description: Production
+
+tags:
+  - name: Health
+    description: Service health check
+  - name: Reservations
+    description: Parking reservation lifecycle
+  - name: Search
+    description: Availability and spot search
+  - name: Presence
+    description: Location streaming and arrival detection
+  - name: Payments
+    description: Payment status
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT token with sub, exp, iat, iss claims"
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        error:
+          type: string
+          example: "invalid or expired token"
+        request_id:
+          type: string
+          description: Optional trace ID
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service_name:
+          type: string
+          example: parkir-pintar-gateway
+        version:
+          type: string
+          example: 0.0.1
+        go_version:
+          type: string
+          example: go1.25.10
+
+    CreateReservationRequest:
+      type: object
+      required:
+        - driver_id
+        - vehicle_type
+        - assignment_mode
+        - idempotency_key
+      properties:
+        driver_id:
+          type: string
+          example: "user-001"
+        vehicle_type:
+          type: string
+          enum: [car, moto]
+          example: car
+        assignment_mode:
+          type: string
+          enum: [system_assigned, user_selected]
+          example: system_assigned
+        spot_id:
+          type: string
+          description: Required when assignment_mode is user_selected
+          example: "spot-1-A01"
+        idempotency_key:
+          type: string
+          example: "req-abc-123"
+
+    Reservation:
+      type: object
+      properties:
+        reservation_id:
+          type: string
+          example: "rsv-550e8400"
+        driver_id:
+          type: string
+          example: "user-001"
+        spot_id:
+          type: string
+          example: "spot-1-A01"
+        floor_number:
+          type: integer
+          example: 1
+        vehicle_type:
+          type: string
+          example: car
+        status:
+          type: string
+          enum: [pending, confirmed, checked_in, checked_out, completed, cancelled, expired]
+          example: confirmed
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    FloorAvailability:
+      type: object
+      properties:
+        floor_number:
+          type: integer
+          example: 1
+        available_car:
+          type: integer
+          example: 28
+        available_moto:
+          type: integer
+          example: 50
+        total_car:
+          type: integer
+          example: 30
+        total_moto:
+          type: integer
+          example: 50
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        floors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FloorAvailability'
+        total:
+          type: object
+          properties:
+            total_available:
+              type: integer
+              example: 150
+            total_capacity:
+              type: integer
+              example: 150
+
+    Spot:
+      type: object
+      properties:
+        spot_id:
+          type: string
+          example: "spot-1-A01"
+        floor_number:
+          type: integer
+          example: 1
+        label:
+          type: string
+          example: "A01"
+        vehicle_type:
+          type: string
+          example: car
+        status:
+          type: string
+          enum: [available, occupied, reserved]
+          example: available
+
+    FloorMap:
+      type: object
+      properties:
+        floor_number:
+          type: integer
+          example: 1
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Spot'
+
+    StreamLocationRequest:
+      type: object
+      required:
+        - reservation_id
+        - latitude
+        - longitude
+      properties:
+        reservation_id:
+          type: string
+          example: "rsv-550e8400"
+        latitude:
+          type: number
+          format: double
+          example: -6.2088
+        longitude:
+          type: number
+          format: double
+          example: 106.8456
+
+    ArrivalDetection:
+      type: object
+      properties:
+        arrived:
+          type: boolean
+          example: false
+        distance_meters:
+          type: number
+          format: double
+          example: 150.5
+
+    PaymentStatus:
+      type: object
+      properties:
+        payment_id:
+          type: string
+          example: "pay-001"
+        reservation_id:
+          type: string
+          example: "rsv-550e8400"
+        amount:
+          type: number
+          format: double
+          example: 5000
+        currency:
+          type: string
+          example: IDR
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+          example: pending
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Service health check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/v1/reservations:
+    post:
+      tags: [Reservations]
+      summary: Create a parking reservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        '201':
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate idempotency key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reservations/{id}:
+    get:
+      tags: [Reservations]
+      summary: Get reservation by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "rsv-550e8400"
+      responses:
+        '200':
+          description: Reservation details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags: [Reservations]
+      summary: Cancel a reservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "rsv-550e8400"
+      responses:
+        '200':
+          description: Reservation cancelled
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: Reservation cannot be cancelled in current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reservations/{id}/confirm:
+    post:
+      tags: [Reservations]
+      summary: Confirm a pending reservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation confirmed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: Reservation not in confirmable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reservations/{id}/checkin:
+    post:
+      tags: [Reservations]
+      summary: Check in to a confirmed reservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Checked in
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: Reservation not in check-in-able state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reservations/{id}/checkout:
+    post:
+      tags: [Reservations]
+      summary: Check out (initiates payment)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Checked out, payment initiated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: Reservation not checked in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/reservations/{id}/complete:
+    post:
+      tags: [Reservations]
+      summary: Complete checkout after payment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation completed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '412':
+          description: Reservation not in completable state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/availability:
+    get:
+      tags: [Search]
+      summary: Get parking availability by vehicle type
+      parameters:
+        - name: vehicle_type
+          in: query
+          schema:
+            type: string
+            enum: [car, moto]
+          example: car
+      responses:
+        '200':
+          description: Availability per floor
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/AvailabilityResponse'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/floors/{floor}:
+    get:
+      tags: [Search]
+      summary: Get floor map with all spots
+      parameters:
+        - name: floor
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: Floor map with spot statuses
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/FloorMap'
+        '400':
+          description: Invalid floor number
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/spots/{id}:
+    get:
+      tags: [Search]
+      summary: Get spot details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "spot-1-A01"
+      responses:
+        '200':
+          description: Spot details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Spot'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Spot not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/presence/stream:
+    post:
+      tags: [Presence]
+      summary: Stream location for arrival detection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamLocationRequest'
+      responses:
+        '200':
+          description: Arrival detection result
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/ArrivalDetection'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/payments/{id}/status:
+    get:
+      tags: [Payments]
+      summary: Get payment status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "pay-001"
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/PaymentStatus'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

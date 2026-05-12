@@ -4,29 +4,38 @@ import { useAuth } from '../contexts/AuthContext';
 import GlassCard from '../components/ui/GlassCard';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import { generateJWT } from '../utils/jwt';
+
+function decodeJWTPayload(token) {
+  try {
+    const base64 = token.split('.')[1];
+    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 export default function LoginPage() {
-  const [driverId, setDriverId] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
-    if (!driverId.trim()) return;
-    setLoading(true);
+    const trimmed = token.trim();
+    if (!trimmed) return;
     setError('');
-    try {
-      const token = await generateJWT(driverId.trim());
-      login(token, driverId.trim());
-      navigate('/dashboard');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+
+    const payload = decodeJWTPayload(trimmed);
+    if (!payload) {
+      setError('Invalid JWT token');
+      return;
     }
+
+    const driverId = payload.user_id || payload.sub || 'unknown';
+    login(trimmed, driverId);
+    navigate('/dashboard');
   }
 
   return (
@@ -36,11 +45,19 @@ export default function LoginPage() {
         <h1 className="login-title">ParkirPintar</h1>
         <p className="login-subtitle">Smart Parking, Simplified</p>
         <form onSubmit={handleSubmit} className="login-form">
-          <label>Driver ID</label>
-          <Input value={driverId} onChange={(e) => setDriverId(e.target.value)} placeholder="e.g. driver-1" />
+          <label>JWT Token</label>
+          <Input
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Paste your JWT token"
+            style={{ fontSize: '0.8em' }}
+          />
+          <p style={{ color: 'var(--text-muted, #888)', fontSize: '0.75em', margin: '0.25em 0' }}>
+            Get one from the Telegram bot: /generate_jwt_parkir_pintar
+          </p>
           {error && <p style={{ color: 'var(--error, #ff4444)', fontSize: '0.85em' }}>{error}</p>}
-          <Button variant="cta" type="submit" disabled={!driverId.trim() || loading}>
-            {loading ? 'Generating...' : 'Enter Garage'}
+          <Button variant="cta" type="submit" disabled={!token.trim()}>
+            Enter Garage
           </Button>
         </form>
       </GlassCard>

@@ -3,6 +3,19 @@
 # Copy .env.example to .env and fill in your values before running.
 
 services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: staging-watchtower
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: "60"
+      WATCHTOWER_SCOPE: "parkir-staging"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - backend
+    restart: unless-stopped
+
   postgres:
     image: postgres:14-alpine
     container_name: staging-postgres
@@ -80,7 +93,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
-      SERVER_ALLOWED_ORIGINS: "https://staging.parkir-pintar.piresc.dev"
+      SERVER_ALLOWED_ORIGINS: "https://staging-parkir-pintar.piresc.dev,http://staging-parkir-pintar.piresc.dev"
     depends_on:
       reservation:
         condition: service_healthy
@@ -88,13 +101,15 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.parkir-staging.rule=Host(`staging.parkir-pintar.piresc.dev`)"
-      - "traefik.http.routers.parkir-staging.entrypoints=https"
-      - "traefik.http.routers.parkir-staging.tls.certresolver=letsencrypt"
+      - "coolify.managed=true"
+      - "traefik.http.routers.http-parkir-staging.entryPoints=http"
+      - "traefik.http.routers.http-parkir-staging.rule=Host(`staging-parkir-pintar.piresc.dev`) && PathPrefix(`/`)"
       - "traefik.http.services.parkir-staging.loadbalancer.server.port=8080"
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 10s
@@ -105,6 +120,8 @@ services:
   search:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-search
+    labels:
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     command: ["/app/search"]
     environment:
       APP_NAME: parkir-pintar-search
@@ -143,6 +160,8 @@ services:
   reservation:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-reservation
+    labels:
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     command: ["/app/reservation"]
     environment:
       APP_NAME: parkir-pintar-reservation
@@ -188,6 +207,8 @@ services:
   billing:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-billing
+    labels:
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     command: ["/app/billing"]
     environment:
       APP_NAME: parkir-pintar-billing
@@ -221,6 +242,8 @@ services:
   payment:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-payment
+    labels:
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     command: ["/app/payment"]
     environment:
       APP_NAME: parkir-pintar-payment
@@ -254,6 +277,8 @@ services:
   presence:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-presence
+    labels:
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     command: ["/app/presence"]
     environment:
       APP_NAME: parkir-pintar-presence
@@ -292,6 +317,8 @@ services:
   notification:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-notification
+    labels:
+      - "com.centurylinklabs.watchtower.scope=parkir-staging"
     command: ["/app/notification"]
     environment:
       APP_NAME: parkir-pintar-notification
@@ -321,3 +348,5 @@ volumes:
 networks:
   backend:
     driver: bridge
+  coolify:
+    external: true

@@ -75,7 +75,7 @@ func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*
 func (r *sqlxRepository) UpdatePayment(ctx context.Context, payment *model.Payment) error {
 	_, err := r.db.NamedExecContext(ctx,
 		`UPDATE payments SET status = :status, transaction_ref = :transaction_ref,
-		 paid_at = :paid_at, updated_at = :updated_at
+		 paid_at = :paid_at, idempotency_key = :idempotency_key, updated_at = :updated_at
 		 WHERE id = :id`,
 		payment,
 	)

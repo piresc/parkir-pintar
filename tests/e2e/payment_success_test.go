@@ -48,6 +48,13 @@ func TestPaymentSuccess_ShouldCreateSuccessRecord_WhenCheckoutCompletes(t *testi
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	// Act — Confirm reservation
+	reservation, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, reservation)
+
 	// Act — Check in
 	_, err = env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
 		ReservationID: reservation.ID,

@@ -28,7 +28,7 @@ func TestDockerDoubleBook_ShouldRejectSecond_WhenSameSpot(t *testing.T) {
 
 	// --- Arrange ---
 	// We need a known spot ID. First, get availability to find an available spot.
-	availResp, err := denv.httpClient.Get(denv.baseURL + "/api/v1/availability")
+	availResp, err := denv.httpClient.Get(denv.baseURL + "/api/v1/availability?vehicle_type=motorcycle")
 	if err != nil {
 		t.Fatalf("GET /api/v1/availability failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestDockerDoubleBook_ShouldRejectSecond_WhenSameSpot(t *testing.T) {
 			defer wg.Done()
 
 			body, marshalErr := json.Marshal(map[string]string{
-				"driver_id":       "test-driver-001",
+				"driver_id":       denv.driverID,
 				"vehicle_type":    "motorcycle",
 				"assignment_mode": "system_assigned",
 				"idempotency_key": uuid.New().String(),

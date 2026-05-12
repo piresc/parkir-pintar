@@ -33,6 +33,8 @@ func TestRace_ConcurrentReservationCreation_ShouldNotDoubleBook(t *testing.T) {
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
+	require.NoError(t, err)
 
 	const numGoroutines = 50
 
@@ -95,6 +97,8 @@ func TestRace_SameSpotContention_ShouldAllowExactlyOne(t *testing.T) {
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
+	require.NoError(t, err)
 
 	const numGoroutines = 20
 
@@ -154,6 +158,8 @@ func TestRace_ConcurrentIdempotency_ShouldReturnSameReservation(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -217,6 +223,8 @@ func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
+	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
 	require.NoError(t, err)
@@ -226,6 +234,11 @@ func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T
 		VehicleType:    "car",
 		AssignmentMode: model.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
+	})
+	require.NoError(t, err)
+
+	_, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
 	})
 	require.NoError(t, err)
 
@@ -291,6 +304,8 @@ func TestRace_ConcurrentCreateAndCancel_ShouldMaintainInventory(t *testing.T) {
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
+	require.NoError(t, err)
 
 	const numGoroutines = 30
 	driverIDs := make([]string, numGoroutines)
@@ -340,6 +355,8 @@ func TestRace_MixedVehicleTypes_ShouldNotCrossAssign(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
 
 	const numPerType = 20
@@ -409,6 +426,8 @@ func TestRace_ConcurrentCheckouts_ShouldNotDuplicatePayments(t *testing.T) {
 	err := testhelpers.TruncateTables(ctx, env.db,
 		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
+	err = testhelpers.ResetSpots(ctx, env.db)
+	require.NoError(t, err)
 
 	env.paymentGW.ShouldFail = false
 
@@ -420,6 +439,11 @@ func TestRace_ConcurrentCheckouts_ShouldNotDuplicatePayments(t *testing.T) {
 		VehicleType:    "car",
 		AssignmentMode: model.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
+	})
+	require.NoError(t, err)
+
+	_, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
 	})
 	require.NoError(t, err)
 

@@ -59,6 +59,8 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 		os.Setenv("APP_ENV", "local")
 		// Ensure SERVER_PORT is valid so validation passes
 		os.Setenv("SERVER_PORT", "8080")
+		// JWT_SECRET is now required in all environments
+		os.Setenv("JWT_SECRET", "test-default-secret")
 
 		// Set only the chosen subset of gRPC env vars
 		if subset.PortSet {
@@ -121,5 +123,6 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 			os.Unsetenv(v)
 		}
 		os.Unsetenv("SERVER_PORT")
+		os.Unsetenv("JWT_SECRET")
 	})
 }

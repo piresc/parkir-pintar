@@ -42,3 +42,14 @@ func TruncateTables(ctx context.Context, db *sqlx.DB, tables ...string) error {
 	}
 	return nil
 }
+
+// ResetSpots resets all parking spots back to "available" status.
+// Call this after truncating reservations to restore spot inventory
+// for tests that depend on spot availability.
+func ResetSpots(ctx context.Context, db *sqlx.DB) error {
+	_, err := db.ExecContext(ctx, "UPDATE parking_spots SET status = 'available'")
+	if err != nil {
+		return fmt.Errorf("reset parking_spots: %w", err)
+	}
+	return nil
+}

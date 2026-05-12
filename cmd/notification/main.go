@@ -5,6 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -14,12 +15,15 @@ import (
 	notificationsub "parkir-pintar/internal/notification/subscriber"
 	notificationuc "parkir-pintar/internal/notification/usecase"
 	"parkir-pintar/pkg/config"
+	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	notificationv1 "parkir-pintar/proto/notification/v1"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -48,6 +52,8 @@ func main() {
 		log.Error("nats stream setup failed", slog.Any("error", err))
 		os.Exit(1)
 	}
+
+	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, nil)
 
 	uc := notificationuc.NewUsecase()
 	handler := notificationhandler.NewHandler(uc)
@@ -81,7 +87,19 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
-	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second)
+	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
+		grpc.ChainUnaryInterceptor(
+			interceptors.RecoveryUnaryInterceptor(),
+			interceptors.AuthUnaryInterceptor(nil),
+			interceptors.LoggingUnaryInterceptor(),
+			interceptors.TracingUnaryInterceptor(),
+			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
+				RequestsPerSecond: 100,
+				BurstSize:        200,
+				CleanupInterval:  5 * time.Minute,
+			}),
+		),
+	)
 	grpcSrv.RegisterService(&notificationv1.NotificationService_ServiceDesc, handler)
 	if err := grpcSrv.Start(); err != nil {
 		log.Error("gRPC server error", slog.Any("error", err))
@@ -97,11 +115,11 @@ func main() {
 // streamForSubject maps a NATS subject pattern to its stream name.
 func streamForSubject(subject string) string {
 	switch {
-	case len(subject) > 12 && subject[:12] == "reservation.":
+	case strings.HasPrefix(subject, "reservation.") || strings.HasPrefix(subject, "spot."):
 		return "RESERVATIONS"
-	case len(subject) > 8 && subject[:8] == "billing.":
+	case strings.HasPrefix(subject, "billing."):
 		return "BILLING"
-	case len(subject) > 8 && subject[:8] == "payment.":
+	case strings.HasPrefix(subject, "payment."):
 		return "PAYMENTS"
 	default:
 		return "RESERVATIONS"

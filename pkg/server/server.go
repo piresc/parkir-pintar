@@ -17,17 +17,19 @@ import (
 
 // GracefulServer wraps a Gin engine with signal-based graceful shutdown.
 type GracefulServer struct {
-	engine *gin.Engine
-	logger *slog.Logger
-	port   int
+	engine          *gin.Engine
+	logger          *slog.Logger
+	port            int
+	shutdownTimeout time.Duration
 }
 
 // NewGracefulServer creates a new GracefulServer.
-func NewGracefulServer(engine *gin.Engine, logger *slog.Logger, port int) *GracefulServer {
+func NewGracefulServer(engine *gin.Engine, logger *slog.Logger, port int, shutdownTimeout time.Duration) *GracefulServer {
 	return &GracefulServer{
-		engine: engine,
-		logger: logger,
-		port:   port,
+		engine:          engine,
+		logger:          logger,
+		port:            port,
+		shutdownTimeout: shutdownTimeout,
 	}
 }
 
@@ -66,7 +68,7 @@ func (s *GracefulServer) Start() error {
 	}
 
 	// Graceful shutdown with 30s timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 	defer cancel()
 
 	s.logger.Info("shutting down HTTP server")

@@ -14,10 +14,13 @@ import (
 
 	gatewayhandler "parkir-pintar/internal/gateway/handler"
 	"parkir-pintar/pkg/config"
+	"parkir-pintar/pkg/database"
 	"parkir-pintar/pkg/grpcclient"
 	"parkir-pintar/pkg/health"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/middleware"
+	natspkg "parkir-pintar/pkg/nats"
+	redispkg "parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 
@@ -128,6 +131,26 @@ func main() {
 
 	// 8. Register health endpoints (before auth middleware)
 	healthSvc := health.NewService(log)
+
+	// Init direct connections for health checks
+	pgClient, err := database.NewPostgresClient(cfg.Database)
+	if err == nil {
+		healthSvc.AddChecker("postgres", health.NewPostgresChecker(pgClient))
+		shutdownMgr.Register(func(_ context.Context) error { pgClient.Close(); return nil })
+	}
+
+	redisClient, err := redispkg.NewRedisClient(cfg.Redis)
+	if err == nil {
+		healthSvc.AddChecker("redis", health.NewRedisChecker(redisClient))
+		shutdownMgr.Register(func(_ context.Context) error { _ = redisClient.GetClient().Close(); return nil })
+	}
+
+	natsClient, err := natspkg.NewClient(cfg.NATS.URL)
+	if err == nil {
+		healthSvc.AddChecker("nats", health.NewNATSChecker(natsClient))
+		shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
+	}
+
 	health.RegisterRoutes(engine, cfg.App.Name, cfg.App.Version, healthSvc)
 
 	// 9. Register gateway REST routes (with JWT auth)
@@ -136,7 +159,7 @@ func main() {
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 10. Start server
-	srv := server.NewGracefulServer(engine, log, cfg.Server.Port)
+	srv := server.NewGracefulServer(engine, log, cfg.Server.Port, time.Duration(cfg.Server.ShutdownTimeout)*time.Second)
 	if err := srv.Start(); err != nil {
 		log.Error("server error", slog.Any("error", err))
 	}

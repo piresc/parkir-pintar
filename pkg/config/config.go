@@ -12,16 +12,22 @@ import (
 
 // Config is the root configuration struct loaded from env vars.
 type Config struct {
-	App      AppConfig
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	NATS     NATSConfig
-	JWT      JWTConfig
-	Auth     AuthConfig
-	Tracing  TracingConfig
-	Logger   LoggerConfig
-	GRPC     GRPCConfig
+	App         AppConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	Redis       RedisConfig
+	NATS        NATSConfig
+	JWT         JWTConfig
+	Auth        AuthConfig
+	Tracing     TracingConfig
+	Logger      LoggerConfig
+	GRPC        GRPCConfig
+	Reservation ReservationConfig
+}
+
+// ReservationConfig holds reservation service settings.
+type ReservationConfig struct {
+	PaymentTimeoutMinutes int // default 10
 }
 
 // GRPCServerConfig holds gRPC server settings.
@@ -70,6 +76,7 @@ type DatabaseConfig struct {
 	Username    string
 	Password    string
 	Database    string
+	Schema      string
 	SSLMode     string
 	MaxConns    int
 	IdleConns   int
@@ -158,6 +165,7 @@ func Load(envPath string) (*Config, error) {
 	cfg.Database.Username = getEnv("DB_USERNAME", "")
 	cfg.Database.Password = getEnv("DB_PASSWORD", "")
 	cfg.Database.Database = getEnv("DB_DATABASE", "")
+	cfg.Database.Schema = getEnv("DB_SCHEMA", "public")
 	cfg.Database.SSLMode = getEnv("DB_SSL_MODE", "disable")
 	cfg.Database.MaxConns = getEnvAsInt("DB_MAX_CONNS", 25)
 	cfg.Database.IdleConns = getEnvAsInt("DB_IDLE_CONNS", 5)
@@ -204,6 +212,9 @@ func Load(envPath string) (*Config, error) {
 	cfg.Logger.Level = getEnv("LOG_LEVEL", "info")
 	cfg.Logger.Format = getEnv("LOG_FORMAT", "json")
 
+	// Reservation
+	cfg.Reservation.PaymentTimeoutMinutes = getEnvAsInt("PAYMENT_TIMEOUT_MINUTES", 10)
+
 	if err := validate(cfg); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
@@ -223,11 +234,8 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("TRACING_SAMPLE_RATE must be between 0.0 and 1.0, got %f", cfg.Tracing.SampleRate)
 	}
 
-	// In non-local environments, enforce stricter validation
-	if cfg.App.Environment != "local" {
-		if cfg.JWT.Secret == "" {
-			return fmt.Errorf("JWT_SECRET is required in %s environment", cfg.App.Environment)
-		}
+	if cfg.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET is required")
 	}
 
 	return nil

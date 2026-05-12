@@ -10,6 +10,8 @@ package database
 import (
 	"testing"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
+
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/tracing"
 

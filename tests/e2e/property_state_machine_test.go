@@ -35,6 +35,8 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 		err := testhelpers.TruncateTables(ctx, env.db,
 			"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 		require.NoError(t, err)
+		err = testhelpers.ResetSpots(ctx, env.db)
+		require.NoError(t, err)
 
 		env.paymentGW.ShouldFail = false
 
@@ -51,6 +53,14 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, reservation)
+
+		// Confirm reservation so it can transition to terminal states
+		reservation, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+			ReservationID: reservation.ID,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, reservation)
+		require.Equal(t, model.StatusConfirmed, reservation.Status)
 
 		// Move to a random terminal state
 		terminalOp := rapid.SampledFrom([]string{"expire", "cancel"}).Draw(rt, "terminalOp")

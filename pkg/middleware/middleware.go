@@ -11,6 +11,7 @@ package middleware
 
 import (
 	"log/slog"
+	"sync"
 
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/tracing"
@@ -22,6 +23,10 @@ type Middleware struct {
 	config *config.Config
 	logger *slog.Logger
 	tracer tracing.Tracer
+
+	mu           sync.Mutex
+	rateStore    *rateLimitStore
+	rateStoreCfg RateLimitConfig
 }
 
 // NewMiddleware creates a Middleware instance with the given dependencies.
@@ -37,5 +42,13 @@ func NewMiddleware(cfg *config.Config, logger *slog.Logger, tracer tracing.Trace
 		config: cfg,
 		logger: logger,
 		tracer: tracer,
+	}
+}
+
+func (m *Middleware) Shutdown() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.rateStore != nil {
+		m.rateStore.Stop()
 	}
 }

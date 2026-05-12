@@ -148,6 +148,15 @@ func TestLoad_FullLifecycleThroughput(t *testing.T) {
 				return
 			}
 
+			// Confirm
+			_, confirmErr := env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+				ReservationID: res.ID,
+			})
+			if confirmErr != nil {
+				failedCount.Add(1)
+				return
+			}
+
 			// Check in
 			_, checkinErr := env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
 				ReservationID: res.ID,
@@ -328,6 +337,14 @@ func TestLoad_MixedOperations_ShouldMaintainConsistency(t *testing.T) {
 			// Randomly choose: full lifecycle, cancel, or expire
 			switch idx % 3 {
 			case 0: // Full lifecycle
+				_, cfErr := env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+					ReservationID: res.ID,
+				})
+				if cfErr != nil {
+					return
+				}
+				ops.Add(1)
+
 				_, ciErr := env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
 					ReservationID: res.ID,
 				})

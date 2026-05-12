@@ -1,14 +1,14 @@
 # Assessment Boilerplate Makefile
 
 APP_NAME := parkir-pintar
-BINARY := ./bin/api
+BINARY := ./bin/gateway
 DOCKER_IMAGE := $(APP_NAME)
 VERSION ?= dev
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -s -w -X main.Version=$(VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME)
 
-.PHONY: help test test-coverage test-race generate-mocks lint gosec gitleaks build run docker-build docker-run clean proto-gen
+.PHONY: help test test-coverage test-race test-race-e2e generate-mocks lint gosec gitleaks build run docker-build docker-run clean proto-gen
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -36,7 +36,7 @@ gitleaks: ## Run secret scanning (gitleaks)
 	gitleaks detect --source=. --config=.gitleaks.toml --verbose
 
 build: ## Build the binary
-	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/api
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/gateway
 
 run: build ## Build and run the binary
 	$(BINARY)
@@ -75,7 +75,7 @@ test-e2e-docker: ## Run Layer 2 E2E tests (Docker Compose)
 
 test-e2e-all: test-e2e test-e2e-docker ## Run both E2E test layers
 
-test-race: ## Run race condition tests with -race detector
+test-race-e2e: ## Run race condition E2E tests with -race detector
 	go test -race -v -timeout 300s -count=1 -run TestRace ./tests/e2e/...
 
 test-load: ## Run load/stress tests

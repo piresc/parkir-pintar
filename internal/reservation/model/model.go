@@ -9,12 +9,14 @@ import (
 
 // Reservation status constants.
 const (
-	StatusPending    = "pending"
-	StatusConfirmed  = "confirmed"
-	StatusCheckedIn  = "checked_in"
-	StatusCheckedOut = "checked_out"
-	StatusExpired    = "expired"
-	StatusCancelled  = "cancelled"
+	StatusPending        = "pending"
+	StatusWaitingPayment = "waiting_payment"
+	StatusConfirmed      = "confirmed"
+	StatusCheckedIn      = "checked_in"
+	StatusCheckedOut     = "checked_out"
+	StatusExpired        = "expired"
+	StatusCancelled      = "cancelled"
+	StatusFailed         = "failed"
 )
 
 // Assignment mode constants.
@@ -68,9 +70,10 @@ type Driver struct {
 // allowedTransitions defines the valid reservation state transitions.
 // Terminal states (checked_out, expired, cancelled) have no outgoing transitions.
 var allowedTransitions = map[string][]string{
-	StatusPending:   {StatusConfirmed},
-	StatusConfirmed: {StatusCheckedIn, StatusExpired, StatusCancelled},
-	StatusCheckedIn: {StatusCheckedOut},
+	StatusPending:        {StatusConfirmed},
+	StatusWaitingPayment: {StatusConfirmed, StatusFailed, StatusCancelled},
+	StatusConfirmed:      {StatusCheckedIn, StatusExpired, StatusCancelled},
+	StatusCheckedIn:      {StatusCheckedOut},
 }
 
 // ValidateTransition checks if a reservation status transition is allowed.
@@ -111,14 +114,32 @@ type CheckOutRequest struct {
 	ReservationID string `json:"reservation_id"`
 }
 
-// CheckOutResponse contains the checkout result with billing details.
-type CheckOutResponse struct {
-	Reservation *Reservation `json:"reservation"`
-	TotalAmount int64        `json:"total_amount"`
-	BillingID   string       `json:"billing_id"`
+// ConfirmReservationRequest is the payload for confirming a reservation after payment.
+type ConfirmReservationRequest struct {
+	ReservationID string `json:"reservation_id"`
 }
 
-// ExpireReservationRequest is the payload for expiring a reservation.
+// CompleteCheckoutRequest is the payload for completing checkout payment.
+type CompleteCheckoutRequest struct {
+	ReservationID string `json:"reservation_id"`
+}
+
+// CheckOutResponse contains the checkout result with billing details.
+type CheckOutResponse struct {
+	Reservation   *Reservation `json:"reservation"`
+	TotalAmount   int64        `json:"total_amount"`
+	BillingID     string       `json:"billing_id"`
+	PaymentID     string       `json:"payment_id"`
+	BookingFee    int64        `json:"booking_fee"`
+	ParkingFee    int64        `json:"parking_fee"`
+	OvernightFee  int64        `json:"overnight_fee"`
+	PenaltyAmount int64        `json:"penalty_amount"`
+}
+
+// FailReservationRequest is the payload for failing a waiting_payment reservation.
+type FailReservationRequest struct {
+	ReservationID string `json:"reservation_id"`
+}
 type ExpireReservationRequest struct {
 	ReservationID string `json:"reservation_id"`
 }

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 
 	"parkir-pintar/pkg/config"
 )
@@ -92,12 +92,16 @@ func (r *RedisClient) GeoAdd(ctx context.Context, key string, longitude, latitud
 
 // GeoRadius finds members within a radius from a point.
 func (r *RedisClient) GeoRadius(ctx context.Context, key string, longitude, latitude, radius float64, unit string) ([]redis.GeoLocation, error) {
-	return r.client.GeoRadius(ctx, key, longitude, latitude, &redis.GeoRadiusQuery{
-		Radius:    radius,
-		Unit:      unit,
+	return r.client.GeoSearchLocation(ctx, key, &redis.GeoSearchLocationQuery{
+		GeoSearchQuery: redis.GeoSearchQuery{
+			Longitude:  longitude,
+			Latitude:   latitude,
+			Radius:     radius,
+			RadiusUnit: unit,
+			Sort:       "ASC",
+		},
 		WithCoord: true,
 		WithDist:  true,
-		Sort:      "ASC",
 	}).Result()
 }
 

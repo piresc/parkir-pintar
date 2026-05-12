@@ -316,3 +316,69 @@ func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)
 	repo.AssertExpectations(t)
 }
+
+func TestRefundPayment_ShouldSucceed_WhenIdempotencyKeyNotFound(t *testing.T) {
+	repo := new(MockRepository)
+	gw := new(MockPaymentGateway)
+	natsClient := new(MockNATSClient)
+
+	paidAt := time.Now().Add(-1 * time.Hour)
+	existing := &model.Payment{
+		ID:             "pay-first-refund",
+		BillingID:      "bill-first",
+		Amount:         15000,
+		PaymentMethod:  "qris",
+		TransactionRef: "txn-first-refund",
+		Status:         model.PaymentStatusSuccess,
+		PaidAt:         &paidAt,
+	}
+	repo.On("GetByIdempotencyKey", mock.Anything, "refund-key-new").Return(nil, repository.ErrNotFound)
+	repo.On("GetByID", mock.Anything, "pay-first-refund").Return(existing, nil)
+	gw.On("Refund", mock.Anything, "txn-first-refund").Return(nil)
+	repo.On("UpdatePayment", mock.Anything, mock.MatchedBy(func(p *model.Payment) bool {
+		return p.Status == model.PaymentStatusRefunded && p.IdempotencyKey == "refund-key-new"
+	})).Return(nil)
+
+	uc := NewUsecase(repo, gw, natsClient)
+	req := &model.RefundPaymentRequest{
+		PaymentID:      "pay-first-refund",
+		IdempotencyKey: "refund-key-new",
+	}
+
+	result, err := uc.RefundPayment(t.Context(), req)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.PaymentStatusRefunded, result.Status)
+	assert.Equal(t, "refund-key-new", result.IdempotencyKey)
+	gw.AssertCalled(t, "Refund", mock.Anything, "txn-first-refund")
+	repo.AssertExpectations(t)
+}
+
+func TestRefundPayment_ShouldReturnExisting_WhenIdempotencyKeyExists(t *testing.T) {
+	repo := new(MockRepository)
+	gw := new(MockPaymentGateway)
+	natsClient := new(MockNATSClient)
+
+	existing := &model.Payment{
+		ID:             "existing-refund-id",
+		BillingID:      "bill-1",
+		Amount:         15000,
+		Status:         model.PaymentStatusRefunded,
+		IdempotencyKey: "refund-key-1",
+	}
+	repo.On("GetByIdempotencyKey", mock.Anything, "refund-key-1").Return(existing, nil)
+
+	uc := NewUsecase(repo, gw, natsClient)
+	req := &model.RefundPaymentRequest{
+		PaymentID:      "different-payment",
+		IdempotencyKey: "refund-key-1",
+	}
+
+	result, err := uc.RefundPayment(t.Context(), req)
+
+	require.NoError(t, err)
+	assert.Equal(t, "existing-refund-id", result.ID)
+	assert.Equal(t, model.PaymentStatusRefunded, result.Status)
+	gw.AssertNotCalled(t, "Refund")
+	repo.AssertExpectations(t)
+}

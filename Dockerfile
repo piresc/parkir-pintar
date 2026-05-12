@@ -20,7 +20,7 @@ ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 
 # Build all service binaries
-RUN for svc in api gateway reservation search billing payment presence notification; do \
+RUN for svc in gateway reservation search billing payment presence notification; do \
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
         -ldflags="-s -w \
           -X main.Version=${VERSION} \
@@ -42,7 +42,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 
 # Copy all binaries and migrations from builder
-COPY --from=builder /build/api /build/gateway /build/reservation /build/search /build/billing /build/payment /build/presence /build/notification ./
+COPY --from=builder /build/gateway /build/reservation /build/search /build/billing /build/payment /build/presence /build/notification ./
 COPY --from=builder /build/db/migrations ./db/migrations
 
 # Switch to non-root user

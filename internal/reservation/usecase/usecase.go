@@ -79,6 +79,7 @@ type NATSClient interface {
 //go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/reservation/usecase Usecase
 type Usecase interface {
 	CreateReservation(ctx context.Context, req *model.CreateReservationRequest) (*model.Reservation, error)
+	GetReservation(ctx context.Context, id string) (*model.Reservation, error)
 	CancelReservation(ctx context.Context, req *model.CancelReservationRequest) (*model.Reservation, error)
 	CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.Reservation, error)
 	CheckOut(ctx context.Context, req *model.CheckOutRequest) (*model.CheckOutResponse, error)
@@ -112,6 +113,11 @@ func NewUsecase(
 		billingClient: billingClient,
 		paymentClient: paymentClient,
 	}
+}
+
+// GetReservation retrieves a reservation by ID.
+func (uc *reservationUsecase) GetReservation(ctx context.Context, id string) (*model.Reservation, error) {
+	return uc.repo.GetByID(ctx, id)
 }
 
 // CreateReservation handles idempotent spot reservation with distributed locking.

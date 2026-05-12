@@ -12,7 +12,7 @@
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-glow: rgba(0, 229, 255, 0.25);
   --font-display: 'Chakra Petch', sans-serif;
-  --font-body: 'Newsreader', serif;
+  --font-body: 'Inter', sans-serif;
 }
 
 * {
@@ -50,10 +50,11 @@ h1, h2, h3, h4, h5, h6 {
 .app-main {
   flex: 1;
   padding: 1rem;
-  padding-bottom: 80px;
+  padding-bottom: 100px;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
+  overflow-y: auto;
 }
 
 /* Navbar */
@@ -604,6 +605,8 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  position: relative;
+  z-index: 200;
 }
 
 /* Location Simulator */
@@ -710,6 +713,46 @@ h1, h2, h3, h4, h5, h6 {
 .health-time {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+/* Floor Map Legend */
+.floor-legend {
+  display: flex;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.dot.available { background: var(--success); }
+.dot.reserved { background: var(--danger); }
+.dot.occupied { background: var(--warning); }
+
+/* Error Banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 23, 68, 0.1);
+  border: 1px solid rgba(255, 23, 68, 0.2);
+  border-radius: 12px;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+.error-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 /* Responsive */

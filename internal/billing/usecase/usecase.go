@@ -52,10 +52,14 @@ func NewUsecase(repo repository.Repository, nats NATSClient) Usecase {
 // StartBilling creates a billing record with the booking fee when a reservation
 // is confirmed. It performs an idempotency check via the idempotency key.
 func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBillingRequest) (*model.BillingRecord, error) {
-	// Idempotency check
 	existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err == nil && existing != nil {
 		return existing, nil
+	}
+
+	existingByReservation, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
+	if err == nil && existingByReservation != nil {
+		return existingByReservation, nil
 	}
 
 	now := time.Now()

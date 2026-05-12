@@ -2,8 +2,9 @@ import GlassCard from '../ui/GlassCard';
 import { formatIDR } from '../../utils/formatters';
 
 export default function BillingBreakdown({ bookingFee, parkingFee, overnightFee, penalty, total }) {
+  const paidBookingFee = bookingFee || 0;
+  const remaining = (total || 0) - paidBookingFee;
   const items = [
-    { label: 'Booking Fee', value: bookingFee || 0 },
     { label: 'Parking Fee', value: parkingFee || 0 },
     { label: 'Overnight Fee', value: overnightFee || 0, conditional: true },
     { label: 'Penalty', value: penalty || 0, conditional: true, danger: true },
@@ -20,9 +21,13 @@ export default function BillingBreakdown({ bookingFee, parkingFee, overnightFee,
           </div>
         )
       )}
+      <div className="billing-row" style={{ opacity: 0.6 }}>
+        <span>Booking Fee (already paid)</span>
+        <span>-{formatIDR(paidBookingFee)}</span>
+      </div>
       <div className="billing-row total">
-        <span>Total</span>
-        <span>{formatIDR(total || 0)}</span>
+        <span>Amount Due</span>
+        <span>{formatIDR(remaining)}</span>
       </div>
     </GlassCard>
   );

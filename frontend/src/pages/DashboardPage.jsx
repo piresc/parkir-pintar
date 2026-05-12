@@ -21,7 +21,7 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.getAvailability('');
+      const res = await api.getAvailability();
       setData(res.data);
     } catch (e) {
       setError(e.message);

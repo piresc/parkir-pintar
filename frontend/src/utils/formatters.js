@@ -6,9 +6,17 @@ export function formatIDR(amount) {
   }).format(amount);
 }
 
+export function parseTimestamp(t) {
+  if (!t) return null;
+  if (typeof t === 'string') return new Date(t);
+  if (t.seconds != null) return new Date(Number(t.seconds) * 1000 + Math.floor((t.nanos || 0) / 1e6));
+  return new Date(t);
+}
+
 export function formatDateTime(isoString) {
-  if (!isoString) return '-';
-  return new Date(isoString).toLocaleString('id-ID', {
+  const d = parseTimestamp(isoString);
+  if (!d || isNaN(d.getTime())) return '-';
+  return d.toLocaleString('id-ID', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -27,5 +35,7 @@ export function formatDuration(minutes) {
 }
 
 export function generateIdempotencyKey() {
-  return crypto.randomUUID();
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  );
 }

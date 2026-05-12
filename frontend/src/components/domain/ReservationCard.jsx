@@ -3,7 +3,7 @@ import StatusBadge from '../ui/StatusBadge';
 import CountdownTimer from './CountdownTimer';
 import { formatDateTime } from '../../utils/formatters';
 
-export default function ReservationCard({ reservation }) {
+export default function ReservationCard({ reservation, spotCode }) {
   return (
     <GlassCard className="reservation-card">
       <div className="reservation-header">
@@ -12,7 +12,7 @@ export default function ReservationCard({ reservation }) {
       </div>
       <div className="reservation-detail">
         <span className="label">Spot</span>
-        <span className="value spot-code-value">{reservation.spot_id}</span>
+        <span className="value spot-code-value">{spotCode || reservation.spot_id}</span>
       </div>
       <div className="reservation-detail">
         <span className="label">Vehicle</span>
@@ -20,7 +20,11 @@ export default function ReservationCard({ reservation }) {
       </div>
       <div className="reservation-detail">
         <span className="label">Confirmed</span>
-        <span className="value">{formatDateTime(reservation.confirmed_at)}</span>
+        <span className="value">
+          {reservation.status === 'waiting_payment' 
+            ? 'Pending payment' 
+            : formatDateTime(reservation.confirmed_at)}
+        </span>
       </div>
       {reservation.status === 'confirmed' && reservation.expires_at && (
         <CountdownTimer target={reservation.expires_at} />

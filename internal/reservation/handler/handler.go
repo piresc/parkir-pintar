@@ -60,6 +60,20 @@ func (h *Handler) CreateReservation(ctx context.Context, req *reservationv1.Crea
 	return reservationToProto(result), nil
 }
 
+// GetReservation validates reservation_id and retrieves the reservation.
+func (h *Handler) GetReservation(ctx context.Context, req *reservationv1.GetReservationRequest) (*reservationv1.ReservationResponse, error) {
+	if req.GetReservationId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
+	}
+
+	result, err := h.uc.GetReservation(ctx, req.GetReservationId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return reservationToProto(result), nil
+}
+
 // CancelReservation validates reservation_id and delegates to the usecase.
 func (h *Handler) CancelReservation(ctx context.Context, req *reservationv1.CancelReservationRequest) (*reservationv1.ReservationResponse, error) {
 	if req.GetReservationId() == "" {
@@ -106,10 +120,55 @@ func (h *Handler) CheckOut(ctx context.Context, req *reservationv1.CheckOutReque
 	}
 
 	return &reservationv1.CheckOutResponse{
-		Reservation: reservationToProto(result.Reservation),
-		TotalAmount: result.TotalAmount,
-		BillingId:   result.BillingID,
-		PaymentId:   result.PaymentID,
+		Reservation:   reservationToProto(result.Reservation),
+		TotalAmount:   result.TotalAmount,
+		BillingId:     result.BillingID,
+		PaymentId:     result.PaymentID,
+		BookingFee:    result.BookingFee,
+		ParkingFee:    result.ParkingFee,
+		OvernightFee:  result.OvernightFee,
+		PenaltyAmount: result.PenaltyAmount,
+	}, nil
+}
+
+// ConfirmReservation validates reservation_id and delegates to the usecase.
+func (h *Handler) ConfirmReservation(ctx context.Context, req *reservationv1.ConfirmReservationRequest) (*reservationv1.ReservationResponse, error) {
+	if req.GetReservationId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
+	}
+
+	result, err := h.uc.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: req.GetReservationId(),
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return reservationToProto(result), nil
+}
+
+// CompleteCheckout validates reservation_id and delegates to the usecase.
+func (h *Handler) CompleteCheckout(ctx context.Context, req *reservationv1.CompleteCheckoutRequest) (*reservationv1.CheckOutResponse, error) {
+	if req.GetReservationId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
+	}
+
+	result, err := h.uc.CompleteCheckout(ctx, &model.CompleteCheckoutRequest{
+		ReservationID: req.GetReservationId(),
+	})
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	return &reservationv1.CheckOutResponse{
+		Reservation:   reservationToProto(result.Reservation),
+		TotalAmount:   result.TotalAmount,
+		BillingId:     result.BillingID,
+		PaymentId:     result.PaymentID,
+		BookingFee:    result.BookingFee,
+		ParkingFee:    result.ParkingFee,
+		OvernightFee:  result.OvernightFee,
+		PenaltyAmount: result.PenaltyAmount,
 	}, nil
 }
 

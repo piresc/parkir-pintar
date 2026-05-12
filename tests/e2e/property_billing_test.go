@@ -35,6 +35,8 @@ func TestProperty2_BillingTotalConsistency(t *testing.T) {
 		err := testhelpers.TruncateTables(ctx, env.db,
 			"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
 		require.NoError(t, err)
+		err = testhelpers.ResetSpots(ctx, env.db)
+		require.NoError(t, err)
 
 		// Ensure payment gateway succeeds
 		env.paymentGW.ShouldFail = false
@@ -52,6 +54,12 @@ func TestProperty2_BillingTotalConsistency(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, reservation)
+
+		// Confirm reservation
+		_, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+			ReservationID: reservation.ID,
+		})
+		require.NoError(t, err)
 
 		// Check in
 		_, err = env.reservationUC.CheckIn(ctx, &model.CheckInRequest{

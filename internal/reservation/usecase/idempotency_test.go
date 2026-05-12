@@ -3,7 +3,6 @@ package usecase
 
 import (
 	"testing"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,7 @@ import (
 func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	redis := new(MockRedisClient)
+	locker := new(MockLocker)
 	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
@@ -32,16 +31,16 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 		VehicleType: "car",
 		Status:      "available",
 	}, nil).Once()
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-alpha", "locked", 30*time.Second).Return(true, nil).Once()
-	redis.On("Delete", mock.Anything, "lock:spot:spot-alpha").Return(nil).Once()
+	lck1 := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-alpha").Return(lck1, nil).Once()
+	lck1.On("Release", mock.Anything).Return(nil).Once()
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-alpha").Return(&model.ParkingSpot{
 		ID:     "spot-alpha",
 		Status: "available",
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-alpha", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil).Once()
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
 
 	// Second call mocks (key-beta -> spot-beta)
 	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, model.ErrNotFound).Once()
@@ -50,18 +49,18 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 		VehicleType: "car",
 		Status:      "available",
 	}, nil).Once()
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-beta", "locked", 30*time.Second).Return(true, nil).Once()
-	redis.On("Delete", mock.Anything, "lock:spot:spot-beta").Return(nil).Once()
+	lck2 := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-beta").Return(lck2, nil).Once()
+	lck2.On("Release", mock.Anything).Return(nil).Once()
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-beta").Return(&model.ParkingSpot{
 		ID:     "spot-beta",
 		Status: "available",
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-beta", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil).Once()
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
 
-	uc := NewUsecase(repo, redis, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, natsClient, billing, payment)
 
 	req1 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
@@ -89,7 +88,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	repo.AssertNumberOfCalls(t, "CreateReservationTx", 2)
 
 	repo.AssertExpectations(t)
-	redis.AssertExpectations(t)
+	locker.AssertExpectations(t)
 	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)

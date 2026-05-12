@@ -13,9 +13,11 @@ import (
 	searchhandler "parkir-pintar/internal/search/handler"
 	searchrepo "parkir-pintar/internal/search/repository"
 	searchsub "parkir-pintar/internal/search/subscriber"
+	searchsync "parkir-pintar/internal/search/sync"
 	searchuc "parkir-pintar/internal/search/usecase"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
+	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/nats"
@@ -23,6 +25,8 @@ import (
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	searchv1 "parkir-pintar/proto/search/v1"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -64,8 +68,11 @@ func main() {
 
 	tracedPG := database.NewTracedPostgresClient(pgClient, tracer)
 	tracedRedis := redis.NewTracedRedisClient(redisClient, tracer)
+	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, redisClient)
 
 	repo := searchrepo.NewRepository(tracedPG.GetDB())
+	readModelRepo := searchrepo.NewReadModelRepository(tracedPG.GetDB())
+	spotSyncer := searchsync.NewSpotSync(readModelRepo)
 	uc := searchuc.NewUsecase(repo, tracedRedis)
 	handler := searchhandler.NewHandler(uc)
 
@@ -88,13 +95,43 @@ func main() {
 		}
 	}()
 
+	// Wire NATS subscriber for spot read model sync
+	if err := natsClient.CreateConsumer(nats.ConsumerConfig{
+		StreamName:    "RESERVATIONS",
+		ConsumerName:  "search-spot-sync",
+		FilterSubject: "spot.updated",
+		DeliverPolicy: jetstream.DeliverLastPolicy,
+	}); err != nil {
+		log.Error("failed to create spot sync consumer", slog.Any("error", err))
+	}
+	go func() {
+		if err := natsClient.ConsumeMessages("RESERVATIONS", "search-spot-sync", func(msg jetstream.Msg) error {
+			spotSyncer.HandleNATSEvent(context.Background(), msg.Subject(), msg.Data())
+			return nil
+		}); err != nil {
+			log.Error("spot sync consume error", slog.Any("error", err))
+		}
+	}()
+
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
-	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second)
+	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
+		grpc.ChainUnaryInterceptor(
+			interceptors.RecoveryUnaryInterceptor(),
+			interceptors.AuthUnaryInterceptor(nil),
+			interceptors.LoggingUnaryInterceptor(),
+			interceptors.TracingUnaryInterceptor(),
+			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
+				RequestsPerSecond: 100,
+				BurstSize:        200,
+				CleanupInterval:  5 * time.Minute,
+			}),
+		),
+	)
 	grpcSrv.RegisterService(&searchv1.SearchService_ServiceDesc, handler)
 	if err := grpcSrv.Start(); err != nil {
 		log.Error("gRPC server error", slog.Any("error", err))

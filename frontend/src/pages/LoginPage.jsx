@@ -4,18 +4,38 @@ import { useAuth } from '../contexts/AuthContext';
 import GlassCard from '../components/ui/GlassCard';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { generateJWT } from '../utils/jwt';
 
 export default function LoginPage() {
-  const [token, setToken] = useState('');
   const [driverId, setDriverId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  function isValidUUID(str) {
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(str);
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    if (!token.trim() || !driverId.trim()) return;
-    login(token.trim(), driverId.trim());
-    navigate('/dashboard');
+    if (!driverId.trim()) return;
+    if (!isValidUUID(driverId.trim())) {
+      setError('Please enter a valid Driver ID (UUID format, e.g. 550e8400-e29b-41d4-a716-446655440000)');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const token = await generateJWT(driverId.trim());
+      login(token, driverId.trim());
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -26,17 +46,10 @@ export default function LoginPage() {
         <p className="login-subtitle">Smart Parking, Simplified</p>
         <form onSubmit={handleSubmit} className="login-form">
           <label>Driver ID</label>
-          <Input value={driverId} onChange={(e) => setDriverId(e.target.value)} placeholder="e.g. drv-123" />
-          <label>JWT Token</label>
-          <textarea
-            className="input"
-            rows={4}
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Paste your JWT token..."
-          />
-          <Button variant="cta" type="submit" disabled={!token || !driverId}>
-            Enter Garage
+          <Input value={driverId} onChange={(e) => setDriverId(e.target.value)} placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000" />
+          {error && <p style={{ color: 'var(--error, #ff4444)', fontSize: '0.85em' }}>{error}</p>}
+          <Button variant="cta" type="submit" disabled={!driverId.trim() || loading}>
+            {loading ? 'Generating...' : 'Enter Garage'}
           </Button>
         </form>
       </GlassCard>

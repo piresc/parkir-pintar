@@ -4,11 +4,13 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	"parkir-pintar/pkg/middleware"
@@ -51,6 +53,7 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 
 	// Reservation routes
 	api.POST("/reservations", h.CreateReservation)
+	api.GET("/reservations/:id", h.GetReservation)
 	api.DELETE("/reservations/:id", h.CancelReservation)
 	api.POST("/reservations/:id/checkin", h.CheckIn)
 	api.POST("/reservations/:id/checkout", h.CheckOut)
@@ -69,6 +72,18 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 	api.GET("/payments/:id/status", h.GetPaymentStatus)
 }
 
+// contextWithAuth extracts the Authorization header from the Gin context
+// and attaches it as gRPC metadata so downstream services can authenticate.
+func contextWithAuth(c *gin.Context) context.Context {
+	authHeader := c.GetHeader("Authorization")
+	ctx := c.Request.Context()
+	if authHeader != "" {
+		md := metadata.Pairs("authorization", authHeader)
+		ctx = metadata.NewOutgoingContext(ctx, md)
+	}
+	return ctx
+}
+
 // CreateReservation transcodes POST /api/v1/reservations to ReservationService.CreateReservation.
 func (h *Handler) CreateReservation(c *gin.Context) {
 	var req struct {
@@ -83,7 +98,7 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reservation.CreateReservation(c.Request.Context(), &reservationv1.CreateReservationRequest{
+	resp, err := h.reservation.CreateReservation(contextWithAuth(c), &reservationv1.CreateReservationRequest{
 		DriverId:       req.DriverID,
 		VehicleType:    req.VehicleType,
 		AssignmentMode: req.AssignmentMode,
@@ -98,6 +113,25 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	response.Success(c, http.StatusCreated, resp)
 }
 
+// GetReservation transcodes GET /api/v1/reservations/:id to ReservationService.GetReservation.
+func (h *Handler) GetReservation(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	resp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
 // CancelReservation transcodes DELETE /api/v1/reservations/:id to ReservationService.CancelReservation.
 func (h *Handler) CancelReservation(c *gin.Context) {
 	id := c.Param("id")
@@ -106,7 +140,7 @@ func (h *Handler) CancelReservation(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reservation.CancelReservation(c.Request.Context(), &reservationv1.CancelReservationRequest{
+	resp, err := h.reservation.CancelReservation(contextWithAuth(c), &reservationv1.CancelReservationRequest{
 		ReservationId: id,
 	})
 	if err != nil {
@@ -125,7 +159,7 @@ func (h *Handler) CheckIn(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reservation.CheckIn(c.Request.Context(), &reservationv1.CheckInRequest{
+	resp, err := h.reservation.CheckIn(contextWithAuth(c), &reservationv1.CheckInRequest{
 		ReservationId: id,
 	})
 	if err != nil {
@@ -144,7 +178,7 @@ func (h *Handler) CheckOut(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reservation.CheckOut(c.Request.Context(), &reservationv1.CheckOutRequest{
+	resp, err := h.reservation.CheckOut(contextWithAuth(c), &reservationv1.CheckOutRequest{
 		ReservationId: id,
 	})
 	if err != nil {
@@ -163,7 +197,7 @@ func (h *Handler) ConfirmReservation(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reservation.ConfirmReservation(c.Request.Context(), &reservationv1.ConfirmReservationRequest{
+	resp, err := h.reservation.ConfirmReservation(contextWithAuth(c), &reservationv1.ConfirmReservationRequest{
 		ReservationId: id,
 	})
 	if err != nil {
@@ -182,7 +216,7 @@ func (h *Handler) CompleteCheckout(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.reservation.CompleteCheckout(c.Request.Context(), &reservationv1.CompleteCheckoutRequest{
+	resp, err := h.reservation.CompleteCheckout(contextWithAuth(c), &reservationv1.CompleteCheckoutRequest{
 		ReservationId: id,
 	})
 	if err != nil {
@@ -197,7 +231,7 @@ func (h *Handler) CompleteCheckout(c *gin.Context) {
 func (h *Handler) GetAvailability(c *gin.Context) {
 	vehicleType := c.Query("vehicle_type")
 
-	resp, err := h.search.GetAvailability(c.Request.Context(), &searchv1.GetAvailabilityRequest{
+	resp, err := h.search.GetAvailability(contextWithAuth(c), &searchv1.GetAvailabilityRequest{
 		VehicleType: vehicleType,
 	})
 	if err != nil {
@@ -217,7 +251,7 @@ func (h *Handler) GetFloorMap(c *gin.Context) {
 		return
 	}
 
-	resp, grpcErr := h.search.GetFloorMap(c.Request.Context(), &searchv1.GetFloorMapRequest{
+	resp, grpcErr := h.search.GetFloorMap(contextWithAuth(c), &searchv1.GetFloorMapRequest{
 		FloorNumber: int32(floor),
 	})
 	if grpcErr != nil {
@@ -236,7 +270,7 @@ func (h *Handler) GetSpotDetails(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.search.GetSpotDetails(c.Request.Context(), &searchv1.GetSpotDetailsRequest{
+	resp, err := h.search.GetSpotDetails(contextWithAuth(c), &searchv1.GetSpotDetailsRequest{
 		SpotId: id,
 	})
 	if err != nil {
@@ -261,7 +295,7 @@ func (h *Handler) StreamLocation(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.presence.DetectArrival(c.Request.Context(), &presencev1.DetectArrivalRequest{
+	resp, err := h.presence.DetectArrival(contextWithAuth(c), &presencev1.DetectArrivalRequest{
 		ReservationId: req.ReservationID,
 		Latitude:      req.Latitude,
 		Longitude:     req.Longitude,
@@ -282,7 +316,7 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.payment.GetPaymentStatus(c.Request.Context(), &paymentv1.GetPaymentStatusRequest{
+	resp, err := h.payment.GetPaymentStatus(contextWithAuth(c), &paymentv1.GetPaymentStatusRequest{
 		PaymentId: id,
 	})
 	if err != nil {

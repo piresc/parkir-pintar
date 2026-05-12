@@ -35,6 +35,7 @@ var streams = []streamDef{
 			"reservation.checked_out",
 			"reservation.expired",
 			"reservation.cancelled",
+			"spot.updated",
 		},
 	},
 	{

@@ -1,40 +1,73 @@
-// Package client provides gRPC client adapters that let the reservation service
-// call downstream billing and payment microservices.
 package client
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	billingv1 "parkir-pintar/proto/billing/v1"
+	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/pkg/circuitbreaker"
 )
 
-// BillingClient adapts a billingv1.BillingServiceClient to the
-// reservation.BillingClient interface.
 type BillingClient struct {
 	client billingv1.BillingServiceClient
+	cb     *circuitbreaker.CircuitBreaker
 }
 
-// NewBillingClient creates a new BillingClient adapter.
 func NewBillingClient(client billingv1.BillingServiceClient) *BillingClient {
-	return &BillingClient{client: client}
+	return &BillingClient{
+		client: client,
+		cb: circuitbreaker.New(circuitbreaker.Config{
+			FailureThreshold: 5,
+			OpenTimeout:      30 * time.Second,
+			HalfOpenMaxProbes: 1,
+		}),
+	}
 }
 
-// StartBilling calls the billing service to create a billing record with the booking fee.
-func (c *BillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) error {
-	_, err := c.client.StartBilling(ctx, &billingv1.StartBillingRequest{
+func (c *BillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+	var result *billingmodel.BillingRecord
+	err := c.cb.Execute(func() error {
+		var err error
+		result, err = c.startBillingInner(ctx, reservationID, bookingFee, idempotencyKey)
+		return err
+	})
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+		return nil, apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+	}
+	return result, err
+}
+
+func (c *BillingClient) startBillingInner(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+	resp, err := c.client.StartBilling(ctx, &billingv1.StartBillingRequest{
 		ReservationId:  reservationID,
 		BookingFee:     bookingFee,
 		IdempotencyKey: idempotencyKey,
 	})
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return protoToBillingRecord(resp), nil
 }
 
-// CalculateFee calls the billing service to compute parking fees.
 func (c *BillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error) {
+	var result *billingmodel.BillingRecord
+	err := c.cb.Execute(func() error {
+		var err error
+		result, err = c.calculateFeeInner(ctx, reservationID, checkInAt, checkOutAt)
+		return err
+	})
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+		return nil, apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+	}
+	return result, err
+}
+
+func (c *BillingClient) calculateFeeInner(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error) {
 	resp, err := c.client.CalculateFee(ctx, &billingv1.CalculateFeeRequest{
 		ReservationId: reservationID,
 		CheckInAt:     timestamppb.New(checkInAt),
@@ -46,8 +79,20 @@ func (c *BillingClient) CalculateFee(ctx context.Context, reservationID string, 
 	return protoToBillingRecord(resp), nil
 }
 
-// GenerateInvoice calls the billing service to finalise a billing record into an invoice.
 func (c *BillingClient) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+	var result *billingmodel.BillingRecord
+	err := c.cb.Execute(func() error {
+		var err error
+		result, err = c.generateInvoiceInner(ctx, reservationID, idempotencyKey)
+		return err
+	})
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+		return nil, apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+	}
+	return result, err
+}
+
+func (c *BillingClient) generateInvoiceInner(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error) {
 	resp, err := c.client.GenerateInvoice(ctx, &billingv1.GenerateInvoiceRequest{
 		ReservationId:  reservationID,
 		IdempotencyKey: idempotencyKey,
@@ -58,8 +103,17 @@ func (c *BillingClient) GenerateInvoice(ctx context.Context, reservationID strin
 	return protoToBillingRecord(resp), nil
 }
 
-// ApplyPenalty calls the billing service to record a penalty.
 func (c *BillingClient) ApplyPenalty(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
+	err := c.cb.Execute(func() error {
+		return c.applyPenaltyInner(ctx, reservationID, penaltyType, amount, description)
+	})
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+		return apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+	}
+	return err
+}
+
+func (c *BillingClient) applyPenaltyInner(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
 	_, err := c.client.ApplyPenalty(ctx, &billingv1.ApplyPenaltyRequest{
 		ReservationId: reservationID,
 		PenaltyType:   penaltyType,
@@ -69,7 +123,6 @@ func (c *BillingClient) ApplyPenalty(ctx context.Context, reservationID string, 
 	return err
 }
 
-// protoToBillingRecord maps a protobuf BillingResponse to the domain BillingRecord.
 func protoToBillingRecord(r *billingv1.BillingResponse) *billingmodel.BillingRecord {
 	if r == nil {
 		return nil

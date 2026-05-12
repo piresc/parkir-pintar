@@ -7,7 +7,7 @@ import (
 
 	"parkir-pintar/pkg/config"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims represents the JWT claims payload with user identity fields.
@@ -61,12 +61,8 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (interface{}, error) {
-		// Verify signing method is HMAC
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
 		return []byte(secret), nil
-	})
+	}, jwt.WithValidMethods([]string{"HS256"}))
 	if err != nil {
 		return nil, fmt.Errorf("invalid token: %w", err)
 	}

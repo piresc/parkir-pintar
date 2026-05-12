@@ -91,6 +91,7 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 	natsClient := new(MockNATSClient)
 
 	repo.On("GetByIdempotencyKey", mock.Anything, "billing-res-1").Return(nil, repository.ErrNotFound)
+	repo.On("GetByReservationID", mock.Anything, "res-1").Return(nil, repository.ErrNotFound)
 	repo.On("CreateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
 
 	uc := NewUsecase(repo, natsClient)

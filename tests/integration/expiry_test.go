@@ -34,12 +34,12 @@ import (
 func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	// Arrange — set up all mocks
 	repo := new(MockRepository)
-	redis := new(MockRedisClient)
+	locker := new(MockLocker)
 	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, redis, natsClient, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, natsClient, billing, payment)
 
 	// --- Phase 1: Create Reservation ---
 
@@ -49,16 +49,16 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		VehicleType: "car",
 		Status:      "available",
 	}, nil)
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-expire-1", "locked", 30*time.Second).Return(true, nil)
-	redis.On("Delete", mock.Anything, "lock:spot:spot-expire-1").Return(nil)
+	lock := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-expire-1").Return(lock, nil)
+	lock.On("Release", mock.Anything).Return(nil)
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-expire-1").Return(&model.ParkingSpot{
 		ID:     "spot-expire-1",
 		Status: "available",
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-expire-1", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
@@ -70,10 +70,29 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	// --- Phase 1b: Confirm reservation ---
+	confirmedAt := time.Now().Add(-2 * time.Hour)
+	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
+		ID:          reservation.ID,
+		DriverID:    "driver-expire-1",
+		SpotID:      "spot-expire-1",
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
+	}, nil).Once()
+	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
+		return r.Status == model.StatusConfirmed
+	})).Return(nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", billingmodel.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
+	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+
+	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+
 	// --- Phase 2: Expire Reservation (simulating 1h+ elapsed) ---
 
 	// Arrange: return reservation as confirmed but past expiry
-	confirmedAt := time.Now().Add(-2 * time.Hour)
 	expiresAt := time.Now().Add(-1 * time.Hour)
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
@@ -105,7 +124,8 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 
 	// Verify all mock expectations
 	repo.AssertExpectations(t)
-	redis.AssertExpectations(t)
+	locker.AssertExpectations(t)
+	lock.AssertExpectations(t)
 	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)

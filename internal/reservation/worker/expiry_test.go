@@ -64,6 +64,9 @@ func (f *fakeRepo) GetByIDForUpdate(_ context.Context, _ *sqlx.Tx, _ string) (*m
 	return nil, nil
 }
 func (f *fakeRepo) WithTransaction(_ context.Context, _ func(tx *sqlx.Tx) error) error { return nil }
+func (f *fakeRepo) FindStalePaymentReservations(_ context.Context, _ int) ([]*model.Reservation, error) {
+	return nil, nil
+}
 
 // fakeUsecase implements usecase.Usecase for testing.
 type fakeUsecase struct {
@@ -91,16 +94,28 @@ func (f *fakeUsecase) getExpiredIDs() []string {
 }
 
 // Stub methods to satisfy the usecase.Usecase interface.
-func (f *fakeUsecase) CreateReservation(context.Context, *model.CreateReservationRequest) (*model.Reservation, error) {
+func (f *fakeUsecase) CreateReservation(_ context.Context, _ *model.CreateReservationRequest) (*model.Reservation, error) {
 	return nil, nil
 }
-func (f *fakeUsecase) CancelReservation(context.Context, *model.CancelReservationRequest) (*model.Reservation, error) {
+func (f *fakeUsecase) CancelReservation(_ context.Context, _ *model.CancelReservationRequest) (*model.Reservation, error) {
 	return nil, nil
 }
-func (f *fakeUsecase) CheckIn(context.Context, *model.CheckInRequest) (*model.Reservation, error) {
+func (f *fakeUsecase) CheckIn(_ context.Context, _ *model.CheckInRequest) (*model.Reservation, error) {
 	return nil, nil
 }
-func (f *fakeUsecase) CheckOut(context.Context, *model.CheckOutRequest) (*model.CheckOutResponse, error) {
+func (f *fakeUsecase) CheckOut(_ context.Context, _ *model.CheckOutRequest) (*model.CheckOutResponse, error) {
+	return nil, nil
+}
+func (f *fakeUsecase) FailReservation(_ context.Context, _ *model.FailReservationRequest) error {
+	return nil
+}
+func (f *fakeUsecase) ConfirmReservation(_ context.Context, _ *model.ConfirmReservationRequest) (*model.Reservation, error) {
+	return nil, nil
+}
+func (f *fakeUsecase) CompleteCheckout(_ context.Context, _ *model.CompleteCheckoutRequest) (*model.CheckOutResponse, error) {
+	return nil, nil
+}
+func (f *fakeUsecase) GetReservation(_ context.Context, _ string) (*model.Reservation, error) {
 	return nil, nil
 }
 

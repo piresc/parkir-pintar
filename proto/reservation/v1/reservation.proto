@@ -10,12 +10,18 @@ import "google/protobuf/timestamp.proto";
 service ReservationService {
   // CreateReservation creates a new parking reservation (idempotent).
   rpc CreateReservation(CreateReservationRequest) returns (ReservationResponse);
+  // GetReservation retrieves a reservation by ID.
+  rpc GetReservation(GetReservationRequest) returns (ReservationResponse);
   // CancelReservation cancels an existing reservation.
   rpc CancelReservation(CancelReservationRequest) returns (ReservationResponse);
   // CheckIn marks a reservation as checked in.
   rpc CheckIn(CheckInRequest) returns (ReservationResponse);
-  // CheckOut completes a reservation and triggers billing.
+  // CheckOut calculates the final bill and generates an invoice.
   rpc CheckOut(CheckOutRequest) returns (CheckOutResponse);
+  // ConfirmReservation processes the booking fee payment and confirms the reservation.
+  rpc ConfirmReservation(ConfirmReservationRequest) returns (ReservationResponse);
+  // CompleteCheckout processes the checkout payment and releases the spot.
+  rpc CompleteCheckout(CompleteCheckoutRequest) returns (CheckOutResponse);
   // ExpireReservation expires a no-show reservation.
   rpc ExpireReservation(ExpireReservationRequest) returns (ReservationResponse);
 }
@@ -28,6 +34,10 @@ message CreateReservationRequest {
   string idempotency_key = 5;
 }
 
+message GetReservationRequest {
+  string reservation_id = 1;
+}
+
 message CancelReservationRequest {
   string reservation_id = 1;
 }
@@ -37,6 +47,14 @@ message CheckInRequest {
 }
 
 message CheckOutRequest {
+  string reservation_id = 1;
+}
+
+message ConfirmReservationRequest {
+  string reservation_id = 1;
+}
+
+message CompleteCheckoutRequest {
   string reservation_id = 1;
 }
 
@@ -64,4 +82,8 @@ message CheckOutResponse {
   int64 total_amount = 2;
   string billing_id = 3;
   string payment_id = 4;
+  int64 booking_fee = 5;
+  int64 parking_fee = 6;
+  int64 overnight_fee = 7;
+  int64 penalty_amount = 8;
 }

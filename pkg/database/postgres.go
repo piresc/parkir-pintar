@@ -5,10 +5,11 @@ package database
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // PostgreSQL driver
+	_ "github.com/jackc/pgx/v5/stdlib" // PostgreSQL driver
 
 	"parkir-pintar/pkg/config"
 )
@@ -23,16 +24,16 @@ type PostgresClient struct {
 // connectivity with a 10-second timeout ping.
 func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		url.PathEscape(cfg.Username),
+		url.PathEscape(cfg.Password),
 		cfg.Host,
 		cfg.Port,
-		cfg.Username,
-		cfg.Password,
 		cfg.Database,
 		cfg.SSLMode,
 	)
 
-	db, err := sqlx.Open("postgres", dsn)
+	db, err := sqlx.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
@@ -55,6 +56,14 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
+	}
+
+	if cfg.Schema != "" && cfg.Schema != "public" {
+		_, err := db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %s, public", cfg.Schema))
+		if err != nil {
+			db.Close()
+			return nil, fmt.Errorf("failed to set search_path to %s: %w", cfg.Schema, err)
+		}
 	}
 
 	return &PostgresClient{db: db}, nil

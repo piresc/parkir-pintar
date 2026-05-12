@@ -14,12 +14,15 @@ import (
 	paymentuc "parkir-pintar/internal/payment/usecase"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
+	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	paymentv1 "parkir-pintar/proto/payment/v1"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -56,6 +59,8 @@ func main() {
 
 	tracedPG := database.NewTracedPostgresClient(pgClient, tracer)
 
+	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, nil)
+
 	repo := paymentrepo.NewRepository(tracedPG.GetDB())
 	gw := paymentgateway.NewStubGateway(false)
 	uc := paymentuc.NewUsecase(repo, gw, natsClient)
@@ -66,7 +71,19 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
-	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second)
+	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
+		grpc.ChainUnaryInterceptor(
+			interceptors.RecoveryUnaryInterceptor(),
+			interceptors.AuthUnaryInterceptor(nil),
+			interceptors.LoggingUnaryInterceptor(),
+			interceptors.TracingUnaryInterceptor(),
+			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
+				RequestsPerSecond: 100,
+				BurstSize:        200,
+				CleanupInterval:  5 * time.Minute,
+			}),
+		),
+	)
 	grpcSrv.RegisterService(&paymentv1.PaymentService_ServiceDesc, handler)
 	if err := grpcSrv.Start(); err != nil {
 		log.Error("gRPC server error", slog.Any("error", err))

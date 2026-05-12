@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useReservation } from '../contexts/ReservationContext';
@@ -14,6 +14,30 @@ export default function ActiveReservationPage() {
   const { currentReservation, setReservation, clearReservation } = useReservation();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [spotCode, setSpotCode] = useState(null);
+  const [fetching, setFetching] = useState(!currentReservation);
+
+  // Fetch reservation from API if not in context
+  useEffect(() => {
+    if (!currentReservation && id) {
+      setFetching(true);
+      api.getReservation(id)
+        .then(res => {
+          const data = res.data || res;
+          setReservation(data);
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setFetching(false));
+    }
+  }, [id, currentReservation, setReservation]);
+
+  useEffect(() => {
+    if (currentReservation?.spot_id) {
+      api.getSpotDetails(currentReservation.spot_id)
+        .then(res => setSpotCode(res.data?.spot_code))
+        .catch(() => setSpotCode(null));
+    }
+  }, [currentReservation]);
 
   const reservation = currentReservation;
 
@@ -61,12 +85,29 @@ export default function ActiveReservationPage() {
     setError(null);
     try {
       const res = await api.checkOut(id);
-      setReservation(res.data?.reservation);
+      setReservation({
+        ...res.data?.reservation,
+        total_amount: res.data?.total_amount,
+        billing_id: res.data?.billing_id,
+        payment_id: res.data?.payment_id,
+        booking_fee: res.data?.booking_fee,
+        parking_fee: res.data?.parking_fee,
+        overnight_fee: res.data?.overnight_fee,
+        penalty_amount: res.data?.penalty_amount,
+      });
       navigate(`/checkout/${id}`);
     } catch (e) {
       setError(e.message);
       setLoading(false);
     }
+  }
+
+  if (fetching) {
+    return (
+      <div className="page">
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!reservation) {
@@ -80,7 +121,7 @@ export default function ActiveReservationPage() {
 
   return (
     <div className="page active-reservation-page">
-      <ReservationCard reservation={reservation} />
+      <ReservationCard reservation={reservation} spotCode={spotCode} />
       {error && <ErrorBanner message={error} />}
       {loading && <LoadingSpinner />}
       <div className="action-buttons">

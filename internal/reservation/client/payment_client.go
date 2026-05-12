@@ -2,23 +2,44 @@ package client
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	paymentv1 "parkir-pintar/proto/payment/v1"
+	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/pkg/circuitbreaker"
 )
 
-// PaymentClient adapts a paymentv1.PaymentServiceClient to the
-// reservation.PaymentClient interface.
 type PaymentClient struct {
 	client paymentv1.PaymentServiceClient
+	cb     *circuitbreaker.CircuitBreaker
 }
 
-// NewPaymentClient creates a new PaymentClient adapter.
 func NewPaymentClient(client paymentv1.PaymentServiceClient) *PaymentClient {
-	return &PaymentClient{client: client}
+	return &PaymentClient{
+		client: client,
+		cb: circuitbreaker.New(circuitbreaker.Config{
+			FailureThreshold: 5,
+			OpenTimeout:      30 * time.Second,
+			HalfOpenMaxProbes: 1,
+		}),
+	}
 }
 
-// ProcessPayment calls the payment service to process a payment for a billing record.
 func (c *PaymentClient) ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error) {
+	var result string
+	err := c.cb.Execute(func() error {
+		var err error
+		result, err = c.processPaymentInner(ctx, billingID, amount, paymentMethod, idempotencyKey)
+		return err
+	})
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+		return "", apperror.New("SERVICE_UNAVAILABLE", "payment service temporarily unavailable", 503)
+	}
+	return result, err
+}
+
+func (c *PaymentClient) processPaymentInner(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error) {
 	resp, err := c.client.ProcessPayment(ctx, &paymentv1.ProcessPaymentRequest{
 		BillingId:      billingID,
 		Amount:         amount,

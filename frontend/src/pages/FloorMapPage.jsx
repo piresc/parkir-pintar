@@ -45,7 +45,7 @@ export default function FloorMapPage() {
         idempotency_key: generateIdempotencyKey(),
       });
       setReservation(res.data);
-      navigate(`/reservation/${res.data.id}`);
+      navigate(`/payment/${res.data.id}`);
     } catch (e) {
       setError(e.message);
     }
@@ -63,6 +63,11 @@ export default function FloorMapPage() {
       </div>
       {loading && <LoadingSpinner />}
       {error && <ErrorBanner message={error} onRetry={load} />}
+      <div className="floor-legend">
+        <span className="legend-item"><span className="dot available"/> Available</span>
+        <span className="legend-item"><span className="dot reserved"/> Reserved</span>
+        <span className="legend-item"><span className="dot occupied"/> Occupied</span>
+      </div>
       <FloorGrid spots={spots} selectedSpotId={selectedSpot?.id} onSelect={setSelectedSpot} />
       <SpotDetailModal spot={selectedSpot} onClose={() => setSelectedSpot(null)} onSelect={reserveSpot} />
     </div>

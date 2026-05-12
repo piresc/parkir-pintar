@@ -35,12 +35,12 @@ import (
 // Validates: PRD §9.4, §9.5 Example 4, Scenario 8
 func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpiry(t *testing.T) {
 	repo := new(MockRepository)
-	redis := new(MockRedisClient)
+	locker := new(MockLocker)
 	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, redis, natsClient, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, natsClient, billing, payment)
 
 	// --- Phase 1: Create Reservation ---
 	repo.On("FindByIdempotencyKey", mock.Anything, "extended-key").Return(nil, model.ErrNotFound)
@@ -49,8 +49,9 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		VehicleType: "car",
 		Status:      "available",
 	}, nil)
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-extended", "locked", 30*time.Second).Return(true, nil)
-	redis.On("Delete", mock.Anything, "lock:spot:spot-extended").Return(nil)
+	lock := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-extended").Return(lock, nil)
+	lock.On("Release", mock.Anything).Return(nil)
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-extended").Return(&model.ParkingSpot{
 		ID:          "spot-extended",
 		VehicleType: "car",
@@ -58,9 +59,9 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
+	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-extended",
 		VehicleType:    "car",
@@ -70,8 +71,27 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	// --- Phase 1b: Confirm reservation ---
+	confirmedAt := time.Now().Add(-4 * time.Hour)
+	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
+		ID:          reservation.ID,
+		DriverID:    "driver-extended",
+		SpotID:      "spot-extended",
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
+	}, nil).Once()
+	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
+		return r.Status == model.StatusConfirmed
+	})).Return(nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", billingmodel.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
+	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+
+	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+
 	// --- Phase 2: Check-In ---
-	confirmedAt := *reservation.ConfirmedAt
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
 		DriverID:    "driver-extended",
@@ -83,7 +103,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		return r.Status == model.StatusCheckedIn
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "occupied").Return(nil)
-	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(nil)
+	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
 	natsClient.On("Publish", "reservation.checked_in", mock.Anything).Return(nil)
 
 	checkedIn, err := uc.CheckIn(t.Context(), &model.CheckInRequest{ReservationID: reservation.ID})
@@ -106,14 +126,11 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		ConfirmedAt: &confirmedAt,
 		CheckedInAt: &checkedInAt,
 	}, nil).Once()
-	billing.On("CalculateFee", mock.Anything, reservation.ID, checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
-	billing.On("GenerateInvoice", mock.Anything, reservation.ID, mock.AnythingOfType("string")).Return(billingRecord, nil)
-	payment.On("ProcessPayment", mock.Anything, "billing-extended", int64(25000), "qris", mock.AnythingOfType("string")).Return(nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
 		return r.Status == model.StatusCheckedOut
 	})).Return(nil).Once()
-	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "available").Return(nil)
-	natsClient.On("Publish", "reservation.checked_out", mock.Anything).Return(nil)
+	billing.On("CalculateFee", mock.Anything, reservation.ID, checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
+	billing.On("GenerateInvoice", mock.Anything, reservation.ID, mock.AnythingOfType("string")).Return(billingRecord, nil)
 
 	checkOutResult, err := uc.CheckOut(t.Context(), &model.CheckOutRequest{ReservationID: reservation.ID})
 	require.NoError(t, err)

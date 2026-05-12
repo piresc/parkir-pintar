@@ -8,7 +8,6 @@ package usecase
 
 import (
 	"testing"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +26,7 @@ import (
 func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	redis := new(MockRedisClient)
+	locker := new(MockLocker)
 	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
@@ -38,8 +37,9 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 		VehicleType: "car",
 		Status:      "available",
 	}, nil)
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-race", "locked", 30*time.Second).Return(true, nil)
-	redis.On("Delete", mock.Anything, "lock:spot:spot-race").Return(nil)
+	lck := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-race").Return(lck, nil)
+	lck.On("Release", mock.Anything).Return(nil)
 	// Race condition: another request reserved the spot between FindAvailableSpot and GetSpotForUpdate
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-race").Return(&model.ParkingSpot{
 		ID:          "spot-race",
@@ -47,7 +47,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 		Status:      "reserved",
 	}, nil)
 
-	uc := NewUsecase(repo, redis, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, natsClient, billing, payment)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -69,7 +69,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	natsClient.AssertNotCalled(t, "Publish")
 	payment.AssertNotCalled(t, "ProcessPayment")
 	repo.AssertExpectations(t)
-	redis.AssertExpectations(t)
+	locker.AssertExpectations(t)
 }
 
 // TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable verifies the baseline
@@ -78,7 +78,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	redis := new(MockRedisClient)
+	locker := new(MockLocker)
 	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
@@ -89,8 +89,9 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 		VehicleType: "car",
 		Status:      "available",
 	}, nil)
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-a", "locked", 30*time.Second).Return(true, nil)
-	redis.On("Delete", mock.Anything, "lock:spot:spot-a").Return(nil)
+	lck := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-a").Return(lck, nil)
+	lck.On("Release", mock.Anything).Return(nil)
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-a").Return(&model.ParkingSpot{
 		ID:          "spot-a",
 		VehicleType: "car",
@@ -98,10 +99,9 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-a", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-	uc := NewUsecase(repo, redis, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, natsClient, billing, payment)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -114,16 +114,17 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusConfirmed, result.Status)
+	assert.Equal(t, model.StatusWaitingPayment, result.Status)
 	assert.Equal(t, "spot-a", result.SpotID)
 	assert.Equal(t, "driver-1", result.DriverID)
 	assert.Equal(t, model.AssignmentSystemAssigned, result.AssignmentMode)
-	assert.NotNil(t, result.ConfirmedAt)
-	assert.NotNil(t, result.ExpiresAt)
+	assert.Nil(t, result.ConfirmedAt)
+	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
-	redis.AssertExpectations(t)
+	locker.AssertExpectations(t)
 	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
+	payment.AssertExpectations(t)
 }
 
 // TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable verifies
@@ -133,7 +134,7 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	redis := new(MockRedisClient)
+	locker := new(MockLocker)
 	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
@@ -144,8 +145,9 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 		VehicleType: "motorcycle",
 		Status:      "available",
 	}, nil)
-	redis.On("SetNX", mock.Anything, "lock:spot:spot-boundary", "locked", 30*time.Second).Return(true, nil)
-	redis.On("Delete", mock.Anything, "lock:spot:spot-boundary").Return(nil)
+	lck := new(MockLock)
+	locker.On("Acquire", mock.Anything, "spot:spot-boundary").Return(lck, nil)
+	lck.On("Release", mock.Anything).Return(nil)
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-boundary").Return(&model.ParkingSpot{
 		ID:          "spot-boundary",
 		VehicleType: "motorcycle",
@@ -153,10 +155,9 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-boundary", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
 
-	uc := NewUsecase(repo, redis, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, natsClient, billing, payment)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "motorcycle",
@@ -169,14 +170,15 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusConfirmed, result.Status)
+	assert.Equal(t, model.StatusWaitingPayment, result.Status)
 	assert.Equal(t, "spot-boundary", result.SpotID)
 	assert.Equal(t, "motorcycle", result.VehicleType)
 	assert.Equal(t, model.AssignmentSystemAssigned, result.AssignmentMode)
-	assert.NotNil(t, result.ConfirmedAt)
-	assert.NotNil(t, result.ExpiresAt)
+	assert.Nil(t, result.ConfirmedAt)
+	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
-	redis.AssertExpectations(t)
+	locker.AssertExpectations(t)
 	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
+	payment.AssertExpectations(t)
 }

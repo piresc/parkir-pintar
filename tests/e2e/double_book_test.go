@@ -51,7 +51,15 @@ func TestDoubleBook_ShouldRejectSecond_WhenSameSpotConcurrent(t *testing.T) {
 		IdempotencyKey: uuid.New().String(),
 	})
 
-	// Assert — First reservation succeeds
+	// Assert — First reservation succeeds with waiting payment status
+	require.NoError(t, err)
+	require.NotNil(t, res1)
+	assert.Equal(t, model.StatusWaitingPayment, res1.Status)
+
+	// Confirm the first reservation
+	res1, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: res1.ID,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, res1)
 	assert.Equal(t, model.StatusConfirmed, res1.Status)

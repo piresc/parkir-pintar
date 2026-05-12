@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+import { parseTimestamp } from '../../utils/formatters';
+
 export default function CountdownTimer({ target }) {
   const [remaining, setRemaining] = useState(() => calcRemaining(target));
 
@@ -11,7 +13,7 @@ export default function CountdownTimer({ target }) {
   }, [target]);
 
   function calcRemaining(t) {
-    const diff = new Date(t) - Date.now();
+    const diff = parseTimestamp(t) - Date.now();
     if (diff <= 0) return { expired: true, text: 'Expired' };
     const m = Math.floor(diff / 60000);
     const s = Math.floor((diff % 60000) / 1000);

@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/nats-io/nats.go"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -79,7 +79,9 @@ func TestMain(m *testing.M) {
 		tcpostgres.WithUsername("test"),
 		tcpostgres.WithPassword("test"),
 		testcontainers.WithWaitStrategy(
-			wait.ForListeningPort("5432/tcp").WithStartupTimeout(60*time.Second),
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(60*time.Second),
 		),
 	)
 	if err != nil {
@@ -134,7 +136,7 @@ func TestMain(m *testing.M) {
 	// 3. Create clients
 	// -----------------------------------------------------------------------
 
-	db, err := sqlx.Connect("postgres", pgConnStr)
+	db, err := sqlx.Connect("pgx", pgConnStr)
 	if err != nil {
 		log.Fatalf("connect to postgres: %v", err)
 	}
@@ -160,6 +162,8 @@ func TestMain(m *testing.M) {
 	migrations := []string{
 		"../../db/migrations/000001_init.up.sql",
 		"../../db/migrations/000002_parkir_pintar.up.sql",
+		"../../db/migrations/000003_payment_flow.up.sql",
+		"../../db/migrations/000004_schema_per_service.up.sql",
 	}
 	for _, path := range migrations {
 		sql, err := os.ReadFile(path)
@@ -169,6 +173,23 @@ func TestMain(m *testing.M) {
 		if _, err := db.ExecContext(ctx, string(sql)); err != nil {
 			log.Fatalf("apply migration %s: %v", path, err)
 		}
+	}
+
+	// Set default search_path at database level so all pool connections inherit it
+	var dbName string
+	_ = db.QueryRowContext(ctx, "SELECT current_database()").Scan(&dbName)
+	_, _ = db.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s SET search_path TO reservation, billing, payment, presence, search, public", dbName))
+	db.Close()
+	var reconnectErr error
+	for i := 0; i < 5; i++ {
+		db, reconnectErr = sqlx.Connect("pgx", pgConnStr)
+		if reconnectErr == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if reconnectErr != nil {
+		log.Fatalf("reconnect to postgres after search_path change: %v", reconnectErr)
 	}
 
 	// -----------------------------------------------------------------------
@@ -186,7 +207,7 @@ func TestMain(m *testing.M) {
 	natsStub := &stubNATSClient{}
 	stubGW := gateway.NewStubGateway(false)
 
-	redisAdapter := &reservationRedisAdapter{client: redisClient}
+	redisAdapter := &reservationLockerAdapter{client: redisClient}
 	presRedisAdapter := &presenceRedisAdapter{client: redisClient}
 	srchRedisAdapter := &searchRedisAdapter{client: redisClient}
 

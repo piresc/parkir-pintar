@@ -9,6 +9,7 @@ import ReservePage from './pages/ReservePage';
 import FloorMapPage from './pages/FloorMapPage';
 import ActiveReservationPage from './pages/ActiveReservationPage';
 import CheckoutPage from './pages/CheckoutPage';
+import PaymentPage from './pages/PaymentPage';
 import StatusPage from './pages/StatusPage';
 
 function ProtectedRoute({ children }) {
@@ -34,6 +35,7 @@ function AppRoutes() {
       <Route path="/reserve" element={<ProtectedRoute><AppLayout><ReservePage /></AppLayout></ProtectedRoute>} />
       <Route path="/floors/:floor" element={<ProtectedRoute><AppLayout><FloorMapPage /></AppLayout></ProtectedRoute>} />
       <Route path="/reservation/:id" element={<ProtectedRoute><AppLayout><ActiveReservationPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/payment/:id" element={<ProtectedRoute><AppLayout><PaymentPage /></AppLayout></ProtectedRoute>} />
       <Route path="/checkout/:id" element={<ProtectedRoute><AppLayout><CheckoutPage /></AppLayout></ProtectedRoute>} />
       <Route path="/status" element={<ProtectedRoute><AppLayout><StatusPage /></AppLayout></ProtectedRoute>} />
     </Routes>

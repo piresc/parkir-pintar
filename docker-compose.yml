@@ -118,6 +118,7 @@ services:
       APP_NAME: parkir-pintar-search
       APP_ENV: local
       GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
@@ -159,6 +160,7 @@ services:
       APP_NAME: parkir-pintar-reservation
       APP_ENV: local
       GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
@@ -207,6 +209,7 @@ services:
       APP_NAME: parkir-pintar-billing
       APP_ENV: local
       GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
@@ -243,6 +246,7 @@ services:
       APP_NAME: parkir-pintar-payment
       APP_ENV: local
       GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
@@ -279,6 +283,7 @@ services:
       APP_NAME: parkir-pintar-presence
       APP_ENV: local
       GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
@@ -320,6 +325,7 @@ services:
       APP_NAME: parkir-pintar-notification
       APP_ENV: local
       GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
       NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
     depends_on:

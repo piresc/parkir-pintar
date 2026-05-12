@@ -44,6 +44,12 @@ func TestPaidCancel_ShouldApplyFee_WhenCancelledAfter2Minutes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	reservation, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, reservation)
+
 	// Manipulate confirmed_at to be 3 minutes ago so cancellation is past the free window
 	_, err = env.db.ExecContext(ctx,
 		"UPDATE reservations SET confirmed_at = NOW() - INTERVAL '3 minutes' WHERE id = $1",

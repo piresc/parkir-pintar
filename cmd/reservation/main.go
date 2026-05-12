@@ -15,15 +15,19 @@ import (
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
 	"parkir-pintar/pkg/grpcclient"
+	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
+	"parkir-pintar/pkg/redislock"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	billingv1 "parkir-pintar/proto/billing/v1"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
+
+	"google.golang.org/grpc"
 
 	"parkir-pintar/internal/reservation/client"
 )
@@ -66,7 +70,7 @@ func main() {
 	}
 
 	tracedPG := database.NewTracedPostgresClient(pgClient, tracer)
-	tracedRedis := redis.NewTracedRedisClient(redisClient, tracer)
+	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, redisClient)
 
 	// Dial downstream billing & payment services.
 	billingTarget := getEnv("GRPC_BILLING_TARGET", "localhost:9093")
@@ -99,8 +103,16 @@ func main() {
 
 	// Wire domain layers.
 	repo := reservationrepo.NewRepository(tracedPG.GetDB())
+	redislockLocker, err := redislock.NewLocker(redisClient, redislock.Config{
+		TTL:           12 * time.Minute,
+		RetryAttempts: 0,
+	})
+	if err != nil {
+		log.Error("failed to create locker", slog.Any("error", err))
+		os.Exit(1)
+	}
 	uc := usecase.NewUsecase(
-		repo, tracedRedis, natsClient,
+		repo, usecase.NewLockerAdapter(redislockLocker), natsClient,
 		client.NewBillingClient(billingGRPC),
 		client.NewPaymentClient(paymentGRPC),
 	)
@@ -109,6 +121,9 @@ func main() {
 	// Start expiry worker.
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go worker.RunExpiryWorker(workerCtx, 30*time.Second, repo, uc)
+
+	// Start payment timeout worker.
+	go worker.RunPaymentTimeoutWorker(workerCtx, 30*time.Second, repo, uc, cfg.Reservation.PaymentTimeoutMinutes)
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { workerCancel(); return nil })
@@ -119,7 +134,19 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { paymentConn.Close(); return nil })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
-	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second)
+	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
+		grpc.ChainUnaryInterceptor(
+			interceptors.RecoveryUnaryInterceptor(),
+			interceptors.AuthUnaryInterceptor(nil),
+			interceptors.LoggingUnaryInterceptor(),
+			interceptors.TracingUnaryInterceptor(),
+			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
+				RequestsPerSecond: 100,
+				BurstSize:        200,
+				CleanupInterval:  5 * time.Minute,
+			}),
+		),
+	)
 	grpcSrv.RegisterService(&reservationv1.ReservationService_ServiceDesc, handler)
 	if err := grpcSrv.Start(); err != nil {
 		log.Error("gRPC server error", slog.Any("error", err))

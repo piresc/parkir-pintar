@@ -49,6 +49,12 @@ func TestOvernight_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing
 	})
 	require.NoError(t, err)
 
+	// Confirm reservation
+	_, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+
 	// Check in
 	_, err = env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
 		ReservationID: reservation.ID,

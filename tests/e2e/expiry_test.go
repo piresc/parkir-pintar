@@ -44,6 +44,12 @@ func TestExpiry_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	reservation, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, reservation)
+
 	// Act — Expire the reservation
 	err = env.reservationUC.ExpireReservation(ctx, &model.ExpireReservationRequest{
 		ReservationID: reservation.ID,

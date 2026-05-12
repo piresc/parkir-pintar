@@ -28,6 +28,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id string) (*model.Reservation, error)
 	GetByIDForUpdate(ctx context.Context, tx *sqlx.Tx, id string) (*model.Reservation, error)
 	WithTransaction(ctx context.Context, fn func(tx *sqlx.Tx) error) error
+	FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error)
 }
 
 // sqlxRepository is the sqlx-backed implementation of Repository.
@@ -206,4 +207,18 @@ func (r *sqlxRepository) WithTransaction(ctx context.Context, fn func(tx *sqlx.T
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
+}
+
+// FindStalePaymentReservations retrieves waiting_payment reservations whose
+// created_at is older than the specified timeout in minutes.
+func (r *sqlxRepository) FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error) {
+	var reservations []*model.Reservation
+	query := `SELECT * FROM reservations
+		WHERE status = 'waiting_payment'
+		AND created_at < NOW() - make_interval(mins => $1)`
+	err := r.db.SelectContext(ctx, &reservations, query, timeoutMinutes)
+	if err != nil {
+		return nil, fmt.Errorf("find stale payment reservations: %w", err)
+	}
+	return reservations, nil
 }

@@ -46,42 +46,45 @@ func TestPaymentFailure_ShouldCreateFailedRecord_WhenGatewayFails(t *testing.T) 
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	// Confirm reservation
+	reservation, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
+		ReservationID: reservation.ID,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, reservation)
+
 	// Check in
 	_, err = env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
 		ReservationID: reservation.ID,
 	})
 	require.NoError(t, err)
 
-	// Act — Set gateway to fail, then check out
+	// Act — Set gateway to fail, then complete checkout (which processes payment)
 	env.paymentGW.ShouldFail = true
 	defer func() { env.paymentGW.ShouldFail = false }()
 
 	checkoutResp, err := env.reservationUC.CheckOut(ctx, &model.CheckOutRequest{
 		ReservationID: reservation.ID,
 	})
+	require.NoError(t, err)
+	require.NotNil(t, checkoutResp)
 
-	// The checkout may return an error or succeed with a failed payment
-	// depending on implementation. Check the payment record in DB regardless.
-	if err != nil {
-		// Checkout returned error due to payment failure — verify payment record
-		var paymentStatus string
-		queryErr := env.db.QueryRowContext(ctx,
-			`SELECT status FROM payments
-			 WHERE billing_id = (SELECT id FROM billing_records WHERE reservation_id = $1)`,
-			reservation.ID).Scan(&paymentStatus)
-		require.NoError(t, queryErr)
+	// CompleteCheckout should fail due to payment gateway failure
+	_, completeErr := env.reservationUC.CompleteCheckout(ctx, &model.CompleteCheckoutRequest{
+		ReservationID: reservation.ID,
+	})
+
+	var paymentStatus string
+	queryErr := env.db.QueryRowContext(ctx,
+		`SELECT status FROM payments
+		 WHERE billing_id = (SELECT id FROM billing_records WHERE reservation_id = $1)`,
+		reservation.ID).Scan(&paymentStatus)
+	require.NoError(t, queryErr)
+
+	if completeErr != nil {
 		assert.Equal(t, "failed", paymentStatus)
 		return
 	}
 
-	// If checkout succeeded despite payment failure, verify payment record
-	require.NotNil(t, checkoutResp)
-
-	var paymentStatus string
-	err = env.db.QueryRowContext(ctx,
-		`SELECT status FROM payments
-		 WHERE billing_id = (SELECT id FROM billing_records WHERE reservation_id = $1)`,
-		reservation.ID).Scan(&paymentStatus)
-	require.NoError(t, err)
 	assert.Equal(t, "failed", paymentStatus)
 }

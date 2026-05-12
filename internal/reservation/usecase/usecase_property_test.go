@@ -13,7 +13,6 @@ package usecase
 
 import (
 	"testing"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +21,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/redislock"
 )
 
 // --- Property 5: Idempotency ---
@@ -39,7 +39,7 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 		key := rapid.String().Draw(rt, "idempotencyKey")
 
 		repo := new(MockRepository)
-		redis := new(MockRedisClient)
+		locker := new(MockLocker)
 		natsClient := new(MockNATSClient)
 		billing := new(MockBillingClient)
 		payment := new(MockPaymentClient)
@@ -57,7 +57,7 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 		// First call: returns existing (idempotent hit)
 		repo.On("FindByIdempotencyKey", mock.Anything, key).Return(existing, nil)
 
-		uc := NewUsecase(repo, redis, natsClient, billing, payment)
+		uc := NewUsecase(repo, locker, natsClient, billing, payment)
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-1",
 			VehicleType:    "car",
@@ -98,7 +98,7 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 		// Helper to create a usecase that produces a new reservation for a given key
 		createForKey := func(key string) (*model.Reservation, error) {
 			repo := new(MockRepository)
-			redis := new(MockRedisClient)
+			locker := new(MockLocker)
 			natsClient := new(MockNATSClient)
 			billing := new(MockBillingClient)
 			payment := new(MockPaymentClient)
@@ -110,25 +110,25 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 				VehicleType: "car",
 				Status:      "available",
 			}, nil)
-			redis.On("SetNX", mock.Anything, mock.Anything, "locked", 30*time.Second).Return(true, nil)
-			redis.On("Delete", mock.Anything, mock.Anything).Return(nil)
+			lck := new(MockLock)
+			locker.On("Acquire", mock.Anything, mock.Anything).Return(lck, nil)
+			lck.On("Release", mock.Anything).Return(nil)
 			repo.On("GetSpotForUpdate", mock.Anything, "spot-1").Return(&model.ParkingSpot{
 				ID:     "spot-1",
 				Status: "available",
 			}, nil)
 			repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 			repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "reserved").Return(nil)
-			billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-			natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-			uc := NewUsecase(repo, redis, natsClient, billing, payment)
-			req := &model.CreateReservationRequest{
-				DriverID:       "driver-1",
-				VehicleType:    "car",
-				AssignmentMode: model.AssignmentSystemAssigned,
-				IdempotencyKey: key,
-			}
-			return uc.CreateReservation(t.Context(), req)
+		uc := NewUsecase(repo, locker, natsClient, billing, payment)
+		req := &model.CreateReservationRequest{
+			DriverID:       "driver-1",
+			VehicleType:    "car",
+			AssignmentMode: model.AssignmentSystemAssigned,
+			IdempotencyKey: key,
+		}
+		return uc.CreateReservation(t.Context(), req)
 		}
 
 		// Act
@@ -162,7 +162,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		vehicleType := rapid.SampledFrom([]string{"car", "motorcycle"}).Draw(rt, "vehicleType")
 
 		repo := new(MockRepository)
-		redis := new(MockRedisClient)
+		locker := new(MockLocker)
 		natsClient := new(MockNATSClient)
 		billing := new(MockBillingClient)
 		payment := new(MockPaymentClient)
@@ -174,18 +174,18 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 			VehicleType: vehicleType,
 			Status:      "available",
 		}, nil)
-		redis.On("SetNX", mock.Anything, "lock:spot:"+spotID, "locked", 30*time.Second).Return(true, nil)
-		redis.On("Delete", mock.Anything, "lock:spot:"+spotID).Return(nil)
+		lck := new(MockLock)
+		locker.On("Acquire", mock.Anything, "spot:"+spotID).Return(lck, nil)
+		lck.On("Release", mock.Anything).Return(nil)
 		repo.On("GetSpotForUpdate", mock.Anything, spotID).Return(&model.ParkingSpot{
 			ID:     spotID,
 			Status: "available",
 		}, nil)
 		repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-		natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
 
-		uc := NewUsecase(repo, redis, natsClient, billing, payment)
+		uc := NewUsecase(repo, locker, natsClient, billing, payment)
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-prop9",
 			VehicleType:    vehicleType,
@@ -204,16 +204,13 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		assert.Equal(rt, vehicleType, result.VehicleType,
 			"reservation vehicle type should match requested %q", vehicleType)
 
-		// Postcondition 2: status is "confirmed"
-		assert.Equal(rt, model.StatusConfirmed, result.Status,
-			"reservation status should be confirmed")
+		// Postcondition 2: status is "waiting_payment"
+		assert.Equal(rt, model.StatusWaitingPayment, result.Status,
+			"reservation status should be waiting_payment")
 
-		// Postcondition 3: expires_at == confirmed_at + 1 hour (within 1s tolerance)
-		assert.NotNil(rt, result.ConfirmedAt, "confirmed_at should be set")
-		assert.NotNil(rt, result.ExpiresAt, "expires_at should be set")
-		expectedExpiry := result.ConfirmedAt.Add(1 * time.Hour)
-		assert.WithinDuration(rt, expectedExpiry, *result.ExpiresAt, time.Second,
-			"expires_at should be confirmed_at + 1 hour")
+		// Postcondition 3: confirmed_at and expires_at are nil until payment
+		assert.Nil(rt, result.ConfirmedAt, "confirmed_at should not be set yet")
+		assert.Nil(rt, result.ExpiresAt, "expires_at should not be set yet")
 	})
 }
 
@@ -237,7 +234,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 
 		// --- First reservation: succeeds ---
 		repo1 := new(MockRepository)
-		redis1 := new(MockRedisClient)
+		locker1 := new(MockLocker)
 		nats1 := new(MockNATSClient)
 		billing1 := new(MockBillingClient)
 		payment1 := new(MockPaymentClient)
@@ -248,18 +245,18 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 			VehicleType: "car",
 			Status:      "available",
 		}, nil)
-		redis1.On("SetNX", mock.Anything, "lock:spot:"+spotID, "locked", 30*time.Second).Return(true, nil)
-		redis1.On("Delete", mock.Anything, "lock:spot:"+spotID).Return(nil)
+		lck1 := new(MockLock)
+		locker1.On("Acquire", mock.Anything, "spot:"+spotID).Return(lck1, nil)
+		lck1.On("Release", mock.Anything).Return(nil)
 		repo1.On("GetSpotForUpdate", mock.Anything, spotID).Return(&model.ParkingSpot{
 			ID:     spotID,
 			Status: "available",
 		}, nil)
 		repo1.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo1.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(nil)
-		nats1.On("Publish", "reservation.confirmed", mock.Anything).Return(nil)
+		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
 
-		uc1 := NewUsecase(repo1, redis1, nats1, billing1, payment1)
+		uc1 := NewUsecase(repo1, locker1, nats1, billing1, payment1)
 		req1 := &model.CreateReservationRequest{
 			DriverID:       "driver-first",
 			VehicleType:    "car",
@@ -272,11 +269,11 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		// Assert first reservation succeeds
 		assert.NoError(rt, err1)
 		assert.NotNil(rt, res1)
-		assert.Equal(rt, model.StatusConfirmed, res1.Status)
+		assert.Equal(rt, model.StatusWaitingPayment, res1.Status)
 
 		// --- Second reservation for same spot: fails due to lock contention ---
 		repo2 := new(MockRepository)
-		redis2 := new(MockRedisClient)
+		locker2 := new(MockLocker)
 		nats2 := new(MockNATSClient)
 		billing2 := new(MockBillingClient)
 		payment2 := new(MockPaymentClient)
@@ -287,10 +284,10 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 			VehicleType: "car",
 			Status:      "available",
 		}, nil)
-		// Lock contention: SetNX returns false (lock already held)
-		redis2.On("SetNX", mock.Anything, "lock:spot:"+spotID, "locked", 30*time.Second).Return(false, nil)
+		// Lock contention: Acquire returns ErrLockUnavailable
+		locker2.On("Acquire", mock.Anything, "spot:"+spotID).Return(nil, redislock.ErrLockUnavailable)
 
-		uc2 := NewUsecase(repo2, redis2, nats2, billing2, payment2)
+		uc2 := NewUsecase(repo2, locker2, nats2, billing2, payment2)
 		req2 := &model.CreateReservationRequest{
 			DriverID:       "driver-second",
 			VehicleType:    "car",

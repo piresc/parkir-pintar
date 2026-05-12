@@ -4,7 +4,7 @@
 // - Test naming: Test[FunctionName]_Should[ExpectedResult]_When[Condition]
 // - AAA pattern: Arrange → Act → Assert
 // - miniredis/v2 for in-memory Redis testing without real server
-// - go-redis/redis/v8 client pointing to miniredis addr
+// - redis/go-redis/v9 client pointing to miniredis addr
 // - Each test gets a fresh miniredis instance for isolation
 // - Test serialization and TTL behavior
 package redis
@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -1,12 +1,117 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
 import { useReservation } from '../contexts/ReservationContext';
 import BillingBreakdown from '../components/domain/BillingBreakdown';
 import Button from '../components/ui/Button';
 import StatusBadge from '../components/ui/StatusBadge';
+import ErrorBanner from '../components/ui/ErrorBanner';
+import { formatIDR } from '../utils/formatters';
+
+// Generate a fake QRIS QR code (simulated)
+function QRISPlaceholder({ amount }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '1rem' }}>
+      <div style={{
+        width: 200, height: 200, margin: '0 auto 1rem',
+        background: 'white', borderRadius: 12, padding: 12,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexDirection: 'column', gap: 8
+      }}>
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          {/* QR-like pattern */}
+          <rect x="10" y="10" width="40" height="40" rx="4" fill="#1a1a2e" />
+          <rect x="15" y="15" width="30" height="30" rx="2" fill="white" />
+          <rect x="22" y="22" width="16" height="16" rx="2" fill="#1a1a2e" />
+          <rect x="110" y="10" width="40" height="40" rx="4" fill="#1a1a2e" />
+          <rect x="115" y="15" width="30" height="30" rx="2" fill="white" />
+          <rect x="122" y="22" width="16" height="16" rx="2" fill="#1a1a2e" />
+          <rect x="10" y="110" width="40" height="40" rx="4" fill="#1a1a2e" />
+          <rect x="15" y="115" width="30" height="30" rx="2" fill="white" />
+          <rect x="22" y="122" width="16" height="16" rx="2" fill="#1a1a2e" />
+          {/* middle pattern */}
+          <rect x="60" y="10" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="10" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="10" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="25" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="25" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="25" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="40" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="40" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="40" width="8" height="8" fill="#1a1a2e" />
+          <rect x="10" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="25" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="40" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="110" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="125" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="140" y="60" width="8" height="8" fill="#1a1a2e" />
+          <rect x="10" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="25" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="40" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="110" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="125" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="140" y="75" width="8" height="8" fill="#1a1a2e" />
+          <rect x="10" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="25" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="40" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="110" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="125" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="140" y="90" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="110" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="110" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="110" width="8" height="8" fill="#1a1a2e" />
+          <rect x="110" y="110" width="8" height="8" fill="#1a1a2e" />
+          <rect x="125" y="110" width="8" height="8" fill="#1a1a2e" />
+          <rect x="140" y="110" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="125" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="125" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="125" width="8" height="8" fill="#1a1a2e" />
+          <rect x="110" y="125" width="8" height="8" fill="#1a1a2e" />
+          <rect x="125" y="125" width="8" height="8" fill="#1a1a2e" />
+          <rect x="140" y="125" width="8" height="8" fill="#1a1a2e" />
+          <rect x="60" y="140" width="8" height="8" fill="#1a1a2e" />
+          <rect x="75" y="140" width="8" height="8" fill="#1a1a2e" />
+          <rect x="90" y="140" width="8" height="8" fill="#1a1a2e" />
+          <rect x="110" y="140" width="8" height="8" fill="#1a1a2e" />
+          <rect x="125" y="140" width="8" height="8" fill="#1a1a2e" />
+          <rect x="140" y="140" width="8" height="8" fill="#1a1a2e" />
+        </svg>
+        <span style={{ fontSize: '0.7rem', color: '#666' }}>QRIS Simulation</span>
+      </div>
+      <p style={{ fontWeight: 600 }}>Scan to pay {formatIDR(amount)}</p>
+    </div>
+  );
+}
 
 export default function CheckoutPage() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { currentReservation, clearReservation } = useReservation();
+  const [paying, setPaying] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handlePay() {
+    setPaying(true);
+    setError(null);
+    try {
+      await api.completeCheckout(id);
+      setPaying(false);
+      setPaid(true);
+    } catch (e) {
+      setError(e.message);
+      setPaying(false);
+    }
+  }
 
   function handleDone() {
     clearReservation();
@@ -23,21 +128,34 @@ export default function CheckoutPage() {
     );
   }
 
+  const checkout = currentReservation;
+  const total = checkout.total_amount || 0;
+
   return (
     <div className="page checkout-page">
-      <h2>Checkout Complete</h2>
+      <h2>Checkout</h2>
       <BillingBreakdown
-        bookingFee={5000}
-        parkingFee={currentReservation.parking_fee || 0}
-        overnightFee={currentReservation.overnight_fee || 0}
-        penalty={currentReservation.penalty_amount || 0}
-        total={currentReservation.total_amount || 0}
+        bookingFee={checkout.booking_fee || 0}
+        parkingFee={checkout.parking_fee || 0}
+        overnightFee={checkout.overnight_fee || 0}
+        penalty={checkout.penalty_amount || 0}
+        total={total}
       />
-      <div className="payment-status">
-        <StatusBadge status="success" />
-        <p>Payment processed successfully via QRIS</p>
-      </div>
-      <Button variant="cta" onClick={handleDone}>Done</Button>
+      {error && <ErrorBanner message={error} />}
+      {!paid ? (
+        <>
+          <QRISPlaceholder amount={(checkout.total_amount || 0) - (checkout.booking_fee || 0)} />
+          <Button variant="cta" onClick={handlePay} disabled={paying}>
+            {paying ? 'Processing...' : 'Pay with QRIS'}
+          </Button>
+        </>
+      ) : (
+        <div className="payment-status">
+          <StatusBadge status="success" />
+          <p>Payment processed successfully via QRIS</p>
+          <Button variant="cta" onClick={handleDone}>Done</Button>
+        </div>
+      )}
     </div>
   );
 }

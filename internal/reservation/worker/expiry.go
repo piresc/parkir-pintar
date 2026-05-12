@@ -53,3 +53,48 @@ func RunExpiryWorker(ctx context.Context, interval time.Duration, repo repositor
 		}
 	}
 }
+
+// RunPaymentTimeoutWorker periodically scans for waiting_payment reservations
+// that have exceeded the payment timeout window and fails them (releases spot).
+// It runs until ctx is cancelled.
+//
+// Postconditions:
+//   - All waiting_payment reservations older than timeoutMinutes are
+//     transitioned to "failed"
+//   - Spots are released back to "available"
+//   - reservation.payment_failed events are published
+//
+// Loop Invariant:
+//   - Each iteration processes only reservations with status='waiting_payment'
+//     AND created_at < NOW() - timeoutMinutes
+func RunPaymentTimeoutWorker(ctx context.Context, interval time.Duration, repo repository.Repository, uc usecase.Usecase, timeoutMinutes int) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	slog.Info("payment timeout worker started",
+		slog.Duration("interval", interval),
+		slog.Int("timeout_minutes", timeoutMinutes))
+
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("payment timeout worker stopped")
+			return
+		case <-ticker.C:
+			stale, err := repo.FindStalePaymentReservations(ctx, timeoutMinutes)
+			if err != nil {
+				slog.Error("payment timeout worker: find stale", slog.Any("error", err))
+				continue
+			}
+			for _, r := range stale {
+				if err := uc.FailReservation(ctx, &model.FailReservationRequest{
+					ReservationID: r.ID,
+				}); err != nil {
+					slog.Error("payment timeout worker: fail reservation",
+						slog.String("reservation_id", r.ID),
+						slog.Any("error", err))
+				}
+			}
+		}
+	}
+}

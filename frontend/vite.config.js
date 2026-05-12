@@ -6,12 +6,12 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://staging-parkir-pintar.piresc.dev',
+        target: process.env.VITE_API_TARGET || 'https://staging-parkir-pintar.piresc.dev',
         changeOrigin: true,
         secure: true,
       },
       '/health': {
-        target: 'https://staging-parkir-pintar.piresc.dev',
+        target: process.env.VITE_API_TARGET || 'https://staging-parkir-pintar.piresc.dev',
         changeOrigin: true,
         secure: true,
       },

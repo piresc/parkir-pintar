@@ -52,9 +52,7 @@ export default function LoginPage() {
             placeholder="Paste your JWT token"
             style={{ fontSize: '0.8em' }}
           />
-          <p style={{ color: 'var(--text-muted, #888)', fontSize: '0.75em', margin: '0.25em 0' }}>
-            Get one from the Telegram bot: /generate_jwt_parkir_pintar
-          </p>
+
           {error && <p style={{ color: 'var(--error, #ff4444)', fontSize: '0.85em' }}>{error}</p>}
           <Button variant="cta" type="submit" disabled={!token.trim()}>
             Enter Garage

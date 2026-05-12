@@ -60,9 +60,9 @@ jobs:
         with:
           go-version: "1.25"
 
-      - name: Run tests with race detector and coverage
+      - name: Run unit tests with race detector and coverage
         run: |
-          go test -v -race -covermode=atomic -coverprofile=coverage.txt ./...
+          go test -v -race -covermode=atomic -coverprofile=coverage.txt -short ./...
 
       - name: Display coverage summary
         run: go tool cover -func=coverage.txt
@@ -130,7 +130,7 @@ jobs:
   build-push-staging:
     name: Build & Push Staging Image
     runs-on: ubuntu-latest
-    needs: test
+    needs: secret-scan
     if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4

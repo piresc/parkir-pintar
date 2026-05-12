@@ -38,9 +38,7 @@ func startBufconnServer(t *testing.T) *bufconn.Listener {
 	srv := grpc.NewServer()
 
 	go func() {
-		if err := srv.Serve(lis); err != nil {
-			// Server stopped — expected during cleanup.
-		}
+		_ = srv.Serve(lis)
 	}()
 
 	t.Cleanup(func() {

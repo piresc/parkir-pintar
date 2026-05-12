@@ -462,13 +462,13 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 	}
 
 	// Phase 2: Calculate fee and generate invoice (outside the row lock)
-	billingRecord, err := uc.billingClient.CalculateFee(ctx, reservation.ID, *reservation.CheckedInAt, *reservation.CheckedOutAt)
+	_, err := uc.billingClient.CalculateFee(ctx, reservation.ID, *reservation.CheckedInAt, *reservation.CheckedOutAt)
 	if err != nil {
 		return nil, fmt.Errorf("check-out calculate fee: %w", err)
 	}
 
 	invoiceIdempotencyKey := fmt.Sprintf("invoice-%s", reservation.ID)
-	billingRecord, err = uc.billingClient.GenerateInvoice(ctx, reservation.ID, invoiceIdempotencyKey)
+	billingRecord, err := uc.billingClient.GenerateInvoice(ctx, reservation.ID, invoiceIdempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("check-out generate invoice: %w", err)
 	}

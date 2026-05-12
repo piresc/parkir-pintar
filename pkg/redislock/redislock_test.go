@@ -159,7 +159,7 @@ func TestAcquire_ShouldFail_WhenKeyIsAlreadyHeld(t *testing.T) {
 
 	lock1, err := locker.Acquire(ctx, "contested")
 	require.NoError(t, err)
-	defer lock1.Release(ctx)
+	defer func() { _ = lock1.Release(ctx) }()
 
 	// Act — second acquire on same key
 	lock2, err := locker.Acquire(ctx, "contested")
@@ -279,7 +279,7 @@ func TestAcquire_ShouldFail_WhenAllRetriesExhausted(t *testing.T) {
 	// Hold the lock permanently
 	lock1, err := locker.Acquire(ctx, "no-release")
 	require.NoError(t, err)
-	defer lock1.Release(ctx)
+	defer func() { _ = lock1.Release(ctx) }()
 
 	// Act — second acquire with retries should still fail
 	lock2, err := locker.Acquire(ctx, "no-release")
@@ -372,7 +372,7 @@ func TestAcquire_ShouldReturnError_WhenContextCancelled(t *testing.T) {
 	// Hold the lock so retries are needed
 	lock1, err := locker.Acquire(ctx, "cancel-test")
 	require.NoError(t, err)
-	defer lock1.Release(context.Background())
+	defer func() { _ = lock1.Release(context.Background()) }()
 
 	// Cancel context immediately
 	cancel()

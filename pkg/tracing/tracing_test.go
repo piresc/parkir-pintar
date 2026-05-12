@@ -161,7 +161,8 @@ func TestNoOpTracer_ExtractContext_ShouldReturnSameContext(t *testing.T) {
 
 func TestNoOpTransaction_Context_ShouldReturnStoredContext(t *testing.T) {
 	// Arrange
-	ctx := context.WithValue(context.Background(), "key", "value")
+	type ctxKey string
+	ctx := context.WithValue(context.Background(), ctxKey("key"), "value")
 	txn := &NoOpTransaction{ctx: ctx}
 
 	// Act & Assert

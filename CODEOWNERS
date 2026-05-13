@@ -1,0 +1,17 @@
+# ParkirPintar Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @piresc
+
+# Proto definitions (API contracts)
+/proto/ @piresc
+
+# Infrastructure and deployment
+/infra/ @piresc
+
+# Documentation
+/docs/ @piresc
+
+# CI/CD and GitHub configuration
+/.github/ @piresc

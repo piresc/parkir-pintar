@@ -2,25 +2,41 @@
 
 A lightweight, fast smart parking backend system managing a single centralized parking area. Built with Go microservices communicating via gRPC over HTTP/2, backed by PostgreSQL, Redis, and NATS JetStream.
 
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| Language | Go 1.25+ |
+| HTTP Framework | Gin 1.12 |
+| RPC | gRPC / Protocol Buffers |
+| Database | PostgreSQL 14 |
+| Cache & Locks | Redis 7.0 |
+| Messaging | NATS JetStream |
+| Observability | OpenTelemetry → Grafana (Tempo + Prometheus + Loki) |
+| Containerization | Docker & Docker Compose |
+| Reverse Proxy | Traefik |
+| CI/CD | GitHub Actions / GitLab CI |
+
 ---
 
 ## Table of Contents
 
-- [High-Level Design (HLD)](#high-level-design-hld)
-- [Low-Level Design (LLD)](#low-level-design-lld)
-- [Entity Relationship Diagram (ERD)](#entity-relationship-diagram-erd)
-- [Infrastructure & Configuration](#infrastructure--configuration)
-- [Project Structure](#project-structure)
+- [Architecture Overview](#architecture-overview)
 - [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [API Overview](#api-overview)
 - [Running Tests](#running-tests)
-- [Assumptions](#assumptions)
-- [Third-Party Libraries](#third-party-libraries)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Monitoring & Observability](#monitoring--observability)
+- [Documentation Index](#documentation-index)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## High-Level Design (HLD)
+## Architecture Overview
 
-### System Architecture
+ParkirPintar uses a microservices architecture with 7 Go services communicating via gRPC over HTTP/2. The API Gateway exposes REST endpoints and transcodes to internal gRPC calls.
 
 ```mermaid
 graph TB
@@ -79,155 +95,314 @@ graph TB
 - **Asynchronous**: NATS JetStream for domain events (reservation.confirmed, billing.calculated, etc.)
 - **Client-facing**: REST API via Gateway (transcodes to gRPC internally)
 
----
-
-## Low-Level Design (LLD)
-
-### Reservation Flow (System-Assigned)
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant GW as Gateway
-    participant RS as Reservation Service
-    participant RD as Redis
-    participant PG as PostgreSQL
-    participant BS as Billing Service
-    participant NATS as NATS JetStream
-
-    C->>GW: POST /api/v1/reservations
-    GW->>RS: gRPC CreateReservation(idempotency_key)
-
-    Note over RS: Step 1: Idempotency check
-    RS->>PG: FindByIdempotencyKey
-    PG-->>RS: not found
-
-    Note over RS: Step 2: Find available spot
-    RS->>PG: FindAvailableSpot(vehicle_type)
-    PG-->>RS: spot_id
-
-    Note over RS: Step 3: Acquire distributed lock
-    RS->>RD: SETNX lock:spot:{id} (30s TTL)
-    RD-->>RS: OK
-
-    Note over RS: Step 4: Double-check under lock
-    RS->>PG: SELECT ... FOR UPDATE (spot)
-    PG-->>RS: status=available
-
-    Note over RS: Step 5: Create in transaction
-    RS->>PG: BEGIN
-    RS->>PG: INSERT reservation (status=confirmed, expires_at=now+1h)
-    RS->>PG: UPDATE spot SET status=reserved
-    RS->>PG: COMMIT
-
-    Note over RS: Step 6: Start billing (non-critical)
-    RS->>BS: gRPC StartBilling(booking_fee=5000)
-
-    Note over RS: Step 7: Publish event
-    RS->>NATS: reservation.confirmed
-    RS->>RD: DEL lock:spot:{id}
-
-    RS-->>GW: ReservationResponse
-    GW-->>C: 201 Created
-```
-
-### Check-Out & Billing Flow
-
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant GW as Gateway
-    participant RS as Reservation Service
-    participant PG as PostgreSQL
-    participant BS as Billing Service
-    participant PS as Payment Service
-
-    C->>GW: POST /api/v1/reservations/:id/checkout
-    GW->>RS: gRPC CheckOut(reservation_id)
-
-    Note over RS: Phase 1: Lock & transition (transaction)
-    RS->>PG: SELECT ... FOR UPDATE (reservation)
-    RS->>PG: UPDATE status=checked_out, spot=available
-    RS->>PG: COMMIT
-
-    Note over RS: Phase 2: Billing & payment
-    RS->>BS: gRPC CalculateFee(check_in, check_out)
-    Note over BS: PricingEngine: ceil(hours) × 5000 + overnight
-    BS-->>RS: BillingRecord (total_amount)
-
-    RS->>BS: gRPC GenerateInvoice(idempotency_key)
-    BS-->>RS: BillingRecord (status=invoiced)
-
-    RS->>PS: gRPC ProcessPayment(amount, method=qris)
-    PS-->>RS: PaymentResponse (status=success)
-
-    RS-->>GW: CheckOutResponse (total, billing_id)
-    GW-->>C: 200 OK
-```
-
-### Reservation Expiry (Background Worker)
-
-```mermaid
-sequenceDiagram
-    participant W as Expiry Worker
-    participant PG as PostgreSQL
-    participant RS as Reservation Usecase
-    participant NATS as NATS JetStream
-
-    loop Every 30 seconds
-        W->>PG: SELECT confirmed reservations WHERE expires_at < NOW()
-        PG-->>W: [expired reservations]
-
-        loop For each expired reservation
-            W->>RS: ExpireReservation(id)
-            RS->>PG: BEGIN
-            RS->>PG: SELECT ... FOR UPDATE
-            RS->>PG: UPDATE status=expired
-            RS->>PG: UPDATE spot status=available
-            RS->>PG: COMMIT
-            Note over RS: No additional penalty — booking fee<br/>(already charged) is the only cost
-            RS->>NATS: reservation.expired
-        end
-    end
-```
-
-### Pricing Engine Algorithm
-
-```
-CalculateParkingFee(checkIn, checkOut):
-    duration = checkOut - checkIn
-    billedHours = ceil(duration.Hours())
-    billedHours = max(billedHours, 1)
-    parkingFee = billedHours × 5,000 IDR
-
-    isOvernight = (checkIn.Date(WIB) != checkOut.Date(WIB))
-    overnightFee = isOvernight ? 20,000 IDR : 0
-
-    return parkingFee + overnightFee
-```
-
-### Double-Booking Prevention (3 Layers)
-
-1. **Redis Distributed Lock**: `SETNX lock:spot:{id}` with 30s TTL prevents concurrent reservation attempts on the same spot
-2. **PostgreSQL SELECT FOR UPDATE**: Row-level lock on the spot during the transaction
-3. **Partial Unique Index**: `CREATE UNIQUE INDEX ON reservations (spot_id) WHERE status IN ('confirmed', 'checked_in')` — database-level guarantee
-
-### Idempotency Mechanism
-
-- **Application level**: `idempotency_key` column with UNIQUE constraint on `reservations` and `billing_records`
-- **gRPC middleware level**: Atomic SETNX + sentinel polling pattern in `pkg/grpcmiddleware/idempotency.go`
-- On duplicate key: returns the existing record instead of creating a new one
-
-### Circuit Breaker & Resilience
-
-- **Circuit Breaker** (`pkg/circuitbreaker/`): 3-state (Closed → Open → HalfOpen) with configurable failure threshold and timeout
-- **Retry with Backoff** (`pkg/httpclient/`): Exponential backoff for transient failures
-- **Context-Aware Retries** (`internal/payment/usecase/`): Respects context cancellation during retry delays
-- **Graceful Degradation**: Billing and notification failures are logged but don't fail the reservation flow
+For full architecture details, see [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md).
 
 ---
 
-## Entity Relationship Diagram (ERD)
+## Quick Start
+
+### Prerequisites
+
+- Go 1.25+
+- Docker & Docker Compose
+- protoc + protoc-gen-go + protoc-gen-go-grpc (for proto regeneration)
+
+### Run with Docker Compose
+
+```bash
+# Clone and enter the project
+git clone <repository-url>
+cd parkir-pintar
+
+# Copy environment config
+cp config/.env.example config/.env
+# Edit config/.env with your local values
+
+# Start everything (infrastructure + all 7 services)
+docker compose up -d
+
+# Verify services are running
+curl http://localhost:8080/health/ready
+```
+
+The Gateway API is available at `http://localhost:8080`.
+
+### Run Locally (Development)
+
+```bash
+# Start infrastructure only
+docker compose up -d postgres redis nats
+
+# Run a specific service
+go run ./cmd/gateway
+go run ./cmd/search
+go run ./cmd/reservation
+# ... etc
+```
+
+### Makefile Targets
+
+| Target | Description |
+|---|---|
+| `make test` | Run all unit tests |
+| `make test-coverage` | Tests with coverage report |
+| `make test-race` | Tests with race detector |
+| `make test-e2e` | E2E tests (testcontainers-go) |
+| `make test-e2e-docker` | E2E tests (Docker Compose) |
+| `make test-e2e-all` | Both E2E test layers |
+| `make lint` | Run golangci-lint |
+| `make gosec` | Security scanner |
+| `make gitleaks` | Secret scanning |
+| `make proto-gen` | Regenerate proto Go code |
+| `make build` | Build all binaries |
+| `make docker-build` | Build Docker image |
+| `make docker-run` | Run via Docker Compose |
+
+---
+
+## Project Structure
+
+```
+parkir-pintar/
+├── cmd/                        # Service entry points (one per microservice)
+│   ├── gateway/                # API Gateway (REST → gRPC transcoding)
+│   ├── search/                 # Search Service
+│   ├── reservation/            # Reservation Service + expiry worker
+│   ├── billing/                # Billing Service
+│   ├── payment/                # Payment Service
+│   ├── presence/               # Presence Service
+│   └── notification/           # Notification Service (stub)
+├── internal/                   # Domain modules (clean architecture)
+│   ├── gateway/handler/        # REST handlers → gRPC transcoding
+│   ├── search/                 # handler, usecase, repository, subscriber
+│   ├── reservation/            # handler, usecase, repository, model, worker
+│   ├── billing/                # handler, usecase, repository, model
+│   ├── payment/                # handler, usecase, repository, gateway
+│   ├── presence/               # handler, usecase, repository, model
+│   ├── notification/           # handler, usecase, subscriber
+│   └── natssetup/              # Shared NATS stream configuration
+├── pkg/                        # Reusable packages
+│   ├── config/                 # Config loader (env vars + .env file)
+│   ├── logger/                 # Structured logging (slog + OTEL)
+│   ├── database/               # PostgreSQL client + traced wrapper
+│   ├── redis/                  # Redis client + traced wrapper
+│   ├── nats/                   # NATS JetStream client + traced wrapper
+│   ├── tracing/                # OpenTelemetry tracer (OTLP gRPC/HTTP/stdout/noop)
+│   ├── telemetry/              # Unified OTel init (Tracer + Meter + Logger providers)
+│   ├── metrics/                # OTel metric instruments (HTTP, gRPC, DB, NATS, business)
+│   ├── pricing/                # Pricing engine (pure functions)
+│   ├── redislock/              # Distributed lock (SETNX + Lua release)
+│   ├── circuitbreaker/         # Circuit breaker pattern
+│   ├── grpcserver/             # gRPC server bootstrap
+│   ├── grpcclient/             # gRPC client with keepalive + tracing
+│   ├── grpcmiddleware/         # gRPC interceptors (auth, idempotency, rate limit, tracing, logging, recovery)
+│   ├── middleware/             # HTTP middleware (auth, CORS, rate limit, tracing, recovery)
+│   ├── httpclient/             # HTTP client (retry, tracing, SSRF protection)
+│   ├── server/                 # Graceful HTTP server + shutdown manager
+│   ├── health/                 # Health check endpoints
+│   ├── auth/                   # JWT generation + validation
+│   ├── apperror/               # Structured application errors
+│   ├── response/               # Standardized JSON responses
+│   └── crypto/                 # AES, RSA, HMAC-SHA256 utilities
+├── proto/                      # Protocol Buffer definitions
+│   ├── search/v1/              # SearchService proto + generated Go
+│   ├── reservation/v1/         # ReservationService proto + generated Go
+│   ├── billing/v1/             # BillingService proto + generated Go
+│   ├── payment/v1/             # PaymentService proto + generated Go
+│   ├── presence/v1/            # PresenceService proto + generated Go
+│   └── notification/v1/        # NotificationService proto + generated Go
+├── db/migrations/              # SQL migration files (schema + seed data)
+├── tests/
+│   ├── e2e/                    # End-to-end tests (testcontainers-go)
+│   ├── e2e_docker/             # E2E tests (Docker Compose layer)
+│   ├── integration/            # Integration tests (mock-based)
+│   └── testhelpers/            # Shared test utilities
+├── config/                     # Environment config templates
+├── docs/                       # Documentation (see index below)
+├── deploy/                     # Deployment configurations
+├── docker-compose.yml          # Full stack (infra + 7 services)
+├── Dockerfile                  # Multi-stage build (all 8 binaries)
+├── Makefile                    # Development commands
+├── .github/workflows/          # GitHub Actions CI/CD
+└── .gitlab-ci.yml              # GitLab CI pipeline
+```
+
+---
+
+## API Overview
+
+The Gateway exposes a REST API at `http://localhost:8080/api/v1`. All endpoints require JWT authentication.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/search/availability` | Get parking availability by vehicle type |
+| GET | `/api/v1/search/floors/:floor` | Get floor map (all spots with status) |
+| GET | `/api/v1/search/spots/:id` | Get spot details |
+| POST | `/api/v1/reservations` | Create reservation |
+| GET | `/api/v1/reservations/:id` | Get reservation details |
+| POST | `/api/v1/reservations/:id/cancel` | Cancel reservation |
+| POST | `/api/v1/reservations/:id/check-in` | Check in |
+| POST | `/api/v1/reservations/:id/check-out` | Check out (triggers billing + payment) |
+| GET | `/api/v1/reservations/driver/:driverId` | Get driver's reservations |
+| GET | `/api/v1/billing/:reservationId` | Get billing details |
+| POST | `/api/v1/payments` | Process payment |
+| GET | `/api/v1/payments/:id` | Get payment status |
+
+**Health endpoints** (no auth): `/health`, `/health/live`, `/health/ready`, `/health/detailed`
+
+For full API documentation with request/response examples, see [docs/api/api-reference.md](docs/api/api-reference.md).
+
+---
+
+## Running Tests
+
+```bash
+# All unit + integration tests
+make test
+
+# With race detector
+make test-race
+
+# E2E tests (requires Docker)
+make test-e2e
+
+# E2E tests via Docker Compose (full stack)
+make test-e2e-docker
+
+# Specific package
+go test ./internal/reservation/usecase/...
+go test ./pkg/pricing/...
+
+# With coverage
+make test-coverage
+```
+
+### Test Structure
+
+| Layer | Location | Framework | Description |
+|-------|----------|-----------|-------------|
+| Unit | `*_test.go` alongside source | testify, rapid | Business logic, pricing rules, idempotency |
+| Property-Based | `*_property_test.go` | pgregory.net/rapid | Formal correctness properties |
+| Integration | `tests/integration/` | testify/mock | Cross-service flows with mocked dependencies |
+| E2E (Layer 1) | `tests/e2e/` | testcontainers-go | Real PostgreSQL + Redis, full usecase flows |
+| E2E (Layer 2) | `tests/e2e_docker/` | Docker Compose | Full stack with all services running |
+
+---
+
+## CI/CD Pipeline
+
+### GitHub Actions
+
+- **CI** (`.github/workflows/ci.yml`): secret scanning → lint → test (race + coverage) → gosec → SonarCloud
+- **CD** (`.github/workflows/cd.yml`): test → build → Docker push → deploy
+
+### GitLab CI
+
+- **Pipeline** (`.gitlab-ci.yml`): lint → test → gosec + gitleaks + sonar → Docker build → deploy
+  - Staging: auto-deploy on merge to `main`
+  - Production: manual approval gate
+
+### Quality Gates
+
+| Check | Tool | Threshold |
+|-------|------|-----------|
+| Lint | golangci-lint | Zero warnings |
+| Security | gosec | Zero high/critical |
+| Secrets | gitleaks | Zero findings |
+| Coverage | go test -cover | Tracked via SonarCloud |
+| Race Conditions | go test -race | Zero races |
+
+---
+
+## Monitoring & Observability
+
+All services export telemetry via OpenTelemetry SDK using OTLP gRPC:
+
+```
+Go Service (OTel SDK)
+    ├── traces  → Alloy → Tempo
+    ├── metrics → Alloy → Prometheus
+    └── logs    → Alloy → Loki
+                           ↓
+                        Grafana (unified view)
+```
+
+| Signal | SDK | Exporter | Backend |
+|--------|-----|----------|---------|
+| Traces | `go.opentelemetry.io/otel` | otlptracegrpc | Tempo |
+| Metrics | OTel SDK + periodic reader | otlpmetricgrpc | Prometheus |
+| Logs | slog + otelslog bridge | otlploggrpc | Loki |
+
+### Key Metrics
+
+- **HTTP/gRPC**: request count, latency (p50/p95/p99), error rate by endpoint
+- **Database**: query latency, connection pool utilization
+- **NATS**: publish/subscribe count, consumer lag
+- **Business**: reservations/min, check-in rate, revenue, occupancy %
+
+### Health Endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /health` | Build info (service name, version, commit, build time) |
+| `GET /health/live` | Liveness probe (always 200) |
+| `GET /health/ready` | Readiness probe (checks PostgreSQL, Redis, NATS) |
+| `GET /health/detailed` | Per-dependency status with check duration |
+
+---
+
+## Documentation Index
+
+| Document | Description |
+|----------|-------------|
+| [docs/api/api-reference.md](docs/api/api-reference.md) | Full REST API reference with examples |
+| [docs/architecture/system-architecture.md](docs/architecture/system-architecture.md) | System architecture deep-dive |
+| [docs/architecture.md](docs/architecture.md) | Architecture overview (concise) |
+| [docs/slo-sli.md](docs/slo-sli.md) | Service Level Objectives & Indicators |
+| [docs/design/capacity-planning.md](docs/design/capacity-planning.md) | Capacity planning |
+| [docs/design/api-versioning-strategy.md](docs/design/api-versioning-strategy.md) | API versioning strategy |
+| [docs/deployment/deployment-strategy.md](docs/deployment/deployment-strategy.md) | Deployment strategy |
+| [docs/deployment/disaster-recovery.md](docs/deployment/disaster-recovery.md) | Disaster recovery plan |
+| [docs/incident-response/runbook.md](docs/incident-response/runbook.md) | Operational runbook |
+| [docs/incident-response/post-mortem-template.md](docs/incident-response/post-mortem-template.md) | Post-mortem template |
+| [docs/adr/](docs/adr/) | Architecture Decision Records |
+| [docs/swagger.yaml](docs/swagger.yaml) | OpenAPI/Swagger specification |
+| [PRD.md](PRD.md) | Product Requirements Document |
+
+---
+
+## Contributing
+
+1. Create a feature branch (`git checkout -b feature/my-feature`)
+2. Follow Go idioms and the project's clean architecture patterns
+3. Add tests for new functionality
+4. Run the quality pipeline:
+   ```bash
+   make lint && make test-race && make gosec && make gitleaks
+   ```
+5. Commit with conventional messages (`feat:`, `fix:`, `refactor:`)
+6. Submit a merge request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+---
+
+## License
+
+This project is proprietary software. All rights reserved.
+
+---
+
+## Acknowledgments
+
+Built with Go and the following key libraries: Gin, gRPC, sqlx, go-redis, nats.go, OpenTelemetry, testcontainers-go, and testify. See [Third-Party Libraries](#third-party-libraries) for the full list.
+
+---
+
+## Appendix
+
+<details>
+<summary><strong>Entity Relationship Diagram</strong></summary>
 
 ```mermaid
 erDiagram
@@ -328,7 +503,10 @@ erDiagram
     reservations ||--o{ presence_logs : "tracked by"
 ```
 
-### Parking Area Capacity
+</details>
+
+<details>
+<summary><strong>Parking Area Capacity</strong></summary>
 
 | Floor | Car Spots | Motorcycle Spots | Total |
 |-------|-----------|-----------------|-------|
@@ -339,321 +517,59 @@ erDiagram
 | 5     | 30        | 50              | 80    |
 | **Total** | **150** | **250**     | **400** |
 
-Spot code format: `F{floor}-C-{number}` (car) or `F{floor}-M-{number}` (motorcycle)  
+Spot code format: `F{floor}-C-{number}` (car) or `F{floor}-M-{number}` (motorcycle)
 Example: `F3-C-012` = Floor 3, Car, Spot 12
 
----
+</details>
 
-## Infrastructure & Configuration
-
-### Docker Compose Services
-
-| Service | Image | Purpose | Port |
-|---------|-------|---------|------|
-| postgres | postgres:14-alpine | Primary data store | 5432 |
-| redis | redis:7.0-alpine | Cache, distributed locks, presence streams | 6379 |
-| nats | nats:latest | JetStream event bus | 4222, 8222 |
-| gateway | parkir-pintar (multi-binary) | REST API entry point | 8080 |
-| search | parkir-pintar | Availability queries | 9092 |
-| reservation | parkir-pintar | Reservation lifecycle | 9091 |
-| billing | parkir-pintar | Fee calculation | 9093 |
-| payment | parkir-pintar | Payment processing | 9094 |
-| presence | parkir-pintar | Location & geofence | 9095 |
-| notification | parkir-pintar | Notifications (stub) | 9096 |
-
-### NATS JetStream Configuration
-
-| Stream | Subjects | Retention | Storage | Max Age |
-|--------|----------|-----------|---------|---------|
-| RESERVATIONS | reservation.confirmed, .checked_in, .checked_out, .expired, .cancelled | Limits | File | 72h |
-| BILLING | billing.calculated, billing.invoiced | Limits | File | 72h |
-| PAYMENTS | payment.success, payment.failed | Limits | File | 72h |
-| PRESENCE | presence.arrival, presence.wrong_spot | Limits | File | 72h |
-
-### Redis Configuration
-
-- **Distributed Locks**: `SETNX` with 30s TTL for spot reservation locking
-- **Cache**: Search availability results with singleflight coalescing
-- **Presence Streams**: Redis Streams for real-time location data
-- **Idempotency**: gRPC middleware uses atomic SETNX for request deduplication
-- **Rate Limiting**: Per-IP token bucket state stored in Redis
-
-### Load Balancing & Scaling
-
-In production, the system is designed for horizontal scaling:
-
-- **Gateway**: Stateless — scale horizontally behind an L7 load balancer (e.g., NGINX, AWS ALB, or Kubernetes Ingress)
-- **gRPC Services**: Use client-side load balancing via gRPC's built-in round-robin or a service mesh (e.g., Istio, Linkerd)
-- **PostgreSQL**: Single primary with read replicas for search queries
-- **Redis**: Cluster mode for high availability; Sentinel for failover
-- **NATS**: Built-in clustering with JetStream replication (configured via `Replicas` field)
-
-For local development, Docker Compose provides all services on a single host with health checks and dependency ordering.
-
-### Cloud Deployment (Reference Architecture)
+<details>
+<summary><strong>Pricing Engine</strong></summary>
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Kubernetes Cluster                    │
-│                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐   │
-│  │ Ingress/ALB │  │ Service Mesh│  │ HPA (auto-   │   │
-│  │ (TLS term.) │  │ (mTLS, LB)  │  │  scaling)    │   │
-│  └──────┬──────┘  └─────────────┘  └──────────────┘   │
-│         │                                               │
-│  ┌──────▼──────────────────────────────────────────┐   │
-│  │  Pods: gateway, search, reservation, billing,   │   │
-│  │        payment, presence, notification          │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐   │
-│  │ RDS/Aurora  │  │ ElastiCache │  │ NATS Cluster │   │
-│  │ (PostgreSQL)│  │ (Redis)     │  │ (JetStream)  │   │
-│  └─────────────┘  └─────────────┘  └──────────────┘   │
-└─────────────────────────────────────────────────────────┘
+CalculateParkingFee(checkIn, checkOut):
+    duration = checkOut - checkIn
+    billedHours = ceil(duration.Hours())
+    billedHours = max(billedHours, 1)
+    parkingFee = billedHours × 5,000 IDR
+
+    isOvernight = (checkIn.Date(WIB) != checkOut.Date(WIB))
+    overnightFee = isOvernight ? 20,000 IDR : 0
+
+    return parkingFee + overnightFee
 ```
 
----
+- Booking fee: 5,000 IDR (charged at reservation confirmation)
+- Cancellation penalty: 2,500 IDR (if cancelled after 2 minutes)
+- No-show: booking fee forfeited, no additional penalty
 
-## Project Structure
+</details>
 
-```
-parkir-pintar/
-├── cmd/                        # Service entry points (one per microservice)
-│   ├── api/                    # Legacy API entry point
-│   ├── gateway/                # API Gateway (REST → gRPC transcoding)
-│   ├── search/                 # Search Service
-│   ├── reservation/            # Reservation Service + expiry worker
-│   ├── billing/                # Billing Service
-│   ├── payment/                # Payment Service
-│   ├── presence/               # Presence Service
-│   └── notification/           # Notification Service (stub)
-├── internal/                   # Domain modules (clean architecture)
-│   ├── gateway/handler/        # REST handlers → gRPC transcoding
-│   ├── search/                 # handler, usecase, repository, subscriber
-│   ├── reservation/            # handler, usecase, repository, model, worker
-│   ├── billing/                # handler, usecase, repository, model
-│   ├── payment/                # handler, usecase, repository, gateway
-│   ├── presence/               # handler, usecase, repository, model
-│   ├── notification/           # handler, usecase, subscriber
-│   └── natssetup/              # Shared NATS stream configuration
-├── pkg/                        # Reusable packages
-│   ├── config/                 # Config loader (env vars + .env file)
-│   ├── logger/                 # Structured logging (slog + OTEL)
-│   ├── database/               # PostgreSQL client + traced wrapper
-│   ├── redis/                  # Redis client + traced wrapper
-│   ├── nats/                   # NATS JetStream client + traced wrapper
-│   ├── tracing/                # OpenTelemetry tracer (OTLP gRPC/HTTP/stdout/noop)
-│   ├── telemetry/              # Unified OTel init (Tracer + Meter + Logger providers)
-│   ├── metrics/                # OTel metric instruments (HTTP, gRPC, DB, NATS, business)
-│   ├── pricing/                # Pricing engine (pure functions)
-│   ├── redislock/              # Distributed lock (SETNX + Lua release)
-│   ├── circuitbreaker/         # Circuit breaker pattern
-│   ├── grpcserver/             # gRPC server bootstrap
-│   ├── grpcclient/             # gRPC client with keepalive + tracing
-│   ├── grpcmiddleware/         # gRPC interceptors (auth, idempotency, rate limit, tracing, logging, recovery)
-│   ├── middleware/             # HTTP middleware (auth, CORS, rate limit, tracing, recovery)
-│   ├── httpclient/             # HTTP client (retry, tracing, SSRF protection)
-│   ├── server/                 # Graceful HTTP server + shutdown manager
-│   ├── health/                 # Health check endpoints
-│   ├── auth/                   # JWT generation + validation
-│   ├── apperror/               # Structured application errors
-│   ├── response/               # Standardized JSON responses
-│   └── crypto/                 # AES, RSA, HMAC-SHA256 utilities
-├── proto/                      # Protocol Buffer definitions
-│   ├── search/v1/              # SearchService proto + generated Go
-│   ├── reservation/v1/         # ReservationService proto + generated Go
-│   ├── billing/v1/             # BillingService proto + generated Go
-│   ├── payment/v1/             # PaymentService proto + generated Go
-│   ├── presence/v1/            # PresenceService proto + generated Go
-│   └── notification/v1/        # NotificationService proto + generated Go
-├── db/migrations/              # SQL migration files (schema + seed data)
-├── tests/
-│   ├── e2e/                    # End-to-end tests (testcontainers-go)
-│   ├── e2e_docker/             # E2E tests (Docker Compose layer)
-│   ├── integration/            # Integration tests (mock-based)
-│   └── testhelpers/            # Shared test utilities
-├── config/                     # Environment config templates
-├── docs/                       # Additional documentation
-├── docker-compose.yml          # Full stack (infra + 7 services)
-├── Dockerfile                  # Multi-stage build (all 8 binaries)
-├── Makefile                    # Development commands
-├── .github/workflows/          # GitHub Actions CI/CD
-├── .gitlab-ci.yml              # GitLab CI pipeline
-└── PRD.md                      # Product Requirements Document
-```
+<details>
+<summary><strong>Double-Booking Prevention (3 Layers)</strong></summary>
 
----
+1. **Redis Distributed Lock**: `SETNX lock:spot:{id}` with 30s TTL prevents concurrent reservation attempts on the same spot
+2. **PostgreSQL SELECT FOR UPDATE**: Row-level lock on the spot during the transaction
+3. **Partial Unique Index**: `CREATE UNIQUE INDEX ON reservations (spot_id) WHERE status IN ('confirmed', 'checked_in')` — database-level guarantee
 
-## Quick Start
+</details>
 
-### Prerequisites
-
-- Go 1.25+
-- Docker & Docker Compose
-- protoc + protoc-gen-go + protoc-gen-go-grpc (for proto regeneration)
-
-### Local Development
-
-```bash
-# Clone and enter the project
-cd parkir-pintar
-
-# Copy environment config
-cp config/.env.example config/.env
-# Edit config/.env with your local values
-
-# Start infrastructure (PostgreSQL, Redis, NATS)
-docker compose up -d postgres redis nats
-
-# Run all services
-docker compose up -d
-
-# Or run a specific service locally
-go run ./cmd/gateway
-```
-
-The Gateway API is available at `http://localhost:8080`.
-
-### Makefile Targets
-
-| Target | Description |
-|---|---|
-| `make test` | Run all unit tests |
-| `make test-coverage` | Tests with coverage report |
-| `make test-race` | Tests with race detector |
-| `make test-e2e` | E2E tests (testcontainers-go) |
-| `make test-e2e-docker` | E2E tests (Docker Compose) |
-| `make test-e2e-all` | Both E2E test layers |
-| `make lint` | Run golangci-lint |
-| `make gosec` | Security scanner |
-| `make gitleaks` | Secret scanning |
-| `make proto-gen` | Regenerate proto Go code |
-| `make build` | Build all binaries |
-| `make docker-build` | Build Docker image |
-| `make docker-run` | Run via Docker Compose |
-
----
-
-## Running Tests
-
-```bash
-# All unit + integration tests
-make test
-
-# With race detector
-make test-race
-
-# E2E tests (requires Docker)
-make test-e2e
-
-# Specific package
-go test ./internal/reservation/usecase/...
-go test ./pkg/pricing/...
-
-# With coverage
-make test-coverage
-```
-
-### Test Structure
-
-| Layer | Location | Framework | Description |
-|-------|----------|-----------|-------------|
-| Unit | `*_test.go` alongside source | testify, rapid | Business logic, pricing rules, idempotency |
-| Property-Based | `*_property_test.go` | pgregory.net/rapid | Formal correctness properties |
-| Integration | `tests/integration/` | testify/mock | Cross-service flows with mocked dependencies |
-| E2E (Layer 1) | `tests/e2e/` | testcontainers-go | Real PostgreSQL + Redis, full usecase flows |
-| E2E (Layer 2) | `tests/e2e_docker/` | Docker Compose | Full stack with all services running |
-
----
-
-## Assumptions
-
-1. The parking area is a single building with a fixed layout (5 floors, 30 car + 50 motorcycle spots per floor). The layout does not change at runtime.
-2. Each Driver has one vehicle type per session (car or motorcycle). A Driver cannot reserve spots for multiple vehicles simultaneously.
-3. The Driver's smartphone has GPS/location services enabled and the app has location permissions.
-4. Geofence detection is based on GPS coordinates provided by the client app; the backend does not integrate with physical sensors or barriers.
-5. The payment gateway and QRIS provider are external third-party services; the Payment Service integrates via their APIs (stubbed for testing).
-6. The Notification Service is a stub — it logs notification payloads but does not send actual messages.
-7. Wrong-spot detection relies on presence/location data from the Driver's phone; accuracy depends on GPS precision.
-8. All monetary values are in IDR (Indonesian Rupiah) stored as `BIGINT` (no floating point).
-9. The system operates in WIB (UTC+7) for overnight fee calculation.
-10. The super app handles Driver registration and authentication; ParkirPintar receives a valid JWT token from the super app.
-11. There is no physical barrier integration — check-in and check-out are app-driven (geofence or manual).
-12. Database is PostgreSQL; caching and locking use Redis; async messaging uses NATS JetStream.
-13. For testing purposes, payment gateway responses are simulated via a configurable stub gateway.
-14. No-show policy: the booking fee (5,000 IDR, charged at confirmation) is the only cost forfeited — no additional penalty is applied on reservation expiry.
-
----
-
-## Third-Party Libraries
+<details>
+<summary><strong>Third-Party Libraries</strong></summary>
 
 | Library | Version | Justification |
 |---------|---------|---------------|
-| `github.com/gin-gonic/gin` | v1.12.0 | High-performance HTTP framework for the Gateway REST API. Mature, well-documented, and widely adopted in Go. |
-| `github.com/jmoiron/sqlx` | v1.4.0 | Extends `database/sql` with struct scanning and named queries. Avoids ORM complexity while reducing boilerplate. |
-| `github.com/lib/pq` | v1.12.3 | PostgreSQL driver for `database/sql`. Production-proven, supports all PG features needed. |
-| `github.com/go-redis/redis/v8` | v8.11.5 | Redis client with connection pooling, pipelining, and Lua script support. Required for distributed locks and caching. |
-| `github.com/nats-io/nats.go` | v1.51.0 | NATS client with JetStream support for async event publishing and consumption between services. |
-| `github.com/google/uuid` | v1.6.0 | RFC 4122 UUID generation for primary keys and idempotency keys. |
-| `github.com/golang-jwt/jwt/v4` | v4.5.2 | JWT token generation and validation for API authentication. |
-| `github.com/joho/godotenv` | v1.5.1 | Loads `.env` files for local development configuration. |
-| `github.com/gin-contrib/cors` | v1.7.7 | CORS middleware for Gin with explicit origin configuration. |
-| `google.golang.org/grpc` | v1.80.0 | gRPC framework for service-to-service communication over HTTP/2. Required by the architecture. |
-| `google.golang.org/protobuf` | v1.36.11 | Protocol Buffers runtime for gRPC message serialization. |
-| `go.opentelemetry.io/otel` | v1.43.0 | OpenTelemetry SDK for full observability: traces, metrics, and logs via OTLP gRPC. |
-| `go.opentelemetry.io/contrib/bridges/otelslog` | v0.11.0 | OTel log bridge for slog — sends structured logs via OTLP alongside traces and metrics. |
-| `golang.org/x/sync` | v0.20.0 | `singleflight` package to prevent cache stampedes on concurrent cache misses. |
-| `pgregory.net/rapid` | v1.2.0 | Property-based testing framework for formal correctness verification. |
-| `github.com/testcontainers/testcontainers-go` | v0.42.0 | Spins up real PostgreSQL/Redis containers for E2E tests. Ensures tests run against real infrastructure. |
-| `github.com/DATA-DOG/go-sqlmock` | v1.5.2 | SQL mock for unit testing repository layer without a real database. |
-| `github.com/alicebob/miniredis/v2` | v2.37.0 | In-memory Redis mock for unit testing Redis-dependent code. |
-| `github.com/stretchr/testify` | v1.11.1 | Assertion library (`assert`, `require`, `mock`) for readable test code. |
+| `github.com/gin-gonic/gin` | v1.12.0 | High-performance HTTP framework for the Gateway REST API |
+| `github.com/jmoiron/sqlx` | v1.4.0 | Extends `database/sql` with struct scanning and named queries |
+| `github.com/lib/pq` | v1.12.3 | PostgreSQL driver for `database/sql` |
+| `github.com/go-redis/redis/v8` | v8.11.5 | Redis client with connection pooling, pipelining, and Lua script support |
+| `github.com/nats-io/nats.go` | v1.51.0 | NATS client with JetStream support |
+| `github.com/google/uuid` | v1.6.0 | RFC 4122 UUID generation |
+| `github.com/golang-jwt/jwt/v4` | v4.5.2 | JWT token generation and validation |
+| `google.golang.org/grpc` | v1.80.0 | gRPC framework for service-to-service communication |
+| `google.golang.org/protobuf` | v1.36.11 | Protocol Buffers runtime |
+| `go.opentelemetry.io/otel` | v1.43.0 | OpenTelemetry SDK for observability |
+| `pgregory.net/rapid` | v1.2.0 | Property-based testing framework |
+| `github.com/testcontainers/testcontainers-go` | v0.42.0 | Real containers for E2E tests |
+| `github.com/stretchr/testify` | v1.11.1 | Assertion library for tests |
 
----
-
-## Health Endpoints
-
-| Endpoint | Description |
-|---|---|
-| `GET /health` | Build info (service name, version, commit, build time) |
-| `GET /health/live` | Liveness probe (always 200) |
-| `GET /health/ready` | Readiness probe (checks PostgreSQL, Redis, NATS) |
-| `GET /health/detailed` | Per-dependency status with check duration |
-
----
-
-## API Endpoints (Gateway)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/reservations` | Create reservation (system-assigned or user-selected) |
-| DELETE | `/api/v1/reservations/:id` | Cancel reservation |
-| POST | `/api/v1/reservations/:id/checkin` | Check in |
-| POST | `/api/v1/reservations/:id/checkout` | Check out (triggers billing + payment) |
-| GET | `/api/v1/availability` | Get parking availability by vehicle type |
-| GET | `/api/v1/floors/:floor` | Get floor map (all spots with status) |
-| GET | `/api/v1/spots/:id` | Get spot details |
-| POST | `/api/v1/presence/stream` | Submit location update |
-| GET | `/api/v1/payments/:id/status` | Get payment status |
-
-All endpoints require JWT authentication via `Authorization: Bearer <token>`.
-
----
-
-## CI/CD
-
-- **GitHub Actions CI** (`.github/workflows/ci.yml`): secret scanning → lint → test (race + coverage) → gosec → SonarCloud
-- **GitHub Actions CD** (`.github/workflows/cd.yml`): test → build → Docker push → deploy
-- **GitLab CI** (`.gitlab-ci.yml`): lint → test → gosec + gitleaks + sonar → Docker build → deploy (staging auto, production manual)
-
----
-
-## Contributing
-
-1. Create a feature branch (`git checkout -b feature/my-feature`)
-2. Follow Go idioms and the project's clean architecture patterns
-3. Add tests for new functionality
-4. Run the quality pipeline: `make lint && make test-race && make gosec && make gitleaks`
-5. Commit with conventional messages (`feat:`, `fix:`, `refactor:`)
-6. Submit a merge request
+</details>

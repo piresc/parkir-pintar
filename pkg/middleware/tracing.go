@@ -1,11 +1,27 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
+
+// traceFromContext extracts the trace ID from the OTel span in context.
+// Returns empty string if no valid trace ID is present.
+func traceFromContext(ctx context.Context) string {
+	span := trace.SpanFromContext(ctx)
+	if span == nil {
+		return ""
+	}
+	traceID := span.SpanContext().TraceID()
+	if !traceID.IsValid() {
+		return ""
+	}
+	return traceID.String()
+}
 
 // TracingHandler returns middleware that integrates with the Tracer interface.
 // For each request whose path should be traced (tracer.ShouldTrace), it starts
@@ -25,6 +41,11 @@ func (m *Middleware) TracingHandler() gin.HandlerFunc {
 
 		ctx, txn := m.tracer.StartHTTPRequest(c.Request)
 		c.Request = c.Request.WithContext(ctx)
+
+		// Expose trace ID as response header for debugging.
+		if span := traceFromContext(ctx); span != "" {
+			c.Header("X-Trace-Id", span)
+		}
 
 		// Set transaction name: "GET /api/v1/users"
 		txn.SetName(fmt.Sprintf("%s %s", c.Request.Method, c.FullPath()))

@@ -11,6 +11,7 @@ import (
 
 	"parkir-pintar/pkg/tracing"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -46,8 +47,10 @@ func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc
 	}
 
 	dialOpts := []grpc.DialOption{
-		grpc.WithUnaryInterceptor(clientTracingUnaryInterceptor(tracer)),
-		grpc.WithStreamInterceptor(clientTracingStreamInterceptor(tracer)),
+		// OTel gRPC stats handler: creates client spans AND propagates
+		// W3C traceparent via metadata so downstream services join the
+		// same trace (end-to-end distributed tracing).
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithChainUnaryInterceptor(
 			clientAuthForwardingInterceptor(),
 			clientLoggingUnaryInterceptor(logger),

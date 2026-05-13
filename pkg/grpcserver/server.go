@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -24,12 +25,18 @@ type GRPCServer struct {
 
 // New creates a GRPCServer. If logger is nil, slog.Default() is used.
 // opts are passed directly to grpc.NewServer().
+// OTel server stats handler is always prepended to extract incoming trace
+// context (W3C traceparent) so spans join the caller's trace.
 func New(logger *slog.Logger, port int, shutdownTimeout time.Duration, opts ...grpc.ServerOption) *GRPCServer {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	// Prepend OTel handler so it runs before user-supplied options.
+	allOpts := append([]grpc.ServerOption{
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
+	}, opts...)
 	return &GRPCServer{
-		server:  grpc.NewServer(opts...),
+		server:  grpc.NewServer(allOpts...),
 		logger:  logger,
 		port:    port,
 		timeout: shutdownTimeout,

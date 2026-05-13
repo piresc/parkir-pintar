@@ -1,3 +1,5 @@
+//go:build e2e_docker
+
 // Package e2e_docker_test — double-booking prevention test via Gateway REST API.
 //
 // Best practices applied (from Go testing standards KB):

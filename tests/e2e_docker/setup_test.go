@@ -1,3 +1,5 @@
+//go:build e2e_docker
+
 // Package e2e_docker_test provides Layer 2 E2E tests that boot the full Docker Compose
 // stack and send real HTTP requests to the Gateway REST API on localhost:8080.
 //

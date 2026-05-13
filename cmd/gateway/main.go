@@ -156,12 +156,16 @@ func main() {
 	mw := middleware.NewMiddleware(cfg, log, tracer)
 
 	engine.Use(mw.RecoveryHandler())
+	engine.Use(mw.SecurityHeaders())
 	if met != nil {
 		engine.Use(met.HTTPMiddleware())
 	}
 	engine.Use(mw.CorsHandler(cfg.Server.AllowedOrigins))
 	engine.Use(mw.RateLimiter(middleware.DefaultRateLimitConfig()))
 	engine.Use(mw.TracingHandler())
+
+	// Register pprof debug endpoints (only if ENABLE_PPROF=true)
+	gatewayhandler.RegisterPprof(engine)
 
 	// 10. Serve Swagger UI
 	engine.StaticFile("/swagger/doc.yaml", "./docs/swagger.yaml")

@@ -3,7 +3,6 @@
 // - AAA (Arrange-Act-Assert) structure
 // - testify assertions (assert, require)
 // - bufconn for in-memory gRPC connections
-// - spyTracer for verifying tracing interceptor application
 // - bytes.Buffer + slog.NewJSONHandler for capturing log output
 
 package grpcclient
@@ -15,11 +14,8 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"sync"
 	"testing"
 	"time"
-
-	"parkir-pintar/pkg/tracing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,33 +52,6 @@ func bufconnDialer(lis *bufconn.Listener) grpc.DialOption {
 }
 
 // spyTracer records segment names for verification.
-type spyTracer struct {
-	tracing.Tracer
-	mu       sync.Mutex
-	segments []string
-}
-
-func newSpyTracer() *spyTracer {
-	return &spyTracer{
-		Tracer: tracing.NewNoOpTracer(),
-	}
-}
-
-func (s *spyTracer) StartSegment(ctx context.Context, name string) (context.Context, func()) {
-	s.mu.Lock()
-	s.segments = append(s.segments, name)
-	s.mu.Unlock()
-	return ctx, func() {}
-}
-
-func (s *spyTracer) getSegments() []string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	cp := make([]string, len(s.segments))
-	copy(cp, s.segments)
-	return cp
-}
-
 func newTestLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 }
@@ -218,31 +187,6 @@ func TestDial_ShouldApplyKeepaliveParams_WhenConfigured(t *testing.T) {
 // Interceptor application tests
 // ---------------------------------------------------------------------------
 
-func TestDial_ShouldApplyTracingInterceptor_WhenTracerProvided(t *testing.T) {
-	// Arrange
-	spy := newSpyTracer()
-
-	cfg := ClientConfig{
-		Target:      "passthrough:///bufnet",
-		DialTimeout: 5 * time.Second,
-		Tracer:      spy,
-		Logger:      newTestLogger(),
-	}
-
-	// Act — Dial creates the connection with interceptors wired in.
-	// We verify the spy tracer is accepted without error.
-	conn, err := Dial(
-		context.Background(),
-		cfg,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-
-	// Assert
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-	assert.NoError(t, conn.Close())
-}
-
 func TestDial_ShouldApplyLoggingInterceptor_WhenLoggerProvided(t *testing.T) {
 	// Arrange
 	var buf bytes.Buffer
@@ -270,26 +214,6 @@ func TestDial_ShouldApplyLoggingInterceptor_WhenLoggerProvided(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Client interceptor unit tests
 // ---------------------------------------------------------------------------
-
-func TestClientTracingUnaryInterceptor_ShouldStartSegment_WhenInvoked(t *testing.T) {
-	// Arrange
-	spy := newSpyTracer()
-	interceptor := clientTracingUnaryInterceptor(spy)
-
-	method := "/test.Service/GetItem"
-	invoker := func(_ context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
-		return nil
-	}
-
-	// Act
-	err := interceptor(context.Background(), method, nil, nil, nil, invoker)
-
-	// Assert
-	require.NoError(t, err)
-	segments := spy.getSegments()
-	require.Len(t, segments, 1)
-	assert.Equal(t, "/test.Service/GetItem", segments[0])
-}
 
 func TestClientLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 	// Arrange

@@ -57,6 +57,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:     "spot-cancel-1",
 		Status: "available",
 	}, nil)
+	repo.On("ListByDriverID", mock.Anything, "driver-cancel-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
@@ -170,6 +171,7 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 		ID:     "spot-cancel-2",
 		Status: "available",
 	}, nil)
+	repo.On("ListByDriverID", mock.Anything, "driver-cancel-2", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-2", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)

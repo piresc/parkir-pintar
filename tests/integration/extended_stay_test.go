@@ -57,6 +57,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		VehicleType: "car",
 		Status:      "available",
 	}, nil)
+	repo.On("ListByDriverID", mock.Anything, "driver-extended", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)

@@ -41,11 +41,6 @@ func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc
 		logger = slog.Default()
 	}
 
-	tracer := cfg.Tracer
-	if tracer == nil {
-		tracer = tracing.NewNoOpTracer()
-	}
-
 	dialOpts := []grpc.DialOption{
 		// OTel gRPC stats handler: creates client spans AND propagates
 		// W3C traceparent via metadata so downstream services join the
@@ -90,43 +85,6 @@ func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc
 	}
 
 	return conn, nil
-}
-
-// clientTracingUnaryInterceptor returns a grpc.UnaryClientInterceptor that
-// starts a tracing segment for each outbound unary RPC and propagates trace
-// context via the tracer.
-func clientTracingUnaryInterceptor(tracer tracing.Tracer) grpc.UnaryClientInterceptor {
-	return func(
-		ctx context.Context,
-		method string,
-		req, reply interface{},
-		cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption,
-	) error {
-		ctx, endSegment := tracer.StartSegment(ctx, method)
-		defer endSegment()
-
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
-}
-
-// clientTracingStreamInterceptor returns a grpc.StreamClientInterceptor that
-// starts a tracing segment for each outbound streaming RPC.
-func clientTracingStreamInterceptor(tracer tracing.Tracer) grpc.StreamClientInterceptor {
-	return func(
-		ctx context.Context,
-		desc *grpc.StreamDesc,
-		cc *grpc.ClientConn,
-		method string,
-		streamer grpc.Streamer,
-		opts ...grpc.CallOption,
-	) (grpc.ClientStream, error) {
-		ctx, endSegment := tracer.StartSegment(ctx, method)
-		defer endSegment()
-
-		return streamer(ctx, desc, cc, method, opts...)
-	}
 }
 
 // clientLoggingUnaryInterceptor returns a grpc.UnaryClientInterceptor that

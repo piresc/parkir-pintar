@@ -17,10 +17,8 @@ storage:
       path: /var/tempo/traces
     wal:
       path: /var/tempo/wal
-
-compactor:
-  compaction:
-    block_retention: 72h
+    block:
+      bloom_filter_false_positive: 0.05
 
 metrics_generator:
   storage:

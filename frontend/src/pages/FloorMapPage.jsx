@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { useReservation } from '../contexts/ReservationContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,7 @@ import Button from '../components/ui/Button';
 export default function FloorMapPage() {
   const { floor } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { driverId } = useAuth();
   const { setReservation } = useReservation();
   const [spots, setSpots] = useState([]);
@@ -33,7 +34,7 @@ export default function FloorMapPage() {
     }
   }
 
-  useEffect(() => { load(); }, [floor]);
+  useEffect(() => { load(); }, [floor, location.key]);
 
   async function reserveSpot(spot) {
     try {

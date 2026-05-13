@@ -26,6 +26,13 @@ import (
 	"google.golang.org/grpc"
 )
 
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
+}
+
 func main() {
 	cfg, err := config.Load("config/.env")
 	if err != nil {
@@ -44,12 +51,13 @@ func main() {
 		tracer = tracing.NewNoOpTracer()
 	}
 
-	metricsInst, err := metrics.NewMetrics("parkir-pintar-payment")
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", cfg.Tracing.OTLPEndpoint)
+	metricsInst, err := metrics.NewMetrics("parkir-pintar-payment", otlpEndpoint)
 	if err != nil {
 		log.Error("metrics init failed", slog.Any("error", err))
 		os.Exit(1)
 	}
-	metricsSrv := metricsInst.StartMetricsServer(8094, log)
+
 
 	pgClient, err := database.NewPostgresClient(cfg.Database)
 	if err != nil {
@@ -78,7 +86,7 @@ func main() {
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
-	shutdownMgr.Register(func(ctx context.Context) error { return metricsSrv.Shutdown(ctx) })
+
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 

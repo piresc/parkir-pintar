@@ -37,7 +37,7 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-- GF_SECURITY_ADMIN_PASSWORD=parkir2026
+      - GF_SECURITY_ADMIN_PASSWORD=parkir-pintar-2026
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
       - monitoring
@@ -81,6 +81,21 @@ services:
       - monitoring
       - coolify
 
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: monitoring-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    command:
+      - "-config.file=/etc/loki/loki.yml"
+    networks:
+      - monitoring
+      - coolify
+
   alloy:
     image: grafana/alloy:latest
     container_name: monitoring-alloy
@@ -90,6 +105,7 @@ services:
       - "4319:4319"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
       - "run"
       - "--server.http.listen-addr=0.0.0.0:12345"
@@ -103,6 +119,7 @@ volumes:
   grafana_data:
   alertmanager_data:
   tempo_data:
+  loki_data:
 
 networks:
   monitoring:

@@ -1,32 +1,30 @@
 // Package metrics provides an OpenTelemetry-based metrics abstraction with
-// Prometheus exporter for the ParkirPintar platform. It exposes HTTP, gRPC,
+// OTLP gRPC push exporter for the ParkirPintar platform. It exposes HTTP, gRPC,
 // database, NATS messaging, and business-domain metric instruments.
 package metrics
 
 import (
 	"context"
-	"net/http"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	otelmetric "go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-
-	promclient "github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Metrics holds all OTel metric instruments used across the application.
 type Metrics struct {
 	provider *sdkmetric.MeterProvider
-	registry *promclient.Registry
 
 	// HTTP metrics
-	HTTPRequestsTotal    otelmetric.Int64Counter
-	HTTPRequestDuration  otelmetric.Float64Histogram
-	HTTPResponseSize     otelmetric.Int64Histogram
+	HTTPRequestsTotal   otelmetric.Int64Counter
+	HTTPRequestDuration otelmetric.Float64Histogram
+	HTTPResponseSize    otelmetric.Int64Histogram
 
 	// gRPC metrics
 	GRPCRequestsTotal   otelmetric.Int64Counter
@@ -36,9 +34,9 @@ type Metrics struct {
 	DBQueryDuration otelmetric.Float64Histogram
 
 	// NATS messaging metrics
-	NATSPublishedTotal        otelmetric.Int64Counter
-	NATSConsumedTotal         otelmetric.Int64Counter
-	NATSProcessingDuration    otelmetric.Float64Histogram
+	NATSPublishedTotal     otelmetric.Int64Counter
+	NATSConsumedTotal      otelmetric.Int64Counter
+	NATSProcessingDuration otelmetric.Float64Histogram
 
 	// Business metrics
 	ActiveParkingSessions otelmetric.Int64Gauge
@@ -46,18 +44,10 @@ type Metrics struct {
 	ReservationsTotal     otelmetric.Int64Counter
 }
 
-// NewMetrics creates a new Metrics instance with a Prometheus exporter and
-// registers all metric instruments under the given service name.
-func NewMetrics(serviceName string) (*Metrics, error) {
-	registry := promclient.NewRegistry()
-
-	exporter, err := prometheus.New(
-		prometheus.WithRegisterer(registry),
-	)
-	if err != nil {
-		return nil, err
-	}
-
+// NewMetrics creates a new Metrics instance with an OTLP gRPC periodic reader
+// that pushes metrics to the given endpoint. If otlpEndpoint is empty, a noop
+// meter provider is used (metrics are recorded but not exported).
+func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 	res, err := resource.New(
 		context.Background(),
 		resource.WithAttributes(
@@ -68,16 +58,34 @@ func NewMetrics(serviceName string) (*Metrics, error) {
 		return nil, err
 	}
 
-	provider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(exporter),
-		sdkmetric.WithResource(res),
-	)
+	var provider *sdkmetric.MeterProvider
+
+	if otlpEndpoint != "" {
+		exporter, exporterErr := otlpmetricgrpc.New(
+			context.Background(),
+			otlpmetricgrpc.WithEndpoint(otlpEndpoint),
+			otlpmetricgrpc.WithDialOption(grpc.WithTransportCredentials(insecure.NewCredentials())),
+			otlpmetricgrpc.WithInsecure(),
+		)
+		if exporterErr != nil {
+			return nil, exporterErr
+		}
+
+		provider = sdkmetric.NewMeterProvider(
+			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter, sdkmetric.WithInterval(15*time.Second))),
+			sdkmetric.WithResource(res),
+		)
+	} else {
+		// No endpoint configured — use a provider with no reader (noop export).
+		provider = sdkmetric.NewMeterProvider(
+			sdkmetric.WithResource(res),
+		)
+	}
 
 	meter := provider.Meter(serviceName)
 
 	m := &Metrics{
 		provider: provider,
-		registry: registry,
 	}
 
 	// --- HTTP metrics ---
@@ -180,13 +188,6 @@ func NewMetrics(serviceName string) (*Metrics, error) {
 	}
 
 	return m, nil
-}
-
-// Handler returns an http.Handler that serves the Prometheus /metrics endpoint.
-func (m *Metrics) Handler() http.Handler {
-	return promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{
-		EnableOpenMetrics: true,
-	})
 }
 
 // Shutdown gracefully shuts down the MeterProvider, flushing any pending metrics.

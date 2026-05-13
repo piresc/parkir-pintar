@@ -1,5 +1,5 @@
 // Package main is the entry point for the ParkirPintar API Gateway service.
-// It follows the bootstrap algorithm: load config → init logger → init tracer →
+// It follows the bootstrap algorithm: load config → init logger → init telemetry →
 // init gRPC client connections → setup Gin with middleware → register health +
 // REST routes → start server → run shutdown manager.
 package main
@@ -18,11 +18,12 @@ import (
 	"parkir-pintar/pkg/grpcclient"
 	"parkir-pintar/pkg/health"
 	"parkir-pintar/pkg/logger"
+	"parkir-pintar/pkg/metrics"
 	"parkir-pintar/pkg/middleware"
 	natspkg "parkir-pintar/pkg/nats"
 	redispkg "parkir-pintar/pkg/redis"
-	"parkir-pintar/pkg/metrics"
 	"parkir-pintar/pkg/server"
+	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 
 	paymentv1 "parkir-pintar/proto/payment/v1"
@@ -39,10 +40,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 2. Initialize logger
-	log := logger.NewLogger(cfg.Logger)
+	// 2. Initialize unified telemetry (traces, metrics, logs via OTLP)
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", cfg.Tracing.OTLPEndpoint)
+	telCfg := telemetry.Config{
+		ServiceName:     "parkir-pintar-gateway",
+		OTLPEndpoint:    otlpEndpoint,
+		TraceSampleRate: cfg.Tracing.SampleRate,
+	}
+	providers, telErr := telemetry.Init(context.Background(), telCfg)
+	if telErr != nil {
+		slog.Warn("telemetry init failed, continuing with noop", slog.Any("error", telErr))
+	}
 
-	// 3. Initialize OTEL tracer
+	// 3. Initialize logger (with OTLP log export if available)
+	var log *slog.Logger
+	if providers != nil && providers.LoggerProvider != nil {
+		log = logger.NewLoggerWithProvider(cfg.Logger, providers.LoggerProvider)
+	} else {
+		log = logger.NewLogger(cfg.Logger)
+	}
+
+	// 4. Initialize OTEL tracer (uses the existing tracing package interface)
 	tracerCfg := &tracing.Config{
 		Enabled:      cfg.Tracing.Enabled,
 		ServiceName:  cfg.Tracing.ServiceName,
@@ -61,13 +79,13 @@ func main() {
 		tracer = tracing.NewNoOpTracer()
 	}
 
-	// 3b. Initialize metrics
-	met, err := metrics.NewMetrics("parkir-pintar-gateway")
+	// 5. Initialize metrics (OTLP push)
+	met, err := metrics.NewMetrics("parkir-pintar-gateway", otlpEndpoint)
 	if err != nil {
 		log.Warn("metrics init failed, continuing without metrics", slog.Any("error", err))
 	}
 
-	// 4. Initialize gRPC client connections to downstream services
+	// 6. Initialize gRPC client connections to downstream services
 	ctx := context.Background()
 
 	reservationTarget := getEnv("GRPC_RESERVATION_TARGET", "localhost:9091")
@@ -111,13 +129,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 5. Create gRPC service clients
+	// 7. Create gRPC service clients
 	reservationClient := reservationv1.NewReservationServiceClient(reservationConn)
 	searchClient := searchv1.NewSearchServiceClient(searchConn)
 	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
 	presenceClient := presencev1.NewPresenceServiceClient(presenceConn)
 
-	// 6. Setup shutdown manager
+	// 8. Setup shutdown manager
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return reservationConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return searchConn.Close() })
@@ -127,8 +145,11 @@ func main() {
 	if met != nil {
 		shutdownMgr.Register(func(ctx context.Context) error { return met.Shutdown(ctx) })
 	}
+	if providers != nil {
+		shutdownMgr.Register(func(ctx context.Context) error { return providers.Shutdown(ctx) })
+	}
 
-	// 7. Setup Gin engine with middleware chain
+	// 9. Setup Gin engine with middleware chain
 	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 
@@ -142,17 +163,12 @@ func main() {
 	engine.Use(mw.RateLimiter(middleware.DefaultRateLimitConfig()))
 	engine.Use(mw.TracingHandler())
 
-	// 8. Serve Swagger UI
+	// 10. Serve Swagger UI
 	engine.StaticFile("/swagger/doc.yaml", "./docs/swagger.yaml")
 	engine.StaticFile("/swagger", "./docs/swagger-ui/index.html")
 	engine.StaticFile("/swagger/", "./docs/swagger-ui/index.html")
 
-	// 8b. Metrics endpoint
-	if met != nil {
-		engine.GET("/metrics", gin.WrapH(met.Handler()))
-	}
-
-	// 9. Register health endpoints (before auth middleware)
+	// 11. Register health endpoints (before auth middleware)
 	healthSvc := health.NewService(log)
 
 	// Init direct connections for health checks
@@ -176,18 +192,18 @@ func main() {
 
 	health.RegisterRoutes(engine, cfg.App.Name, cfg.App.Version, healthSvc)
 
-	// 9. Register gateway REST routes (with JWT auth)
+	// 12. Register gateway REST routes (with JWT auth)
 	jwtSecret := cfg.JWT.Secret
 	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient, presenceClient)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
-	// 10. Start server
+	// 13. Start server
 	srv := server.NewGracefulServer(engine, log, cfg.Server.Port, time.Duration(cfg.Server.ShutdownTimeout)*time.Second)
 	if err := srv.Start(); err != nil {
 		log.Error("server error", slog.Any("error", err))
 	}
 
-	// 11. Run shutdown manager
+	// 14. Run shutdown manager
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {

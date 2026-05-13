@@ -30,8 +30,27 @@ datasources:
           - key: "http.status_code"
             value: "http_status_code"
       tracesToLogs:
-        datasourceUid: ""
+        datasourceUid: "loki"
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          - key: "service.name"
+            value: "service"
       nodeGraph:
         enabled: true
       serviceMap:
         datasourceUid: prometheus
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+    uid: loki
+    jsonData:
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: "\"trace_id\":\"(\\w+)\""
+          name: TraceID
+          url: "$${__value.raw}"
+          urlDisplayLabel: "View Trace"

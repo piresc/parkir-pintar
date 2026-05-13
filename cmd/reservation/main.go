@@ -23,6 +23,7 @@ import (
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/redislock"
 	"parkir-pintar/pkg/server"
+	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 	billingv1 "parkir-pintar/proto/billing/v1"
 	paymentv1 "parkir-pintar/proto/payment/v1"
@@ -40,7 +41,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := logger.NewLogger(cfg.Logger)
+	// Initialize unified telemetry (traces, metrics, logs via OTLP)
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", cfg.Tracing.OTLPEndpoint)
+	providers, telErr := telemetry.Init(context.Background(), telemetry.Config{
+		ServiceName:     "parkir-pintar-reservation",
+		OTLPEndpoint:    otlpEndpoint,
+		TraceSampleRate: cfg.Tracing.SampleRate,
+	})
+	if telErr != nil {
+		slog.Warn("telemetry init failed, continuing with noop", slog.Any("error", telErr))
+	}
+
+	// Initialize logger (with OTLP log export if available)
+	var log *slog.Logger
+	if providers != nil && providers.LoggerProvider != nil {
+		log = logger.NewLoggerWithProvider(cfg.Logger, providers.LoggerProvider)
+	} else {
+		log = logger.NewLogger(cfg.Logger)
+	}
+
 	tracer, err := tracing.NewTracer(&tracing.Config{
 		Enabled: cfg.Tracing.Enabled, ServiceName: "parkir-pintar-reservation",
 		SampleRate: cfg.Tracing.SampleRate, Exporter: cfg.Tracing.Exporter,
@@ -51,12 +70,11 @@ func main() {
 		tracer = tracing.NewNoOpTracer()
 	}
 
-	metricsInst, err := metrics.NewMetrics("parkir-pintar-reservation")
+	metricsInst, err := metrics.NewMetrics("parkir-pintar-reservation", otlpEndpoint)
 	if err != nil {
 		log.Error("metrics init failed", slog.Any("error", err))
 		os.Exit(1)
 	}
-	metricsSrv := metricsInst.StartMetricsServer(8091, log)
 
 	pgClient, err := database.NewPostgresClient(cfg.Database)
 	if err != nil {
@@ -141,9 +159,11 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
-	shutdownMgr.Register(func(ctx context.Context) error { return metricsSrv.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
+	if providers != nil {
+		shutdownMgr.Register(func(ctx context.Context) error { return providers.Shutdown(ctx) })
+	}
 
 	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
 		grpc.ChainUnaryInterceptor(
@@ -154,8 +174,8 @@ func main() {
 			interceptors.TracingUnaryInterceptor(),
 			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
 				RequestsPerSecond: 100,
-				BurstSize:        200,
-				CleanupInterval:  5 * time.Minute,
+				BurstSize:         200,
+				CleanupInterval:   5 * time.Minute,
 			}),
 		),
 	)

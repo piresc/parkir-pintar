@@ -1,5 +1,6 @@
 // Package logger provides structured slog-based logging with native OTEL
-// trace/span context correlation and convenience attribute constructors.
+// trace/span context correlation and optional OTLP log export via the
+// official OTel slog bridge.
 //
 // Best practices applied (from Go coding standards KB):
 // - Document all exported functions and types with proper Godoc format
@@ -19,13 +20,23 @@ import (
 	"parkir-pintar/pkg/config"
 
 	"go.opentelemetry.io/otel/trace"
+
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 )
 
 // NewLogger creates a configured *slog.Logger based on the provided LoggerConfig.
 // It supports JSON (default) and text output formats, configurable log level,
 // source file/line info, and automatic OTEL trace_id/span_id extraction from context.
-// No direct New Relic SDK dependency is used — log-trace correlation works via OTEL context.
+// If a LoggerProvider is supplied, logs are also exported via OTLP.
 func NewLogger(cfg config.LoggerConfig) *slog.Logger {
+	return NewLoggerWithProvider(cfg, nil)
+}
+
+// NewLoggerWithProvider creates a configured *slog.Logger that writes to stdout
+// and optionally exports logs via the given OTel LoggerProvider.
+func NewLoggerWithProvider(cfg config.LoggerConfig, lp *sdklog.LoggerProvider) *slog.Logger {
 	level := parseLevel(cfg.Level)
 
 	opts := &slog.HandlerOptions{
@@ -42,8 +53,65 @@ func NewLogger(cfg config.LoggerConfig) *slog.Logger {
 		baseHandler = slog.NewJSONHandler(os.Stdout, opts)
 	}
 
+	// Wrap with OTel trace context injection.
 	handler := &otelHandler{base: baseHandler}
+
+	if lp != nil {
+		// Create an OTel slog bridge that sends logs via OTLP.
+		otelBridge := otelslog.NewHandler("parkir-pintar",
+			otelslog.WithLoggerProvider(lp),
+		)
+		// Fan-out handler: write to both stdout (with trace context) and OTLP.
+		fanout := &fanoutHandler{handlers: []slog.Handler{handler, otelBridge}}
+		return slog.New(fanout)
+	}
+
 	return slog.New(handler)
+}
+
+// fanoutHandler sends log records to multiple slog.Handlers.
+type fanoutHandler struct {
+	handlers []slog.Handler
+}
+
+// Enabled reports whether any handler handles records at the given level.
+func (f *fanoutHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range f.handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+// Handle sends the record to all handlers.
+func (f *fanoutHandler) Handle(ctx context.Context, r slog.Record) error {
+	for _, h := range f.handlers {
+		if h.Enabled(ctx, r.Level) {
+			if err := h.Handle(ctx, r); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// WithAttrs returns a new fanout handler with the given attributes pre-applied.
+func (f *fanoutHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	handlers := make([]slog.Handler, len(f.handlers))
+	for i, h := range f.handlers {
+		handlers[i] = h.WithAttrs(attrs)
+	}
+	return &fanoutHandler{handlers: handlers}
+}
+
+// WithGroup returns a new fanout handler with the given group name.
+func (f *fanoutHandler) WithGroup(name string) slog.Handler {
+	handlers := make([]slog.Handler, len(f.handlers))
+	for i, h := range f.handlers {
+		handlers[i] = h.WithGroup(name)
+	}
+	return &fanoutHandler{handlers: handlers}
 }
 
 // parseLevel converts a string log level to slog.Level.

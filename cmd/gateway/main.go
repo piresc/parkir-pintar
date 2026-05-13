@@ -21,6 +21,7 @@ import (
 	"parkir-pintar/pkg/middleware"
 	natspkg "parkir-pintar/pkg/nats"
 	redispkg "parkir-pintar/pkg/redis"
+	"parkir-pintar/pkg/metrics"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 
@@ -58,6 +59,12 @@ func main() {
 	if err != nil {
 		log.Warn("tracer init failed, falling back to noop", slog.Any("error", err))
 		tracer = tracing.NewNoOpTracer()
+	}
+
+	// 3b. Initialize metrics
+	met, err := metrics.NewMetrics("parkir-pintar-gateway")
+	if err != nil {
+		log.Warn("metrics init failed, continuing without metrics", slog.Any("error", err))
 	}
 
 	// 4. Initialize gRPC client connections to downstream services
@@ -117,6 +124,9 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return presenceConn.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
+	if met != nil {
+		shutdownMgr.Register(func(ctx context.Context) error { return met.Shutdown(ctx) })
+	}
 
 	// 7. Setup Gin engine with middleware chain
 	gin.SetMode(gin.ReleaseMode)
@@ -125,6 +135,9 @@ func main() {
 	mw := middleware.NewMiddleware(cfg, log, tracer)
 
 	engine.Use(mw.RecoveryHandler())
+	if met != nil {
+		engine.Use(met.HTTPMiddleware())
+	}
 	engine.Use(mw.CorsHandler(cfg.Server.AllowedOrigins))
 	engine.Use(mw.RateLimiter(middleware.DefaultRateLimitConfig()))
 	engine.Use(mw.TracingHandler())
@@ -133,6 +146,11 @@ func main() {
 	engine.StaticFile("/swagger/doc.yaml", "./docs/swagger.yaml")
 	engine.StaticFile("/swagger", "./docs/swagger-ui/index.html")
 	engine.StaticFile("/swagger/", "./docs/swagger-ui/index.html")
+
+	// 8b. Metrics endpoint
+	if met != nil {
+		engine.GET("/metrics", gin.WrapH(met.Handler()))
+	}
 
 	// 9. Register health endpoints (before auth middleware)
 	healthSvc := health.NewService(log)

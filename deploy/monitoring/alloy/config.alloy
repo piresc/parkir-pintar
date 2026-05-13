@@ -1,0 +1,88 @@
+// =============================================================================
+// Grafana Alloy Configuration — Parkir Pintar APM Pipeline
+// =============================================================================
+// Flow: Services → Alloy (OTLP gRPC :4319) → batch → Tempo (:4317)
+//                                            → spanmetrics → Prometheus (:9090)
+
+// -----------------------------------------------------------------------------
+// OTLP Receiver — services send traces here on port 4319
+// -----------------------------------------------------------------------------
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4319"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input, otelcol.connector.spanmetrics.default.input]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Batch Processor — buffer traces before forwarding to Tempo
+// -----------------------------------------------------------------------------
+otelcol.processor.batch "default" {
+  timeout = "5s"
+  send_batch_size = 1000
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// OTLP Exporter — forward traces to Tempo
+// -----------------------------------------------------------------------------
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Span Metrics Connector — generate RED metrics from trace spans
+// -----------------------------------------------------------------------------
+otelcol.connector.spanmetrics "default" {
+  dimension {
+    name = "service.name"
+  }
+  dimension {
+    name = "http.method"
+  }
+  dimension {
+    name = "http.status_code"
+  }
+  dimension {
+    name = "rpc.method"
+  }
+  dimension {
+    name = "rpc.grpc.status_code"
+  }
+
+  histogram {
+    explicit {
+      buckets = ["5ms", "10ms", "25ms", "50ms", "100ms", "250ms", "500ms", "1s", "2.5s", "5s", "10s"]
+    }
+  }
+
+  namespace = "traces_spanmetrics"
+
+  output {
+    metrics = [otelcol.exporter.prometheus.spanmetrics.input]
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Prometheus Exporter — write span metrics to Prometheus via remote write
+// -----------------------------------------------------------------------------
+otelcol.exporter.prometheus "spanmetrics" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}

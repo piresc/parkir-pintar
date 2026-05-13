@@ -133,29 +133,32 @@ export default function CheckoutPage() {
 
   return (
     <div className="page checkout-page">
-      <h2>Checkout</h2>
-      <BillingBreakdown
-        bookingFee={checkout.booking_fee || 0}
-        parkingFee={checkout.parking_fee || 0}
-        overnightFee={checkout.overnight_fee || 0}
-        penalty={checkout.penalty_amount || 0}
-        total={total}
-      />
-      {error && <ErrorBanner message={error} />}
-      {!paid ? (
-        <>
-          <QRISPlaceholder amount={(checkout.total_amount || 0) - (checkout.booking_fee || 0)} />
-          <Button variant="cta" onClick={handlePay} disabled={paying}>
-            {paying ? 'Processing...' : 'Pay with QRIS'}
-          </Button>
-        </>
-      ) : (
-        <div className="payment-status">
-          <StatusBadge status="success" />
-          <p>Payment processed successfully via QRIS</p>
-          <Button variant="cta" onClick={handleDone}>Done</Button>
-        </div>
-      )}
+      <div className="checkout-content">
+        <h2 className="checkout-title">Checkout</h2>
+        <BillingBreakdown
+          bookingFee={checkout.booking_fee || 0}
+          parkingFee={checkout.parking_fee || 0}
+          overnightFee={checkout.overnight_fee || 0}
+          penalty={checkout.penalty_amount || 0}
+          total={total}
+        />
+        {error && <ErrorBanner message={error} />}
+        {!paid ? (
+          <>
+            <QRISPlaceholder amount={(checkout.total_amount || 0) - (checkout.booking_fee || 0)} />
+            <Button variant="cta" className="checkout-btn" onClick={handlePay} disabled={paying}>
+              {paying ? 'Processing...' : 'Pay with QRIS'}
+            </Button>
+          </>
+        ) : (
+          <div className="payment-status">
+            <div className="payment-success-icon">✓</div>
+            <StatusBadge status="success" />
+            <p>Payment processed successfully via QRIS</p>
+            <Button variant="cta" className="checkout-btn" onClick={handleDone}>Done</Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

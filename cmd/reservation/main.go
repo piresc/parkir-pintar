@@ -18,6 +18,7 @@ import (
 	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
+	"parkir-pintar/pkg/metrics"
 	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/redislock"
@@ -48,6 +49,13 @@ func main() {
 		log.Warn("tracer init failed", slog.Any("error", err))
 		tracer = tracing.NewNoOpTracer()
 	}
+
+	metricsInst, err := metrics.NewMetrics("parkir-pintar-reservation")
+	if err != nil {
+		log.Error("metrics init failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+	metricsSrv := metricsInst.StartMetricsServer(8091, log)
 
 	pgClient, err := database.NewPostgresClient(cfg.Database)
 	if err != nil {
@@ -132,10 +140,13 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
+	shutdownMgr.Register(func(ctx context.Context) error { return metricsSrv.Shutdown(ctx) })
+	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
 	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
 		grpc.ChainUnaryInterceptor(
+			metricsInst.GRPCUnaryInterceptor(),
 			interceptors.RecoveryUnaryInterceptor(),
 			interceptors.AuthUnaryInterceptor(nil),
 			interceptors.LoggingUnaryInterceptor(),

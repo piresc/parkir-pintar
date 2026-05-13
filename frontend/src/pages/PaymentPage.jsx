@@ -129,16 +129,18 @@ export default function PaymentPage() {
 
   return (
     <div className="page payment-page">
-      <h2>Complete Your Reservation</h2>
-      <div className="reservation-summary">
-        <p><strong>Spot:</strong> {spotCode || currentReservation.spot_id}</p>
-        <p><strong>Vehicle:</strong> {currentReservation.vehicle_type}</p>
+      <div className="payment-content">
+        <h2 className="payment-title">Complete Your Reservation</h2>
+        <div className="reservation-summary card">
+          <p><strong>Spot:</strong> {spotCode || currentReservation.spot_id}</p>
+          <p><strong>Vehicle:</strong> {currentReservation.vehicle_type}</p>
+        </div>
+        <QRISPlaceholder amount={5000} />
+        {error && <ErrorBanner message={error} />}
+        <Button variant="cta" className="payment-btn" onClick={handlePay} disabled={paying}>
+          {paying ? 'Processing...' : 'Pay Booking Fee'}
+        </Button>
       </div>
-      <QRISPlaceholder amount={5000} />
-      {error && <ErrorBanner message={error} />}
-      <Button variant="cta" onClick={handlePay} disabled={paying}>
-        {paying ? 'Processing...' : 'Pay Booking Fee'}
-      </Button>
     </div>
   );
 }

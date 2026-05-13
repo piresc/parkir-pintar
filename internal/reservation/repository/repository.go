@@ -229,7 +229,9 @@ func (r *sqlxRepository) ListByDriverID(ctx context.Context, driverID string, st
 	var reservations []*model.Reservation
 	if status != "" {
 		err := r.db.SelectContext(ctx, &reservations,
-			"SELECT * FROM reservations WHERE driver_id = $1 AND status = $2 ORDER BY created_at DESC",
+			`SELECT r.*, ps.spot_code FROM reservations r
+			 JOIN parking_spots ps ON ps.id = r.spot_id
+			 WHERE r.driver_id = $1 AND r.status = $2 ORDER BY r.created_at DESC`,
 			driverID, status,
 		)
 		if err != nil {
@@ -237,7 +239,9 @@ func (r *sqlxRepository) ListByDriverID(ctx context.Context, driverID string, st
 		}
 	} else {
 		err := r.db.SelectContext(ctx, &reservations,
-			"SELECT * FROM reservations WHERE driver_id = $1 ORDER BY created_at DESC",
+			`SELECT r.*, ps.spot_code FROM reservations r
+			 JOIN parking_spots ps ON ps.id = r.spot_id
+			 WHERE r.driver_id = $1 ORDER BY r.created_at DESC`,
 			driverID,
 		)
 		if err != nil {

@@ -223,6 +223,7 @@ func reservationToProto(r *model.Reservation) *reservationv1.ReservationResponse
 		AssignmentMode: r.AssignmentMode,
 		Status:         r.Status,
 		IdempotencyKey: r.IdempotencyKey,
+		SpotCode:       r.SpotCode,
 	}
 
 	if r.ConfirmedAt != nil {

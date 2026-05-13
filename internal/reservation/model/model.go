@@ -39,6 +39,7 @@ type Reservation struct {
 	CheckedInAt    *time.Time `json:"checked_in_at,omitzero" db:"checked_in_at"`
 	CheckedOutAt   *time.Time `json:"checked_out_at,omitzero" db:"checked_out_at"`
 	CancelledAt    *time.Time `json:"cancelled_at,omitzero" db:"cancelled_at"`
+	SpotCode       string     `json:"spot_code,omitempty" db:"spot_code"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 }

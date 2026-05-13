@@ -77,6 +77,7 @@ message ReservationResponse {
   google.protobuf.Timestamp checked_in_at = 10;
   google.protobuf.Timestamp checked_out_at = 11;
   google.protobuf.Timestamp cancelled_at = 12;
+  string spot_code = 13;
 }
 
 message ListByDriverRequest {

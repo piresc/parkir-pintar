@@ -181,7 +181,7 @@ export default function ActiveReservationPage() {
             {pastReservations.map(r => (
               <GlassCard key={r.id} className="history-item">
                 <div className="history-item-header">
-                  <span className="history-spot">{r.spot_id}</span>
+                  <span className="history-spot">{r.spot_code || r.spot_id}</span>
                   <StatusBadge status={r.status} />
                 </div>
                 <div className="history-item-details">

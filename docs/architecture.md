@@ -56,7 +56,34 @@ Presence → NATS → [Notification]
 - **PostgreSQL** via sqlx with connection pooling (max 25 conns)
 - **Redis** via go-redis with pool size configuration (10 conns)
 - **NATS JetStream** for inter-service messaging with auto-reconnect
-- **OpenTelemetry** for distributed tracing (stdout/OTLP/New Relic/noop)
+- **OpenTelemetry** for all observability signals (traces, metrics, logs) via OTLP gRPC
+
+## Observability (Full OTel)
+
+All three signals exported via a single OTLP gRPC connection per service:
+
+```
+Go Service (OTel SDK)
+    ├── traces  → Alloy → Tempo
+    ├── metrics → Alloy → Prometheus
+    └── logs    → Alloy → Loki
+                           ↓
+                        Grafana (unified view)
+```
+
+| Signal  | SDK                          | Exporter         | Backend    |
+|---------|------------------------------|------------------|------------|
+| Traces  | `go.opentelemetry.io/otel`   | otlptracegrpc    | Tempo      |
+| Metrics | OTel SDK + periodic reader   | otlpmetricgrpc   | Prometheus |
+| Logs    | slog + otelslog bridge       | otlploggrpc      | Loki       |
+
+Key packages:
+- `pkg/telemetry` — unified init (TracerProvider + MeterProvider + LoggerProvider)
+- `pkg/tracing` — tracer abstraction with span helpers
+- `pkg/metrics` — OTel metric instruments (HTTP, gRPC, DB, NATS, business)
+- `pkg/logger` — slog with dual output (stdout + OTLP) and trace correlation
+
+See `deploy/monitoring/README.md` for full stack details.
 
 ## Error Handling
 

@@ -443,7 +443,9 @@ parkir-pintar/
 │   ├── database/               # PostgreSQL client + traced wrapper
 │   ├── redis/                  # Redis client + traced wrapper
 │   ├── nats/                   # NATS JetStream client + traced wrapper
-│   ├── tracing/                # OpenTelemetry (stdout/OTLP/New Relic/noop)
+│   ├── tracing/                # OpenTelemetry tracer (OTLP gRPC/HTTP/stdout/noop)
+│   ├── telemetry/              # Unified OTel init (Tracer + Meter + Logger providers)
+│   ├── metrics/                # OTel metric instruments (HTTP, gRPC, DB, NATS, business)
 │   ├── pricing/                # Pricing engine (pure functions)
 │   ├── redislock/              # Distributed lock (SETNX + Lua release)
 │   ├── circuitbreaker/         # Circuit breaker pattern
@@ -599,7 +601,8 @@ make test-coverage
 | `github.com/gin-contrib/cors` | v1.7.7 | CORS middleware for Gin with explicit origin configuration. |
 | `google.golang.org/grpc` | v1.80.0 | gRPC framework for service-to-service communication over HTTP/2. Required by the architecture. |
 | `google.golang.org/protobuf` | v1.36.11 | Protocol Buffers runtime for gRPC message serialization. |
-| `go.opentelemetry.io/otel` | v1.43.0 | OpenTelemetry SDK for distributed tracing across all services. |
+| `go.opentelemetry.io/otel` | v1.43.0 | OpenTelemetry SDK for full observability: traces, metrics, and logs via OTLP gRPC. |
+| `go.opentelemetry.io/contrib/bridges/otelslog` | v0.11.0 | OTel log bridge for slog — sends structured logs via OTLP alongside traces and metrics. |
 | `golang.org/x/sync` | v0.20.0 | `singleflight` package to prevent cache stampedes on concurrent cache misses. |
 | `pgregory.net/rapid` | v1.2.0 | Property-based testing framework for formal correctness verification. |
 | `github.com/testcontainers/testcontainers-go` | v0.42.0 | Spins up real PostgreSQL/Redis containers for E2E tests. Ensures tests run against real infrastructure. |

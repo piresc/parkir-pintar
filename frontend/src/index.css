@@ -755,6 +755,88 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0.5rem;
 }
 
+/* No Active Reservation */
+.no-active-card {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.no-active-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.no-active-icon {
+  font-size: 3rem;
+}
+
+.no-active-message h3 {
+  font-family: var(--font-display);
+  margin: 0;
+}
+
+.no-active-message p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Reservation History */
+.reservation-history {
+  margin-top: 1.5rem;
+}
+
+.history-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  padding-left: 0.25rem;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-item {
+  padding: 0.75rem 1rem;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.history-spot {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.history-item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-vehicle {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.history-date {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
 /* Responsive */
 @media (min-width: 768px) {
   .app-main {

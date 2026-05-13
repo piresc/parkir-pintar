@@ -39,6 +39,11 @@ export const api = {
   // Reservation
   createReservation: (body) => apiRequest('POST', '/api/v1/reservations', body),
   getReservation: (id) => apiRequest('GET', `/api/v1/reservations/${id}`),
+  getDriverReservations: (driverId, status) => {
+    let path = `/api/v1/reservations?driver_id=${driverId}`;
+    if (status) path += `&status=${status}`;
+    return apiRequest('GET', path);
+  },
   cancelReservation: (id) => apiRequest('DELETE', `/api/v1/reservations/${id}`),
   checkIn: (id) => apiRequest('POST', `/api/v1/reservations/${id}/checkin`),
   checkOut: (id) => apiRequest('POST', `/api/v1/reservations/${id}/checkout`),

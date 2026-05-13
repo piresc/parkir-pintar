@@ -10,32 +10,25 @@ const TABS = [
 
 export default function BottomNav() {
   const { pathname } = useLocation();
-  const { currentReservation } = useReservation();
+  const { activeReservation } = useReservation();
 
   function getMySpotPath() {
-    if (currentReservation?.id) return `/reservation/${currentReservation.id}`;
-    // Fallback: check localStorage for persisted reservation
-    try {
-      const raw = localStorage.getItem('pp_reservation');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.id && !['completed', 'cancelled', 'checked_out'].includes(parsed.status)) {
-          return `/reservation/${parsed.id}`;
-        }
-      }
-    } catch {}
-    return '/dashboard';
+    if (activeReservation?.id) return `/reservation/${activeReservation.id}`;
+    return '/my-spot';
   }
 
   return (
     <nav className="bottom-nav">
       {TABS.map((tab) => {
         const to = tab.path || getMySpotPath();
+        const isActive = tab.path
+          ? pathname.startsWith(tab.path)
+          : pathname.startsWith('/reservation') || pathname === '/my-spot';
         return (
           <Link
             key={tab.label}
             to={to}
-            className={cn('bottom-nav-item', pathname.startsWith(tab.path || '/reservation') && 'active')}
+            className={cn('bottom-nav-item', isActive && 'active')}
           >
             <span className="bottom-nav-icon">{tab.icon}</span>
             <span className="bottom-nav-label">{tab.label}</span>

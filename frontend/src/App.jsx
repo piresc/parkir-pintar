@@ -34,6 +34,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><AppLayout><DashboardPage /></AppLayout></ProtectedRoute>} />
       <Route path="/reserve" element={<ProtectedRoute><AppLayout><ReservePage /></AppLayout></ProtectedRoute>} />
       <Route path="/floors/:floor" element={<ProtectedRoute><AppLayout><FloorMapPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/my-spot" element={<ProtectedRoute><AppLayout><ActiveReservationPage /></AppLayout></ProtectedRoute>} />
       <Route path="/reservation/:id" element={<ProtectedRoute><AppLayout><ActiveReservationPage /></AppLayout></ProtectedRoute>} />
       <Route path="/payment/:id" element={<ProtectedRoute><AppLayout><PaymentPage /></AppLayout></ProtectedRoute>} />
       <Route path="/checkout/:id" element={<ProtectedRoute><AppLayout><CheckoutPage /></AppLayout></ProtectedRoute>} />

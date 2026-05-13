@@ -2,8 +2,8 @@
 
 **Project:** Parkir Pintar  
 **Assessment Level:** 4  
-**Date:** 2026-05-12  
-**Status:** 🔴 Significant Gaps
+**Date:** 2026-05-13  
+**Status:** 🟡 Partial — Monitoring Complete, IaC Remaining
 
 ---
 
@@ -25,9 +25,13 @@
 | Asset | Path | Description |
 |-------|------|-------------|
 | Dockerfile | `Dockerfile` | Multi-stage build, non-root user, build metadata injection via `--build-arg` |
-| Docker Compose | `docker-compose.yml` | Health checks, dependency ordering, env var references, named volumes |
-| GitHub CD | `.github/workflows/cd.yml` | Triggered on semver tags, Docker build + push to GHCR |
+| Docker Compose (staging) | `deploy/staging/docker-compose.yml` | 7 services with health checks, env var references, named volumes |
+| Docker Compose (monitoring) | `deploy/monitoring/docker-compose.monitoring.yml` | Prometheus, Grafana, Tempo, Alloy, Alertmanager, Loki |
+| GitHub CI/CD | `.github/workflows/ci.yml` | Build & Push job: builds Docker images → pushes to GHCR |
 | GitLab CI | `.gitlab-ci.yml` | 5-stage pipeline (lint → test → security → build → deploy), staging auto-deploy, production manual gate |
+| Watchtower | `deploy/staging/docker-compose.yml` | Auto-pulls new images from GHCR every 60s |
+| Staging deployment | `staging-parkir-pintar.piresc.dev` | 7 services running on bare metal with Docker Compose |
+| Production FE | `parkir-pintar.piresc.dev` | Frontend deployment |
 | Architecture Docs | `README.md` | "Cloud Deployment Reference Architecture" section |
 
 ### What's MISSING ❌
@@ -37,11 +41,9 @@
 | No Terraform/Pulumi/CDK modules | Cannot demonstrate IaC — **critical for Level 4** | 🔴 Critical |
 | No Kubernetes manifests or Helm charts | No declarative infrastructure for container orchestration | 🔴 Critical |
 | No per-service Dockerfiles | Single Dockerfile limits modular deployment | 🟡 Medium |
-| GitHub CD deploy step is placeholder | Automated deployment is incomplete (commented out) | 🔴 Critical |
-| No rollback strategy documented | No mechanism to revert failed deployments | 🔴 Critical |
+| No rollback strategy documented | No mechanism to revert failed deployments | 🟡 Medium |
 | No blue-green/canary deployment | No progressive delivery strategy | 🟡 Medium |
-| No environment promotion workflow | No formal staging → production promotion | 🟡 Medium |
-| No deployment best practices document | Cannot demonstrate "merumuskan best practices" | 🔴 Critical |
+| No deployment best practices document | Cannot demonstrate "merumuskan best practices" | 🟡 Medium |
 
 ### ACTION ITEMS
 
@@ -287,17 +289,32 @@
 
 | Asset | Path | Description |
 |-------|------|-------------|
-| OpenTelemetry tracing | `pkg/tracing/` | OTLP, stdout, New Relic exporters |
+| OpenTelemetry tracing | `pkg/tracing/` | OTLP gRPC exporter to Alloy collector |
+| OTel metrics | `pkg/metrics/` | OTel meter provider with OTLP exporter |
+| OTel log bridge | `pkg/logger/` | slog → OTel log bridge → OTLP |
 | Structured logging | `pkg/logger/` | JSON output, OTEL trace correlation |
 | Health checks | `pkg/health/` | Liveness, readiness, per-dependency checks |
+| Alloy collector | `deploy/monitoring/alloy/config.alloy` | OTLP receiver → routes traces to Tempo, metrics to Prometheus, logs to Loki |
+| Prometheus | `deploy/monitoring/prometheus/` | Metrics storage with remote_write from Alloy + span metrics |
+| Alerting rules | `deploy/monitoring/prometheus/alerts.yml` | 8 rules: HighErrorRate, HighLatency, HighGRPCErrorRate, HighSpanErrorRate, HighSpanLatency, NoTrafficDetected, NATSConsumerLag, DatabaseSlowQueries |
+| Alertmanager | `deploy/monitoring/alertmanager/` | Alert routing and notification |
+| Grafana | `deploy/monitoring/grafana/` | 3 datasources (Prometheus, Tempo, Loki) with cross-linking/correlation |
+| Loki | `deploy/monitoring/docker-compose.monitoring.yml` | Centralized log aggregation with 7d retention |
+| Tempo | `deploy/monitoring/docker-compose.monitoring.yml` | Distributed tracing storage |
+| Monitoring stack | `deploy/monitoring/docker-compose.monitoring.yml` | Full stack: Prometheus + Grafana + Tempo + Alloy + Alertmanager + Loki |
+
+**Access (via Tailscale):**
+- Grafana: `:3000`
+- Prometheus: `:9090`
+- Tempo: `:3200`
+- Loki: `:3100`
+- Alloy: `:12345`
+- Alertmanager: `:9093`
 
 ### What's MISSING ❌
 
 | Gap | Impact | Priority |
 |-----|--------|----------|
-| No Prometheus metrics | **Zero metrics collection** — cannot analyze anything | 🔴 Critical |
-| No Grafana dashboards | No visualization of system behavior | 🔴 Critical |
-| No alerting rules | No Alertmanager/PagerDuty integration | 🔴 Critical |
 | No SLO/SLI definitions | No service level objectives | 🟡 Medium |
 | No peak/idle time analytics | Cannot demonstrate "sistem analisa" | 🔴 Critical |
 | No resource prediction models | Cannot demonstrate "model prediksi" | 🔴 Critical |
@@ -305,37 +322,7 @@
 
 ### ACTION ITEMS
 
-1. **Implement Prometheus metrics**
-   - `pkg/metrics/metrics.go` — metrics registry and common metrics
-   - `pkg/metrics/middleware.go` — gRPC/HTTP interceptors for automatic metrics
-   - Metrics to expose per service:
-     - `http_requests_total` (counter, labels: method, path, status)
-     - `http_request_duration_seconds` (histogram)
-     - `grpc_server_handled_total` (counter)
-     - `grpc_server_handling_seconds` (histogram)
-     - `db_query_duration_seconds` (histogram)
-     - `nats_messages_published_total` (counter)
-     - `nats_messages_consumed_total` (counter)
-     - `parking_slots_occupied` (gauge)
-     - `parking_sessions_active` (gauge)
-     - `payment_transactions_total` (counter, labels: status)
-   - Add `/metrics` endpoint to each service
-
-2. **Deploy monitoring stack**
-   - `deploy/monitoring/prometheus/prometheus.yml` — scrape configs
-   - `deploy/monitoring/prometheus/alerts.yml` — alerting rules
-   - `deploy/monitoring/alertmanager/alertmanager.yml`
-   - `deploy/monitoring/docker-compose.monitoring.yml` — Prometheus + Grafana + Alertmanager
-   - Add to Helm chart: ServiceMonitor CRDs for Prometheus Operator
-
-3. **Create Grafana dashboards**
-   - `deploy/monitoring/grafana/dashboards/overview.json` — system overview
-   - `deploy/monitoring/grafana/dashboards/per-service.json` — per-service detail
-   - `deploy/monitoring/grafana/dashboards/parking-business.json` — business metrics
-   - `deploy/monitoring/grafana/dashboards/infrastructure.json` — resource usage
-   - `deploy/monitoring/grafana/provisioning/` — auto-provisioning config
-
-4. **Implement peak/idle time analytics**
+1. **Implement peak/idle time analytics**
    - `services/analytics/internal/peaktime/analyzer.go`:
      - Aggregate request rates by hour/day
      - Identify peak windows (e.g., top 20% traffic periods)
@@ -347,7 +334,7 @@
    - Prometheus recording rules for pre-aggregation:
      - `deploy/monitoring/prometheus/recording-rules.yml`
 
-5. **Implement resource prediction model**
+2. **Implement resource prediction model**
    - `services/analytics/internal/prediction/model.go`:
      - Linear regression on historical resource usage
      - Time-series forecasting (e.g., Holt-Winters or Prophet-style)
@@ -360,7 +347,7 @@
      - Data sources and collection frequency
      - Accuracy metrics and validation approach
 
-6. **Define SLOs/SLIs**
+3. **Define SLOs/SLIs**
    - `docs/monitoring/slo-sli.md`:
      - Availability SLO: 99.9% uptime
      - Latency SLI: p99 < 500ms for API calls
@@ -393,6 +380,11 @@
 | Health checks | `pkg/health/` | Dependency failure detection |
 | Structured logging | `pkg/logger/` | JSON logs with trace correlation for debugging |
 | Distributed tracing | `pkg/tracing/` | Request flow visibility across services |
+| Alertmanager | `deploy/monitoring/alertmanager/` | Automated alert routing and notification |
+| Alerting rules | `deploy/monitoring/prometheus/alerts.yml` | 8 rules covering errors, latency, traffic, NATS lag, DB slow queries |
+| Centralized logs | Loki via Alloy | All service logs aggregated for rapid debugging |
+| Distributed tracing | Tempo via Alloy | Cross-service request flow for root cause investigation |
+| Grafana correlation | `deploy/monitoring/grafana/` | Jump from alert → metrics → traces → logs |
 
 ### What's MISSING ❌
 
@@ -479,28 +471,29 @@
 
 | Sub-Kompetensi | Readiness | Critical Gaps |
 |----------------|-----------|---------------|
-| 1. Deploy Application | 🟡 30% | No IaC, incomplete CD, no deployment strategies |
+| 1. Deploy Application | 🟡 60% | No IaC (Terraform/Helm), no rollback strategy |
 | 2. Data Migration | 🟡 40% | No rollback migrations, no conversion rules docs |
 | 3. Document Features | 🔴 15% | No auto-docs, no CI checks, no review process |
-| 4. Monitoring | 🟡 35% | No metrics, no dashboards, no analytics/prediction |
-| 5. Production Errors | 🟡 45% | No post-mortem, no runbook (but good preventive code) |
+| 4. Monitoring | 🟢 75% | No peak/idle analytics, no resource prediction |
+| 5. Production Errors | 🟡 50% | No post-mortem, no runbook (but alerting pipeline exists) |
 
 ### Priority Implementation Order
 
 1. **Week 1-2:** Terraform modules + Helm charts (Sub 1) — highest impact for Level 4
-2. **Week 2-3:** Prometheus metrics + Grafana dashboards (Sub 4) — enables analytics
-3. **Week 3-4:** Post-mortem template + incident runbook (Sub 5) — documentation-heavy, quick wins
-4. **Week 4-5:** Migration rollbacks + data format docs (Sub 2)
-5. **Week 5-6:** API doc generation + PR template + CI checks (Sub 3)
-6. **Week 6-8:** Peak/idle analytics + resource prediction (Sub 4 advanced)
+2. ~~**Week 2-3:** Prometheus metrics + Grafana dashboards (Sub 4)~~ ✅ DONE
+3. **Week 1-2:** Post-mortem template + incident runbook (Sub 5) — documentation-heavy, quick wins
+4. **Week 2-3:** Migration rollbacks + data format docs (Sub 2)
+5. **Week 3-4:** API doc generation + PR template + CI checks (Sub 3)
+6. **Week 4-5:** Peak/idle analytics + resource prediction (Sub 4 advanced)
 
 ### Key Dependencies
 
 ```
-Terraform/Helm (Sub 1) ──→ Prometheus in K8s (Sub 4) ──→ Peak/Idle Analytics (Sub 4)
+Terraform/Helm (Sub 1) ──→ K8s-based deployment (future)
                                     │
                                     ▼
-                        Alerting Rules (Sub 4) ──→ Incident Response (Sub 5)
+                        ✅ Alerting Rules (Sub 4) ──→ Incident Response (Sub 5)
+                        ✅ Prometheus + Grafana + Loki + Tempo (Sub 4) ──→ Peak/Idle Analytics (Sub 4 remaining)
                         
 Proto docs generation (Sub 3) ──→ Documentation CI checks (Sub 3)
 

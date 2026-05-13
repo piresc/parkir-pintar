@@ -1,6 +1,6 @@
 # Level 4 Competency Gap Analysis — parkir-pintar
 
-> **Assessment Date:** 2026-05-12
+> **Assessment Date:** 2026-05-13
 > **Codebase:** parkir-pintar (Go microservices parking application)
 > **Target:** Level 4 (Senior/Lead Developer — Telkomsel)
 > **Branch:** main (post-merge)
@@ -15,10 +15,10 @@
 | 1 — Software Design | 60% | ⚠️ Strong implementation, weak ADRs |
 | 2 — Software Construction | 85% | ✅ Near-complete |
 | 3 — Software Quality | 80% | ✅ Strong, minor CI gaps |
-| 4 — Software Deployment | 40% | 🔴 Major gaps (IaC, monitoring) |
+| 4 — Software Deployment | 70% | ⚠️ Monitoring done, IaC remaining |
 | 5 — Software Security | 65% | ⚠️ Strong preventive, weak response |
 
-**Overall Level 4 Readiness: ~63%**
+**Overall Level 4 Readiness: ~68%**
 
 ---
 
@@ -225,22 +225,29 @@
 - API deprecation strategy
 - OpenAPI/Swagger spec for REST endpoints
 
-### Sub: Handling error/bug (Level 4: 60%)
+### Sub: Handling error/bug (Level 4: 70%)
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| Aggregator log dari banyak aplikasi | ⚠️ Partial | OpenTelemetry tracing spans across services |
+| Aggregator log dari banyak aplikasi | ✅ | Loki centralized log aggregation + OTel log bridge from all 7 services |
 | Rekapitulasi dan klasifikasi error | ❌ | No error classification system |
 | Root cause analysis | ❌ | No RCA documentation |
-| Instrumentasi/pengukuran otomatis | ✅ | OTEL tracing, structured logging |
+| Instrumentasi/pengukuran otomatis | ✅ | Full OTel pipeline (traces + metrics + logs), Prometheus alerting rules |
 | Solusi generik untuk mengurangi bug | ✅ | Circuit breaker, idempotency, rate limiting |
 | Perubahan metode development | ⚠️ Partial | Code review process exists |
 | Langkah preventif | ✅ | Property-based tests, race detection |
-| Prosedur response time penanganan error | ❌ | No incident response procedure |
+| Prosedur response time penanganan error | ⚠️ Partial | Alertmanager notifies on errors; no formal runbook |
 | Laporan post mortem | ❌ | No post-mortem template |
 
+**EXISTS:**
+- Centralized log aggregation: Loki with 7d retention, all services send logs via OTel → Alloy → Loki
+- Prometheus metrics with 8 alerting rules (HighErrorRate, HighLatency, HighGRPCErrorRate, etc.)
+- Alertmanager for automated error notification
+- Grafana dashboards with Prometheus/Tempo/Loki correlation
+- Distributed tracing (Tempo) for cross-service error investigation
+- OpenTelemetry instrumentation in all services
+
 **MISSING:**
-- Centralized log aggregation (ELK/Loki)
 - Error classification and trending
 - Root cause analysis documentation
 - Post-mortem template and process
@@ -281,14 +288,22 @@
 
 ## Kompetensi 4 — Software Deployment
 
-### Sub: Deploy application (Level 4: 35%)
+### Sub: Deploy application (Level 4: 60%)
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
 | Infrastructure as Code | ❌ | No Terraform/Pulumi/Helm |
-| Sistem deployment otomatis | ⚠️ Partial | CD pipeline exists but staging deploy is placeholder |
-| Template konfigurasi modular/reusable | ⚠️ Partial | Multi-stage Dockerfile, but single image for all services |
-| Best practices deployment | ⚠️ Partial | Non-root container, health checks, graceful shutdown |
+| Sistem deployment otomatis | ✅ | GitHub Actions CI/CD → GHCR → Watchtower auto-pull on staging server |
+| Template konfigurasi modular/reusable | ✅ | Docker Compose per-environment (`deploy/staging/`, `deploy/monitoring/`), multi-stage Dockerfile |
+| Best practices deployment | ✅ | Non-root container, health checks, graceful shutdown, automated image updates |
+
+**EXISTS:**
+- Working staging deployment: `staging-parkir-pintar.piresc.dev`
+- GitHub Actions builds Docker images and pushes to GHCR
+- Watchtower auto-pulls new images every 60s on staging server
+- 7 services running via Docker Compose on bare metal
+- Production frontend: `parkir-pintar.piresc.dev`
+- Modular Docker Compose configs (staging, monitoring separate)
 
 **MISSING:**
 - Terraform/Pulumi for cloud infrastructure
@@ -296,7 +311,6 @@
 - Per-service Dockerfiles
 - Blue-green or canary deployment
 - Rollback strategy documentation
-- Environment promotion workflow
 
 ### Sub: Performing data migration (Level 4: 50%)
 
@@ -325,42 +339,55 @@
 - CHANGELOG.md automation
 - PR template with "docs updated?" checkbox
 
-### Sub: Monitoring (Level 4: 30%)
+### Sub: Monitoring (Level 4: 75%)
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| Database historis kinerja aplikasi | ❌ | No Prometheus/metrics |
-| Sistem notifikasi/alert | ❌ | No alerting |
-| Analisa data monitoring (peak/idle time) | ❌ | No analytics |
+| Database historis kinerja aplikasi | ✅ | Prometheus metrics + Tempo traces + Loki logs (all with retention) |
+| Sistem notifikasi/alert | ✅ | Alertmanager with 8 alert rules (HighErrorRate, HighLatency, HighGRPCErrorRate, etc.) |
+| Analisa data monitoring (peak/idle time) | ❌ | No peak/idle analytics dashboards yet |
 | Model prediksi penggunaan resource | ❌ | No predictive models |
 
-**EXISTS (foundation):**
+**EXISTS:**
+- Full OpenTelemetry pipeline: traces + metrics + logs via OTLP gRPC to Alloy collector
+- Alloy routes: traces→Tempo, metrics→Prometheus (remote_write + span metrics), logs→Loki
+- Prometheus with 8 alerting rules (`deploy/monitoring/prometheus/alerts.yml`)
+- Alertmanager configured (`deploy/monitoring/alertmanager/`)
+- Grafana with 3 datasources (Prometheus, Tempo, Loki) with cross-linking/correlation
+- Loki for centralized log aggregation (7d retention)
+- Tempo for distributed tracing storage
+- All monitoring accessible via Tailscale (Grafana :3000, Prometheus :9090, Tempo :3200, Loki :3100, Alloy :12345, Alertmanager :9093)
 - OpenTelemetry tracing (`pkg/tracing/`)
-- Structured logging with trace correlation (`pkg/logger/`)
+- OTel metrics (`pkg/metrics/`)
+- OTel log bridge (`pkg/logger/`)
+- Structured logging with trace correlation
 - Health checks with dependency timing (`pkg/health/`)
 
 **MISSING:**
-- Prometheus metrics exposition
-- Grafana dashboards (or dashboard-as-code)
-- Alerting rules (Alertmanager/PagerDuty/OpsGenie)
 - SLO/SLI definitions
 - Peak/idle time analytics
 - Resource prediction models
+- Capacity planning documentation
 
-### Sub: Memperbaiki error di production (Level 4: 25%)
+### Sub: Memperbaiki error di production (Level 4: 40%)
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
 | Langkah preventif | ✅ | Circuit breaker, rate limiting, idempotency |
-| Prosedur memperpendek response time | ❌ | No incident response procedure |
+| Prosedur memperpendek response time | ⚠️ Partial | Alertmanager pipeline notifies on errors; no formal runbook yet |
 | Laporan post mortem | ❌ | No post-mortem template |
+
+**EXISTS:**
+- Automated alerting pipeline (Alertmanager with 8 rules: HighErrorRate, HighLatency, HighGRPCErrorRate, HighSpanErrorRate, HighSpanLatency, NoTrafficDetected, NATSConsumerLag, DatabaseSlowQueries)
+- Centralized log aggregation (Loki) for rapid debugging
+- Distributed tracing (Tempo) for request flow analysis
+- Grafana dashboards with cross-linked datasources for correlation
 
 **MISSING:**
 - Incident response runbook
 - Post-mortem template
 - On-call rotation documentation
 - Error budget tracking
-- Automated alerting pipeline
 
 ---
 
@@ -400,9 +427,9 @@
 |---|--------|-----------|--------|
 | 1 | Create ADR directory with 5+ architecture decisions | Design | 2-3 days |
 | 2 | Add Terraform/Helm for infrastructure | Deployment | 3-5 days |
-| 3 | Implement Prometheus metrics + Grafana dashboards | Deployment | 2-3 days |
+| ~~3~~ | ~~Implement Prometheus metrics + Grafana dashboards~~ | ~~Deployment~~ | ✅ DONE |
 | 4 | Create incident response runbook + post-mortem template | Deployment/Security | 1-2 days |
-| 5 | Add alerting (Alertmanager/PagerDuty) | Deployment | 1-2 days |
+| ~~5~~ | ~~Add alerting (Alertmanager/PagerDuty)~~ | ~~Deployment~~ | ✅ DONE |
 | 6 | Write `SECURITY.md` + incident response plan | Security | 1 day |
 | 7 | Add load/E2E tests to CI/CD (nightly pipeline) | Quality | 1 day |
 
@@ -448,6 +475,8 @@ These areas are **beyond** typical Level 4 expectations:
 6. **Idempotency middleware** — SETNX sentinel + polling pattern
 7. **Schema-per-service isolation** — Database boundary enforcement
 8. **OpenTelemetry distributed tracing** — Cross-service correlation
+9. **Full observability stack** — OTel (traces+metrics+logs) → Alloy → Prometheus/Tempo/Loki/Grafana with cross-correlation
+10. **Production-grade alerting** — 8 alert rules covering errors, latency, traffic anomalies, NATS consumer lag, DB slow queries
 
 ---
 
@@ -455,9 +484,10 @@ These areas are **beyond** typical Level 4 expectations:
 
 | Phase | Items | Duration |
 |-------|-------|----------|
+| ~~Phase 2: Infrastructure~~ | ~~Terraform/Helm, Prometheus, Grafana, alerting~~ | ✅ Monitoring DONE, IaC remaining |
 | Phase 1: Documentation | ADRs, SECURITY.md, runbooks, style guide, tech comparisons | 1 week |
-| Phase 2: Infrastructure | Terraform/Helm, Prometheus, Grafana, alerting | 1 week |
+| Phase 2: Infrastructure | Terraform/Helm (IaC) | 3-5 days |
 | Phase 3: CI/CD Enhancement | Load tests in pipeline, ZAP, govulncheck, E2E in CI | 3 days |
 | Phase 4: Polish | Benchmarks, OpenAPI, down migrations, API roadmap | 3 days |
 
-**Total estimated effort: ~3 weeks** to close all critical and important gaps.
+**Total estimated effort: ~2 weeks** to close all critical and important gaps (monitoring stack complete).

@@ -2,7 +2,7 @@
 
 **Project:** Parkir Pintar  
 **Assessment Level:** 4 (Advanced/Lead)  
-**Date:** 2026-05-12  
+**Date:** 2026-05-13  
 **Status:** 🟡 Partially Complete
 
 ---
@@ -248,8 +248,15 @@ Level 4 Software Construction requires the ability to **define workflows, establ
 
 | Evidence | Location |
 |----------|----------|
-| Structured logging (JSON) | `pkg/logger/` or slog usage |
+| Structured logging (JSON) | `pkg/logger/` slog usage |
 | OpenTelemetry tracing | Distributed trace correlation |
+| OTel log bridge | `pkg/logger/` — slog → OTel log bridge → OTLP to Alloy |
+| Centralized log aggregation (Loki) | All 7 services → OTel → Alloy → Loki (7d retention) |
+| Prometheus metrics | `pkg/metrics/` — OTel meter provider with OTLP exporter |
+| Alerting rules (8 rules) | `deploy/monitoring/prometheus/alerts.yml` — HighErrorRate, HighLatency, HighGRPCErrorRate, HighSpanErrorRate, HighSpanLatency, NoTrafficDetected, NATSConsumerLag, DatabaseSlowQueries |
+| Alertmanager | `deploy/monitoring/alertmanager/` — automated error notification |
+| Grafana dashboards | 3 datasources (Prometheus, Tempo, Loki) with cross-linking/correlation |
+| Distributed tracing (Tempo) | Cross-service request flow for root cause investigation |
 | Health check endpoints | Service health monitoring |
 | Circuit breaker (error threshold) | `pkg/circuitbreaker/` |
 | Graceful error handling | Error wrapping, sentinel errors |
@@ -258,27 +265,22 @@ Level 4 Software Construction requires the ability to **define workflows, establ
 
 ### ❌ What's MISSING
 
-1. **No centralized log aggregation** — No ELK stack, Loki, or similar log database
-2. **No error classification system** — No taxonomy of error types, severity levels, or categorization
-3. **No RCA documentation** — No root cause analysis reports or templates
-4. **No post-mortem template** — No incident post-mortem process
-5. **No incident response procedure** — No documented runbook for error handling
-6. **No error metrics dashboard** — No Grafana/Prometheus error rate visualization
-7. **No preventive measures document** — No documented strategies for error reduction
+1. **No error classification system** — No taxonomy of error types, severity levels, or categorization
+2. **No RCA documentation** — No root cause analysis reports or templates
+3. **No post-mortem template** — No incident post-mortem process
+4. **No incident response procedure** — No documented runbook for error handling
+5. **No preventive measures document** — No documented strategies for error reduction
 
 ### 🎯 ACTION ITEMS
 
 | # | Task | Output File | Priority |
 |---|------|-------------|----------|
-| 1 | Set up centralized log aggregation (Loki + Grafana or ELK) | `deploy/docker-compose.logging.yml` | High |
-| 2 | Create error classification taxonomy | `docs/error-classification.md` | High |
-| 3 | Create RCA template and sample report | `docs/templates/rca-template.md`, `docs/rca/sample-rca.md` | High |
-| 4 | Create post-mortem template | `docs/templates/post-mortem-template.md` | High |
-| 5 | Create incident response procedure/runbook | `docs/incident-response.md` | High |
-| 6 | Add Prometheus metrics for error rates | Service metrics endpoints | Medium |
-| 7 | Document preventive measures and development process changes | `docs/error-prevention.md` | Medium |
-| 8 | Create error reduction strategy across services | `docs/error-reduction-strategy.md` | Medium |
-| 9 | Add alerting rules for critical errors | `deploy/alerting-rules.yml` | Low |
+| 1 | Create error classification taxonomy | `docs/error-classification.md` | High |
+| 2 | Create RCA template and sample report | `docs/templates/rca-template.md`, `docs/rca/sample-rca.md` | High |
+| 3 | Create post-mortem template | `docs/templates/post-mortem-template.md` | High |
+| 4 | Create incident response procedure/runbook | `docs/incident-response.md` | High |
+| 5 | Document preventive measures and development process changes | `docs/error-prevention.md` | Medium |
+| 6 | Create error reduction strategy across services | `docs/error-reduction-strategy.md` | Medium |
 
 ### Assessment Criteria
 
@@ -302,9 +304,9 @@ Level 4 Software Construction requires the ability to **define workflows, establ
 | 2. Writing Source Code | 🟢 Strong | 80% | Coding guidelines, benchmarks, .golangci.yml |
 | 3. Manage Data | 🟡 Partial | 60% | Event sourcing, outbox pattern, saga |
 | 4. Integrate API | 🟡 Partial | 65% | API roadmap, OpenAPI spec, design review |
-| 5. Handling Error/Bug | 🔴 Weak | 30% | Log aggregation, RCA, post-mortem, incident response |
+| 5. Handling Error/Bug | 🟡 Partial | 60% | RCA, post-mortem, incident response (log aggregation + alerting ✅) |
 
-### Overall Kompetensi 2 Readiness: **~61%**
+### Overall Kompetensi 2 Readiness: **~67%**
 
 ---
 
@@ -325,7 +327,7 @@ Level 4 Software Construction requires the ability to **define workflows, establ
 - [ ] OpenAPI/Swagger specification
 - [ ] `docs/incident-response.md`
 - [ ] `docs/ci-cd-policy.md`
-- [ ] Centralized logging setup (docker-compose)
+- [x] ~~Centralized logging setup (docker-compose)~~ ✅ Loki + OTel + Alloy deployed
 
 ### Phase 3 — Advanced Patterns (5-10 days)
 - [ ] Event sourcing implementation
@@ -333,7 +335,7 @@ Level 4 Software Construction requires the ability to **define workflows, establ
 - [ ] Saga orchestrator
 - [ ] pprof profiling integration
 - [ ] Performance analysis report
-- [ ] Error metrics dashboard
+- [x] ~~Error metrics dashboard~~ ✅ Grafana + Prometheus + alerting deployed
 
 ---
 

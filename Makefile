@@ -1,82 +1,239 @@
-# Assessment Boilerplate Makefile
+# ParkirPintar Makefile
+# Smart Parking Reservation System - Developer Experience
 
-APP_NAME := parkir-pintar
-BINARY := ./bin/gateway
-DOCKER_IMAGE := $(APP_NAME)
-VERSION ?= dev
-GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+# Go binary path
+GO := /usr/local/go/bin/go
+GOFLAGS := -v
+MODULE := github.com/parkir-pintar/parkir-pintar
+
+# Tool binaries
+GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || echo "golangci-lint")
+GOSEC := $(shell which gosec 2>/dev/null || echo "gosec")
+GOVULNCHECK := $(shell which govulncheck 2>/dev/null || echo "govulncheck")
+PROTOC := $(shell which protoc 2>/dev/null || echo "protoc")
+K6 := $(shell which k6 2>/dev/null || echo "k6")
+
+# Docker
+DOCKER_COMPOSE := docker compose
+COMPOSE_FILE := deploy/docker-compose.yml
+
+# Migration
+MIGRATE := $(shell which migrate 2>/dev/null || echo "migrate")
+MIGRATION_DIR := migrations
+
+# Coverage
+COVERAGE_DIR := .coverage
+COVERAGE_FILE := $(COVERAGE_DIR)/coverage.out
+COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
+
+# Services
+SERVICES := reservation billing payment presence search gateway
+
+# Build info
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS := -s -w -X main.Version=$(VERSION) -X main.GitCommit=$(GIT_COMMIT) -X main.BuildTime=$(BUILD_TIME)
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)"
 
-.PHONY: help test test-coverage test-race test-race-e2e generate-mocks lint gosec gitleaks build run docker-build docker-run clean proto-gen
+.PHONY: help build test test-coverage bench lint security proto \
+        docker-up docker-down migrate-up migrate-down load-test ci \
+        clean tools fmt vet
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+## help: Show this help message
+help:
+	@echo "ParkirPintar - Smart Parking Reservation System"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## /  /' | sort
+	@echo ""
+	@echo "Services: $(SERVICES)"
 
-test: ## Run all tests
-	go test ./...
+## build: Build all service binaries
+build:
+	@echo "==> Building all services..."
+	@for svc in $(SERVICES); do \
+		echo "  Building $$svc..."; \
+		$(GO) build $(GOFLAGS) $(LDFLAGS) -o bin/$$svc ./cmd/$$svc; \
+	done
+	@echo "==> Build complete. Binaries in ./bin/"
 
-test-coverage: ## Run tests with coverage report
-	go test ./... -coverprofile=coverage.txt -covermode=atomic
-	go tool cover -func=coverage.txt
+## build-service: Build a single service (usage: make build-service SVC=reservation)
+build-service:
+	@if [ -z "$(SVC)" ]; then echo "Error: SVC not set. Usage: make build-service SVC=reservation"; exit 1; fi
+	@echo "==> Building $(SVC)..."
+	$(GO) build $(GOFLAGS) $(LDFLAGS) -o bin/$(SVC) ./cmd/$(SVC)
 
-test-race: ## Run tests with race detector
-	go test ./... -race
+## test: Run all tests with race detector (short mode)
+test:
+	@echo "==> Running tests..."
+	$(GO) test -race -short -count=1 ./...
 
-generate-mocks: ## Generate mocks via go generate
-	go generate ./...
+## test-coverage: Run tests with coverage report
+test-coverage:
+	@echo "==> Running tests with coverage..."
+	@mkdir -p $(COVERAGE_DIR)
+	$(GO) test -race -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./...
+	$(GO) tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
+	$(GO) tool cover -func=$(COVERAGE_FILE) | tail -1
+	@echo "==> Coverage report: $(COVERAGE_HTML)"
 
-lint: ## Run golangci-lint
-	golangci-lint run ./...
+## test-integration: Run integration tests (requires docker services)
+test-integration:
+	@echo "==> Running integration tests..."
+	$(GO) test -race -count=1 -tags=integration ./...
 
-gosec: ## Run security scanner (gosec)
-	gosec -exclude=G401,G304,G501,G505 -fmt=sonarqube -out=sonar-gosec.json ./...
+## bench: Run benchmarks
+bench:
+	@echo "==> Running benchmarks..."
+	$(GO) test -bench=. -benchmem -run=^$$ ./...
 
-gitleaks: ## Run secret scanning (gitleaks)
-	gitleaks detect --source=. --config=.gitleaks.toml --verbose
+## bench-service: Run benchmarks for a single service (usage: make bench-service SVC=reservation)
+bench-service:
+	@if [ -z "$(SVC)" ]; then echo "Error: SVC not set. Usage: make bench-service SVC=reservation"; exit 1; fi
+	$(GO) test -bench=. -benchmem -run=^$$ ./internal/$(SVC)/...
 
-build: ## Build the binary
-	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/gateway
+## lint: Run golangci-lint
+lint:
+	@echo "==> Running linter..."
+	$(GOLANGCI_LINT) run ./...
 
-run: build ## Build and run the binary
-	$(BINARY)
+## fmt: Format code
+fmt:
+	@echo "==> Formatting code..."
+	$(GO) fmt ./...
+	@echo "==> Checking for unformatted files..."
+	@test -z "$$(gofmt -l .)" || (echo "Files need formatting:"; gofmt -l .; exit 1)
 
-docker-build: ## Build Docker image
-	docker build \
-		--build-arg VERSION=$(VERSION) \
-		--build-arg GIT_COMMIT=$(GIT_COMMIT) \
-		--build-arg BUILD_TIME=$(BUILD_TIME) \
-		-t $(DOCKER_IMAGE):$(VERSION) .
+## vet: Run go vet
+vet:
+	@echo "==> Running go vet..."
+	$(GO) vet ./...
 
-docker-run: ## Run via Docker Compose
-	docker compose up -d
+## security: Run security scanners (gosec + govulncheck)
+security:
+	@echo "==> Running gosec..."
+	$(GOSEC) -quiet ./...
+	@echo ""
+	@echo "==> Running govulncheck..."
+	$(GOVULNCHECK) ./...
+	@echo ""
+	@echo "==> Security scan complete."
 
-proto-gen: ## Generate Go code from proto files
-	protoc \
-		-I proto/ \
-		-I /usr/local/include \
-		--go_out=. --go_opt=module=parkir-pintar \
-		--go-grpc_out=. --go-grpc_opt=module=parkir-pintar \
-		proto/search/v1/search.proto \
-		proto/reservation/v1/reservation.proto \
-		proto/billing/v1/billing.proto \
-		proto/payment/v1/payment.proto \
-		proto/presence/v1/presence.proto \
-		proto/notification/v1/notification.proto
+## proto: Generate protobuf/gRPC code
+proto:
+	@echo "==> Generating protobuf code..."
+	@for proto_file in $$(find api/proto -name "*.proto"); do \
+		echo "  Generating $$proto_file..."; \
+		$(PROTOC) \
+			--go_out=. --go_opt=paths=source_relative \
+			--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+			-I api/proto \
+			$$proto_file; \
+	done
+	@echo "==> Proto generation complete."
 
-clean: ## Remove build artifacts
-	rm -rf ./bin coverage.txt sonar-gosec.json
+## docker-up: Start all services with docker compose
+docker-up:
+	@echo "==> Starting docker compose services..."
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) up -d
+	@echo "==> Waiting for services to be healthy..."
+	@sleep 5
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) ps
+	@echo ""
+	@echo "Services:"
+	@echo "  PostgreSQL: localhost:5432"
+	@echo "  Redis:      localhost:6379"
+	@echo "  NATS:       localhost:4222 (monitoring: localhost:8222)"
 
-test-e2e: ## Run Layer 1 E2E tests (testcontainers-go)
-	go test -v -timeout 300s ./tests/e2e/...
+## docker-down: Stop all docker compose services
+docker-down:
+	@echo "==> Stopping docker compose services..."
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) down -v
 
-test-e2e-docker: ## Run Layer 2 E2E tests (Docker Compose)
-	go test -v -timeout 600s ./tests/e2e_docker/...
+## docker-logs: Tail docker compose logs
+docker-logs:
+	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f
 
-test-e2e-all: test-e2e test-e2e-docker ## Run both E2E test layers
+## migrate-up: Run database migrations (all services)
+migrate-up:
+	@echo "==> Running migrations..."
+	@for svc in $(SERVICES); do \
+		if [ -d "$(MIGRATION_DIR)/$$svc" ]; then \
+			echo "  Migrating $$svc..."; \
+			$(MIGRATE) -path $(MIGRATION_DIR)/$$svc -database "$${DATABASE_URL_$$(echo $$svc | tr a-z A-Z)}" up; \
+		fi; \
+	done
+	@echo "==> Migrations complete."
 
-test-race-e2e: ## Run race condition E2E tests with -race detector
-	go test -race -v -timeout 300s -count=1 -run TestRace ./tests/e2e/...
+## migrate-down: Rollback last migration (all services)
+migrate-down:
+	@echo "==> Rolling back migrations..."
+	@for svc in $(SERVICES); do \
+		if [ -d "$(MIGRATION_DIR)/$$svc" ]; then \
+			echo "  Rolling back $$svc..."; \
+			$(MIGRATE) -path $(MIGRATION_DIR)/$$svc -database "$${DATABASE_URL_$$(echo $$svc | tr a-z A-Z)}" down 1; \
+		fi; \
+	done
+	@echo "==> Rollback complete."
 
-test-load: ## Run load/stress tests
-	go test -v -timeout 600s -count=1 -run TestLoad ./tests/e2e/...
+## migrate-create: Create a new migration (usage: make migrate-create SVC=reservation NAME=add_index)
+migrate-create:
+	@if [ -z "$(SVC)" ] || [ -z "$(NAME)" ]; then \
+		echo "Error: SVC and NAME required. Usage: make migrate-create SVC=reservation NAME=add_index"; exit 1; \
+	fi
+	@mkdir -p $(MIGRATION_DIR)/$(SVC)
+	$(MIGRATE) create -ext sql -dir $(MIGRATION_DIR)/$(SVC) -seq $(NAME)
+
+## load-test: Run k6 smoke test
+load-test:
+	@echo "==> Running k6 smoke test..."
+	$(K6) run --vus 10 --duration 30s tests/load/smoke.js
+	@echo "==> Smoke test complete."
+
+## load-test-stress: Run k6 stress test
+load-test-stress:
+	@echo "==> Running k6 stress test..."
+	$(K6) run tests/load/stress.js
+
+## load-test-spike: Run k6 spike test
+load-test-spike:
+	@echo "==> Running k6 spike test..."
+	$(K6) run tests/load/spike.js
+
+## ci: Run all checks locally (mirrors CI pipeline)
+ci: fmt vet lint security test-coverage build
+	@echo ""
+	@echo "============================================"
+	@echo "  All CI checks passed!"
+	@echo "============================================"
+
+## clean: Remove build artifacts and caches
+clean:
+	@echo "==> Cleaning..."
+	@rm -rf bin/
+	@rm -rf $(COVERAGE_DIR)/
+	@$(GO) clean -cache -testcache
+	@echo "==> Clean complete."
+
+## tools: Install development tools
+tools:
+	@echo "==> Installing development tools..."
+	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	$(GO) install github.com/securego/gosec/v2/cmd/gosec@latest
+	$(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+	$(GO) install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@echo "==> Tools installed."
+
+## mod: Tidy and verify go modules
+mod:
+	@echo "==> Tidying modules..."
+	$(GO) mod tidy
+	$(GO) mod verify
+
+## generate: Run go generate
+generate:
+	@echo "==> Running go generate..."
+	$(GO) generate ./...

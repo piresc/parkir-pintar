@@ -99,6 +99,25 @@ jobs:
           path: sonar-gosec.json
 
   # -------------------------------------------------------------------------
+  # Vulnerability check via govulncheck
+  # -------------------------------------------------------------------------
+  vulncheck:
+    name: Vulnerability Check
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  # -------------------------------------------------------------------------
   # SonarCloud analysis
   # -------------------------------------------------------------------------
   sonar:

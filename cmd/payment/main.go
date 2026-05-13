@@ -37,6 +37,7 @@ func main() {
 	tracer, err := tracing.NewTracer(&tracing.Config{
 		Enabled: cfg.Tracing.Enabled, ServiceName: "parkir-pintar-payment",
 		SampleRate: cfg.Tracing.SampleRate, Exporter: cfg.Tracing.Exporter,
+		OTLPEndpoint: cfg.Tracing.OTLPEndpoint,
 	})
 	if err != nil {
 		log.Warn("tracer init failed", slog.Any("error", err))

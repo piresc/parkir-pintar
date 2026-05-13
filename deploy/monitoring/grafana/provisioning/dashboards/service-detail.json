@@ -176,7 +176,7 @@
               { "color": "red", "value": 1 }
             ]
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -191,19 +191,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.50, sum(rate(traces_spanmetrics_duration_seconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, span_name))",
+          "expr": "histogram_quantile(0.50, sum(rate(traces_spanmetrics_duration_milliseconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, span_name))",
           "legendFormat": "P50 {{span_name}}",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_duration_seconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, span_name))",
+          "expr": "histogram_quantile(0.95, sum(rate(traces_spanmetrics_duration_milliseconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, span_name))",
           "legendFormat": "P95 {{span_name}}",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.99, sum(rate(traces_spanmetrics_duration_seconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, span_name))",
+          "expr": "histogram_quantile(0.99, sum(rate(traces_spanmetrics_duration_milliseconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le, span_name))",
           "legendFormat": "P99 {{span_name}}",
           "refId": "C"
         }
@@ -219,7 +219,7 @@
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "scaleDistribution": { "type": "log", "log": 2 }
           },
-          "unit": "s"
+          "unit": "ms"
         },
         "overrides": []
       },
@@ -234,14 +234,14 @@
         "legend": { "show": true },
         "rowsFrame": { "layout": "auto" },
         "tooltip": { "mode": "single", "showColorScale": false, "yHistogram": false },
-        "yAxis": { "axisPlacement": "left", "reverse": false, "unit": "s" }
+        "yAxis": { "axisPlacement": "left", "reverse": false, "unit": "ms" }
       },
       "title": "Request Duration Heatmap",
       "type": "heatmap",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(increase(traces_spanmetrics_duration_seconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le)",
+          "expr": "sum(increase(traces_spanmetrics_duration_milliseconds_bucket{service_name=\"$service\", span_kind=\"SPAN_KIND_SERVER\"}[5m])) by (le)",
           "legendFormat": "{{le}}",
           "refId": "A",
           "format": "heatmap"

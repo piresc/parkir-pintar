@@ -92,7 +92,10 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
       SERVER_ALLOWED_ORIGINS: "https://staging-parkir-pintar.piresc.dev,http://staging-parkir-pintar.piresc.dev"
     depends_on:
       reservation:
@@ -139,7 +142,10 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -149,6 +155,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -v grep | grep /app/search || exit 1"]
@@ -179,7 +186,10 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
       GRPC_BILLING_TARGET: billing:9090
       GRPC_PAYMENT_TARGET: payment:9090
       PAYMENT_TIMEOUT_MINUTES: "10"
@@ -196,6 +206,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -v grep | grep /app/reservation || exit 1"]
@@ -223,7 +234,10 @@ services:
       DB_SCHEMA: billing
       DB_SSL_MODE: disable
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -231,6 +245,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -v grep | grep /app/billing || exit 1"]
@@ -258,7 +273,10 @@ services:
       DB_SCHEMA: payment
       DB_SSL_MODE: disable
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -266,6 +284,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -v grep | grep /app/payment || exit 1"]
@@ -296,7 +315,10 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -306,6 +328,7 @@ services:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -v grep | grep /app/presence || exit 1"]
@@ -326,12 +349,16 @@ services:
       GRPC_SERVER_PORT: "9090"
       JWT_SECRET: ${JWT_SECRET}
       NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
     depends_on:
       nats:
         condition: service_healthy
     networks:
       - backend
+      - coolify
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -v grep | grep /app/notification || exit 1"]

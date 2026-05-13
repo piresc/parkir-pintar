@@ -215,6 +215,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		return nil, fmt.Errorf("create reservation: %w", err)
 	}
 
+	spot.Status = "reserved"
 	uc.publishSpotUpdated(ctx, spot)
 
 	// Step 6: Create billing record with booking fee

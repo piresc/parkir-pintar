@@ -1,0 +1,5 @@
+# Generated certificates - do not commit
+dev/
+*.pem
+*.csr
+*.srl

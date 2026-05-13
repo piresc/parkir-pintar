@@ -64,6 +64,10 @@ jobs:
         run: |
           go test -v -race -covermode=atomic -coverprofile=coverage.txt -short ./...
 
+      - name: Run benchmarks
+        run: |
+          go test -run=^$ -bench=. -benchmem -short ./... | tee bench-results.txt
+
       - name: Display coverage summary
         run: go tool cover -func=coverage.txt
 

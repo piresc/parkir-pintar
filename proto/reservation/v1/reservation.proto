@@ -24,6 +24,8 @@ service ReservationService {
   rpc CompleteCheckout(CompleteCheckoutRequest) returns (CheckOutResponse);
   // ExpireReservation expires a no-show reservation.
   rpc ExpireReservation(ExpireReservationRequest) returns (ReservationResponse);
+  // ListByDriver lists reservations for a driver with optional status filter.
+  rpc ListByDriver(ListByDriverRequest) returns (ListByDriverResponse);
 }
 
 message CreateReservationRequest {
@@ -75,6 +77,15 @@ message ReservationResponse {
   google.protobuf.Timestamp checked_in_at = 10;
   google.protobuf.Timestamp checked_out_at = 11;
   google.protobuf.Timestamp cancelled_at = 12;
+}
+
+message ListByDriverRequest {
+  string driver_id = 1;
+  string status = 2; // optional filter, empty = all
+}
+
+message ListByDriverResponse {
+  repeated ReservationResponse reservations = 1;
 }
 
 message CheckOutResponse {

@@ -67,6 +67,9 @@ func (f *fakeRepo) WithTransaction(_ context.Context, _ func(tx *sqlx.Tx) error)
 func (f *fakeRepo) FindStalePaymentReservations(_ context.Context, _ int) ([]*model.Reservation, error) {
 	return nil, nil
 }
+func (f *fakeRepo) ListByDriverID(_ context.Context, _ string, _ string) ([]*model.Reservation, error) {
+	return nil, nil
+}
 
 // fakeUsecase implements usecase.Usecase for testing.
 type fakeUsecase struct {
@@ -116,6 +119,9 @@ func (f *fakeUsecase) CompleteCheckout(_ context.Context, _ *model.CompleteCheck
 	return nil, nil
 }
 func (f *fakeUsecase) GetReservation(_ context.Context, _ string) (*model.Reservation, error) {
+	return nil, nil
+}
+func (f *fakeUsecase) ListByDriver(_ context.Context, _ string, _ string) ([]*model.Reservation, error) {
 	return nil, nil
 }
 

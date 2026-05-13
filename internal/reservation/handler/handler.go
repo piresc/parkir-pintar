@@ -188,6 +188,27 @@ func (h *Handler) ExpireReservation(ctx context.Context, req *reservationv1.Expi
 	return &reservationv1.ReservationResponse{}, nil
 }
 
+// ListByDriver validates driver_id and retrieves reservations for the driver.
+func (h *Handler) ListByDriver(ctx context.Context, req *reservationv1.ListByDriverRequest) (*reservationv1.ListByDriverResponse, error) {
+	if req.GetDriverId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "driver_id is required")
+	}
+
+	results, err := h.uc.ListByDriver(ctx, req.GetDriverId(), req.GetStatus())
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	var reservations []*reservationv1.ReservationResponse
+	for _, r := range results {
+		reservations = append(reservations, reservationToProto(r))
+	}
+
+	return &reservationv1.ListByDriverResponse{
+		Reservations: reservations,
+	}, nil
+}
+
 // reservationToProto converts a domain Reservation to a proto ReservationResponse.
 func reservationToProto(r *model.Reservation) *reservationv1.ReservationResponse {
 	if r == nil {

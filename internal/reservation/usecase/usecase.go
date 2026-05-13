@@ -87,6 +87,7 @@ type Usecase interface {
 	CompleteCheckout(ctx context.Context, req *model.CompleteCheckoutRequest) (*model.CheckOutResponse, error)
 	ExpireReservation(ctx context.Context, req *model.ExpireReservationRequest) error
 	FailReservation(ctx context.Context, req *model.FailReservationRequest) error
+	ListByDriver(ctx context.Context, driverID string, status string) ([]*model.Reservation, error)
 }
 
 // reservationUsecase is the concrete implementation of Usecase.
@@ -135,6 +136,14 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	existing, err := uc.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err == nil && existing != nil {
 		return existing, nil
+	}
+
+	// Check if driver already has an active reservation
+	active, _ := uc.repo.ListByDriverID(ctx, req.DriverID, "")
+	for _, r := range active {
+		if r.Status == model.StatusWaitingPayment || r.Status == model.StatusConfirmed || r.Status == model.StatusCheckedIn {
+			return nil, apperror.New("CONFLICT", "driver already has an active reservation", 409)
+		}
 	}
 
 	// Step 2: Find available spot
@@ -673,4 +682,9 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 	}
 
 	return nil
+}
+
+// ListByDriver retrieves reservations for a driver with optional status filter.
+func (uc *reservationUsecase) ListByDriver(ctx context.Context, driverID string, status string) ([]*model.Reservation, error) {
+	return uc.repo.ListByDriverID(ctx, driverID, status)
 }

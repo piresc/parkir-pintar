@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 
 	// Reservation routes
 	api.POST("/reservations", h.CreateReservation)
+	api.GET("/reservations", h.ListByDriver)
 	api.GET("/reservations/:id", h.GetReservation)
 	api.DELETE("/reservations/:id", h.CancelReservation)
 	api.POST("/reservations/:id/checkin", h.CheckIn)
@@ -123,6 +124,28 @@ func (h *Handler) GetReservation(c *gin.Context) {
 
 	resp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
 		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+// ListByDriver transcodes GET /api/v1/reservations?driver_id=xxx&status=yyy to ReservationService.ListByDriver.
+func (h *Handler) ListByDriver(c *gin.Context) {
+	driverID := c.Query("driver_id")
+	if driverID == "" {
+		response.Error(c, http.StatusBadRequest, "driver_id query parameter is required")
+		return
+	}
+
+	statusFilter := c.Query("status")
+
+	resp, err := h.reservation.ListByDriver(contextWithAuth(c), &reservationv1.ListByDriverRequest{
+		DriverId: driverID,
+		Status:   statusFilter,
 	})
 	if err != nil {
 		writeGRPCError(c, err)

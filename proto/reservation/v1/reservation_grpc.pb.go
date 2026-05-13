@@ -27,6 +27,7 @@ const (
 	ReservationService_ConfirmReservation_FullMethodName = "/reservation.v1.ReservationService/ConfirmReservation"
 	ReservationService_CompleteCheckout_FullMethodName   = "/reservation.v1.ReservationService/CompleteCheckout"
 	ReservationService_ExpireReservation_FullMethodName  = "/reservation.v1.ReservationService/ExpireReservation"
+	ReservationService_ListByDriver_FullMethodName       = "/reservation.v1.ReservationService/ListByDriver"
 )
 
 // ReservationServiceClient is the client API for ReservationService service.
@@ -51,6 +52,8 @@ type ReservationServiceClient interface {
 	CompleteCheckout(ctx context.Context, in *CompleteCheckoutRequest, opts ...grpc.CallOption) (*CheckOutResponse, error)
 	// ExpireReservation expires a no-show reservation.
 	ExpireReservation(ctx context.Context, in *ExpireReservationRequest, opts ...grpc.CallOption) (*ReservationResponse, error)
+	// ListByDriver lists reservations for a driver with optional status filter.
+	ListByDriver(ctx context.Context, in *ListByDriverRequest, opts ...grpc.CallOption) (*ListByDriverResponse, error)
 }
 
 type reservationServiceClient struct {
@@ -141,6 +144,16 @@ func (c *reservationServiceClient) ExpireReservation(ctx context.Context, in *Ex
 	return out, nil
 }
 
+func (c *reservationServiceClient) ListByDriver(ctx context.Context, in *ListByDriverRequest, opts ...grpc.CallOption) (*ListByDriverResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListByDriverResponse)
+	err := c.cc.Invoke(ctx, ReservationService_ListByDriver_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ReservationServiceServer is the server API for ReservationService service.
 // All implementations must embed UnimplementedReservationServiceServer
 // for forward compatibility.
@@ -163,6 +176,8 @@ type ReservationServiceServer interface {
 	CompleteCheckout(context.Context, *CompleteCheckoutRequest) (*CheckOutResponse, error)
 	// ExpireReservation expires a no-show reservation.
 	ExpireReservation(context.Context, *ExpireReservationRequest) (*ReservationResponse, error)
+	// ListByDriver lists reservations for a driver with optional status filter.
+	ListByDriver(context.Context, *ListByDriverRequest) (*ListByDriverResponse, error)
 	mustEmbedUnimplementedReservationServiceServer()
 }
 
@@ -196,6 +211,9 @@ func (UnimplementedReservationServiceServer) CompleteCheckout(context.Context, *
 }
 func (UnimplementedReservationServiceServer) ExpireReservation(context.Context, *ExpireReservationRequest) (*ReservationResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExpireReservation not implemented")
+}
+func (UnimplementedReservationServiceServer) ListByDriver(context.Context, *ListByDriverRequest) (*ListByDriverResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListByDriver not implemented")
 }
 func (UnimplementedReservationServiceServer) mustEmbedUnimplementedReservationServiceServer() {}
 func (UnimplementedReservationServiceServer) testEmbeddedByValue()                            {}
@@ -362,6 +380,24 @@ func _ReservationService_ExpireReservation_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ReservationService_ListByDriver_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListByDriverRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReservationServiceServer).ListByDriver(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReservationService_ListByDriver_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReservationServiceServer).ListByDriver(ctx, req.(*ListByDriverRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ReservationService_ServiceDesc is the grpc.ServiceDesc for ReservationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -400,6 +436,10 @@ var ReservationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ExpireReservation",
 			Handler:    _ReservationService_ExpireReservation_Handler,
+		},
+		{
+			MethodName: "ListByDriver",
+			Handler:    _ReservationService_ListByDriver_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

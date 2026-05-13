@@ -26,6 +26,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 
 	// First call mocks (key-alpha -> spot-alpha)
 	repo.On("FindByIdempotencyKey", mock.Anything, "key-alpha").Return(nil, model.ErrNotFound).Once()
+	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil).Once()
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-alpha",
 		VehicleType: "car",
@@ -44,6 +45,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 
 	// Second call mocks (key-beta -> spot-beta)
 	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, model.ErrNotFound).Once()
+	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil).Once()
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-beta",
 		VehicleType: "car",

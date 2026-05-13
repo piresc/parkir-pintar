@@ -32,6 +32,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "overlap-key").Return(nil, model.ErrNotFound)
+	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-race",
 		VehicleType: "car",
@@ -84,6 +85,7 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "diff-spot-key").Return(nil, model.ErrNotFound)
+	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-a",
 		VehicleType: "car",
@@ -140,6 +142,7 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "boundary-key").Return(nil, model.ErrNotFound)
+	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "motorcycle").Return(&model.ParkingSpot{
 		ID:          "spot-boundary",
 		VehicleType: "motorcycle",

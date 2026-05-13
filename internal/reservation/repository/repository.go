@@ -29,6 +29,7 @@ type Repository interface {
 	GetByIDForUpdate(ctx context.Context, tx *sqlx.Tx, id string) (*model.Reservation, error)
 	WithTransaction(ctx context.Context, fn func(tx *sqlx.Tx) error) error
 	FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error)
+	ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error)
 }
 
 // sqlxRepository is the sqlx-backed implementation of Repository.
@@ -219,6 +220,29 @@ func (r *sqlxRepository) FindStalePaymentReservations(ctx context.Context, timeo
 	err := r.db.SelectContext(ctx, &reservations, query, timeoutMinutes)
 	if err != nil {
 		return nil, fmt.Errorf("find stale payment reservations: %w", err)
+	}
+	return reservations, nil
+}
+
+// ListByDriverID retrieves reservations for a given driver, optionally filtered by status.
+func (r *sqlxRepository) ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error) {
+	var reservations []*model.Reservation
+	if status != "" {
+		err := r.db.SelectContext(ctx, &reservations,
+			"SELECT * FROM reservations WHERE driver_id = $1 AND status = $2 ORDER BY created_at DESC",
+			driverID, status,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("list reservations by driver: %w", err)
+		}
+	} else {
+		err := r.db.SelectContext(ctx, &reservations,
+			"SELECT * FROM reservations WHERE driver_id = $1 ORDER BY created_at DESC",
+			driverID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("list reservations by driver: %w", err)
+		}
 	}
 	return reservations, nil
 }

@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// Wait for gateway health endpoint
-	healthURL := "http://localhost:8082/health"
+	healthURL := "http://localhost:11000/health"
 	log.Printf("Waiting for gateway health at %s ...", healthURL)
 	if err := testhelpers.WaitForHealth(healthURL, 120*1e9); err != nil { // 120s
 		tearDown()
@@ -74,7 +74,7 @@ func TestMain(m *testing.M) {
 	client := testhelpers.NewAuthenticatedClient(token)
 
 	denv = &dockerEnvStruct{
-		baseURL:    "http://localhost:8082",
+		baseURL:    "http://localhost:11000",
 		httpClient: client,
 		jwtToken:   token,
 		driverID:   driverID,

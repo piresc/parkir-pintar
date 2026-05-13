@@ -69,7 +69,7 @@ services:
     container_name: parkir-gateway
     command: ["/app/gateway"]
     ports:
-      - "8082:8080"
+      - "11000:8080"
     environment:
       APP_NAME: parkir-pintar-gateway
       APP_ENV: local
@@ -113,7 +113,7 @@ services:
     container_name: parkir-search
     command: ["/app/search"]
     ports:
-      - "9092:9090"
+      - "11001:9090"
     environment:
       APP_NAME: parkir-pintar-search
       APP_ENV: local
@@ -155,7 +155,7 @@ services:
     container_name: parkir-reservation
     command: ["/app/reservation"]
     ports:
-      - "9091:9090"
+      - "11002:9090"
     environment:
       APP_NAME: parkir-pintar-reservation
       APP_ENV: local
@@ -204,7 +204,7 @@ services:
     container_name: parkir-billing
     command: ["/app/billing"]
     ports:
-      - "9093:9090"
+      - "11003:9090"
     environment:
       APP_NAME: parkir-pintar-billing
       APP_ENV: local
@@ -241,7 +241,7 @@ services:
     container_name: parkir-payment
     command: ["/app/payment"]
     ports:
-      - "9094:9090"
+      - "11004:9090"
     environment:
       APP_NAME: parkir-pintar-payment
       APP_ENV: local
@@ -278,7 +278,7 @@ services:
     container_name: parkir-presence
     command: ["/app/presence"]
     ports:
-      - "9095:9090"
+      - "11005:9090"
     environment:
       APP_NAME: parkir-pintar-presence
       APP_ENV: local
@@ -320,7 +320,7 @@ services:
     container_name: parkir-notification
     command: ["/app/notification"]
     ports:
-      - "9096:9090"
+      - "11006:9090"
     environment:
       APP_NAME: parkir-pintar-notification
       APP_ENV: local

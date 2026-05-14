@@ -30,7 +30,7 @@ A production-grade smart parking backend managing a centralized parking area wit
 
 ## Architecture Overview
 
-ParkirPintar uses a microservices architecture with 5 Go services communicating via gRPC over HTTP/2. The API Gateway exposes REST endpoints and transcodes to internal gRPC calls.
+ParkirPintar uses a microservices architecture with 5 Go services communicating via gRPC (synchronous) and NATS JetStream (asynchronous events). The API Gateway exposes REST endpoints and transcodes to internal gRPC calls.
 
 ```mermaid
 graph TB
@@ -44,6 +44,16 @@ graph TB
         RESERVE -->|gRPC| BILLING[Billing Service<br/>:9093]
         RESERVE -->|gRPC| PAYMENT
     end
+
+    subgraph Event Streaming
+        NATS[NATS JetStream]
+    end
+
+    RESERVE -->|publish spot-updated| NATS
+    NATS -->|spot-updated events| SEARCH
+    PAYMENT -->|publish payment results| NATS
+    NATS -->|payment success/failed| RESERVE
+    RESERVE -->|publish lifecycle events| NATS
 
     subgraph Data Layer
         PG[(PostgreSQL)]
@@ -191,6 +201,7 @@ parkir-pintar/
 │   └── analytics/                # usecase, repository (peak hours, occupancy)
 ├── pkg/                          # Shared libraries
 │   ├── asynq/                    # Task queue (client, server, handlers, tasks)
+│   ├── nats/                     # JetStream client, publisher, streams, constants
 │   ├── pricing/                  # Pricing engine (hourly, overnight, penalties)
 │   ├── redislock/                # Distributed locking
 │   ├── circuitbreaker/           # Circuit breaker for gRPC calls
@@ -270,6 +281,36 @@ graph LR
         PW[Payment Timeout Worker<br/>every 30s] -->|Scan DB| FAIL
     end
 ```
+
+### Event-Driven Messaging (NATS JetStream)
+
+```mermaid
+graph LR
+    subgraph RESERVATION_SEARCH Stream
+        RS_PUB[Reservation Service] -->|reservation.search.spot-updated| RS_STREAM[RESERVATION_SEARCH<br/>InterestPolicy]
+        RS_STREAM -->|spot_updated_search| RS_CON[Search Service]
+    end
+
+    subgraph RESERVATION_ANALYTICS Stream
+        RA_PUB[Reservation Service] -->|reservation.analytics.*| RA_STREAM[RESERVATION_ANALYTICS<br/>LimitsPolicy, 7d retention]
+        RA_STREAM -->|lifecycle_analytics| RA_CON[Analytics]
+    end
+
+    subgraph PAYMENT_RESERVATION Stream
+        PR_PUB[Payment Service] -->|payment.reservation.success<br/>payment.reservation.failed| PR_STREAM[PAYMENT_RESERVATION<br/>InterestPolicy]
+        PR_STREAM -->|payment_result_reservation| PR_CON[Reservation Service]
+    end
+```
+
+**Retention policies:**
+- **InterestPolicy** (RESERVATION_SEARCH, PAYMENT_RESERVATION): Messages are kept only while there are active consumers. Once all consumers acknowledge, messages are discarded. Ideal for real-time event delivery where historical replay isn't needed.
+- **LimitsPolicy** (RESERVATION_ANALYTICS): Messages are retained up to configured limits (7 days). Allows late-joining consumers or replay for analytics reprocessing.
+
+**Key design choices:**
+- Consumer naming: `{subject_short}_{consuming_service}` (e.g., `spot_updated_search`)
+- Deduplication via MsgID: `{event}-{id}-{timestamp_nano}`
+- `NATS_ENABLED` opt-in — services degrade gracefully without NATS (fall back to synchronous paths)
+- gRPC remains for request-response (queries, fee calculation, payment intent); NATS handles "something happened, react when you can"
 
 ---
 
@@ -368,6 +409,7 @@ stateDiagram-v2
 | Database | PostgreSQL 14 |
 | Cache & Locks | Redis 7.0 |
 | Task Queue | Asynq (Redis-backed) |
+| Event Streaming | NATS JetStream 2.10 |
 | Observability | OpenTelemetry → Grafana (Tempo + Prometheus + Loki) |
 | Containerization | Docker & Docker Compose |
 | Reverse Proxy | Traefik |
@@ -441,6 +483,8 @@ All configuration is via environment variables (12-factor). See `pkg/config/conf
 | `TRACING_ENABLED` | `false` | Enable OpenTelemetry tracing |
 | `TRACING_EXPORTER` | `noop` | Exporter type (noop/otlp) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTLP collector endpoint |
+| `NATS_URL` | `nats://localhost:4222` | NATS server connection URL |
+| `NATS_ENABLED` | `false` | Enable NATS JetStream event streaming |
 
 ---
 
@@ -565,7 +609,8 @@ graph LR
 | **QRIS-only payment (stub)** | Indonesian market standard; stub allows testing without real provider |
 | **Redis distributed locks** | Prevents double-booking race conditions at scale |
 | **Asynq + polling fallback** | Asynq for precise delayed tasks; polling catches edge cases |
-| **DB trigger for read model sync** | Keeps search's `spot_read_model` in sync without cross-service queries |
+| **NATS JetStream for event-driven sync** | Decouples services; search reads spot-updated events, analytics consumes reservation lifecycle events, payment results flow async |
+| **One stream per producer→consumer pair** | Avoids shared consumer complexity; clear ownership and independent scaling |
 | **Two-moment payment** | Minimizes driver risk, ensures booking commitment |
 | **Per-midnight overnight fee** | Fair billing — only charges for actual midnight crossings |
 | **User-selected spot assignment** | Driver picks their preferred spot (vs. system auto-assign) |

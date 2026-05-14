@@ -5,7 +5,7 @@ import StatusBadge from '../ui/StatusBadge';
 export default function SpotDetailModal({ spot, onClose, onSelect }) {
   if (!spot) return null;
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="button" tabIndex={0} onClick={onClose} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose?.(e); } }}>
       <GlassCard className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-info">
           <h3>{spot.spot_code}</h3>

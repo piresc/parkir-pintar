@@ -10,8 +10,11 @@ export default function SpotCard({ spot, isSelected, onClick }) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn('spot-card', isSelected && 'spot-card-selected')}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(e); } }}
       style={{ borderColor: isSelected ? 'var(--accent-amber)' : statusColor }}
     >
       <div className="spot-code-text" style={{ color: statusColor }}>

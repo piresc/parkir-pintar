@@ -20,10 +20,10 @@ tags:
     description: Parking reservation lifecycle
   - name: Search
     description: Availability and spot search
-  - name: Presence
-    description: Location streaming and arrival detection
   - name: Payments
     description: Payment status
+  - name: Analytics
+    description: Parking analytics and statistics
 
 components:
   securitySchemes:
@@ -85,7 +85,7 @@ components:
           example: "user-001"
         vehicle_type:
           type: string
-          enum: [car, moto]
+          enum: [car, motorcycle]
           example: car
         assignment_mode:
           type: string
@@ -119,7 +119,7 @@ components:
           example: car
         status:
           type: string
-          enum: [pending, confirmed, checked_in, checked_out, completed, cancelled, expired]
+          enum: [waiting_payment, confirmed, checked_in, checked_out, completed, cancelled, expired, failed]
           example: confirmed
         created_at:
           type: string
@@ -195,36 +195,6 @@ components:
           items:
             $ref: '#/components/schemas/Spot'
 
-    StreamLocationRequest:
-      type: object
-      required:
-        - reservation_id
-        - latitude
-        - longitude
-      properties:
-        reservation_id:
-          type: string
-          example: "rsv-550e8400"
-        latitude:
-          type: number
-          format: double
-          example: -6.2088
-        longitude:
-          type: number
-          format: double
-          example: 106.8456
-
-    ArrivalDetection:
-      type: object
-      properties:
-        arrived:
-          type: boolean
-          example: false
-        distance_meters:
-          type: number
-          format: double
-          example: 150.5
-
     PaymentStatus:
       type: object
       properties:
@@ -264,6 +234,41 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
 
   /api/v1/reservations:
+    get:
+      tags: [Reservations]
+      summary: List driver's reservations
+      parameters:
+        - name: driver_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "user-001"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [waiting_payment, confirmed, checked_in, checked_out, completed, cancelled, expired, failed]
+          description: Filter by reservation status
+      responses:
+        '200':
+          description: List of reservations
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [Reservations]
       summary: Create a parking reservation
@@ -547,7 +552,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [car, moto]
+            enum: [car, motorcycle]
           example: car
       responses:
         '200':
@@ -637,40 +642,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/presence/stream:
-    post:
-      tags: [Presence]
-      summary: Stream location for arrival detection
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StreamLocationRequest'
-      responses:
-        '200':
-          description: Arrival detection result
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/SuccessResponse'
-                  - properties:
-                      data:
-                        $ref: '#/components/schemas/ArrivalDetection'
-        '400':
-          description: Invalid request body
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Invalid or expired token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /api/v1/payments/{id}/status:
     get:
       tags: [Payments]
@@ -701,6 +672,84 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Payment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/analytics/peak-hours:
+    get:
+      tags: [Analytics]
+      summary: Get peak hour statistics
+      responses:
+        '200':
+          description: Peak hour statistics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          peak_hours:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                hour:
+                                  type: integer
+                                  example: 9
+                                avg_occupancy:
+                                  type: number
+                                  format: double
+                                  example: 0.85
+                                total_reservations:
+                                  type: integer
+                                  example: 42
+        '401':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/analytics/occupancy:
+    get:
+      tags: [Analytics]
+      summary: Get daily occupancy patterns
+      responses:
+        '200':
+          description: Daily occupancy patterns
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          occupancy:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                date:
+                                  type: string
+                                  format: date
+                                  example: "2025-01-15"
+                                avg_occupancy_rate:
+                                  type: number
+                                  format: double
+                                  example: 0.72
+                                peak_occupancy_rate:
+                                  type: number
+                                  format: double
+                                  example: 0.95
+        '401':
+          description: Invalid or expired token
           content:
             application/json:
               schema:

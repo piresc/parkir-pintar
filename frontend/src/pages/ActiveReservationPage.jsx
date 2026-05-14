@@ -47,7 +47,7 @@ export default function ActiveReservationPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Determine which reservation to display as active
-  const reservation = id ? activeReservation : activeReservation;
+  const reservation = activeReservation;
 
   useEffect(() => {
     const spotId = reservation?.spot_id;

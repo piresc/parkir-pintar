@@ -51,6 +51,22 @@ services:
       retries: 5
       start_period: 10s
 
+  nats:
+    image: nats:2.10-alpine
+    container_name: staging-nats
+    command: ["--jetstream", "--store_dir=/data", "-m", "8222"]
+    volumes:
+      - staging-nats_data:/data
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:8222/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   gateway:
     image: ghcr.io/piresc/parkir-pintar:latest
     container_name: staging-gateway
@@ -127,10 +143,14 @@ services:
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     networks:
       - backend
@@ -173,6 +193,8 @@ services:
       PAYMENT_TIMEOUT_MINUTES: "10"
       RESERVATION_EXPIRY_MINUTES: "60"
       ASYNQ_CONCURRENCY: "10"
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -181,6 +203,8 @@ services:
       billing:
         condition: service_healthy
       payment:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     networks:
       - backend
@@ -251,8 +275,12 @@ services:
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "monitoring-alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
     depends_on:
       postgres:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     networks:
       - backend
@@ -268,6 +296,7 @@ services:
 volumes:
   staging-postgres_data:
   staging-redis_data:
+  staging-nats_data:
 
 networks:
   backend:

@@ -2,9 +2,7 @@ package sync
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 )
 
 type SpotData struct {
@@ -34,15 +32,4 @@ func (s *SpotSync) HandleSpotUpdated(ctx context.Context, spot SpotData) error {
 		return fmt.Errorf("upsert spot read model: %w", err)
 	}
 	return nil
-}
-
-func (s *SpotSync) HandleNATSEvent(ctx context.Context, subject string, data []byte) {
-	var spot SpotData
-	if err := json.Unmarshal(data, &spot); err != nil {
-		slog.Warn("spot sync: failed to unmarshal event", slog.String("subject", subject), slog.Any("error", err))
-		return
-	}
-	if err := s.HandleSpotUpdated(ctx, spot); err != nil {
-		slog.Warn("spot sync: failed to upsert spot", slog.String("spot_id", spot.ID), slog.Any("error", err))
-	}
 }

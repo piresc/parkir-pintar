@@ -57,32 +57,3 @@ func TestSpotSync_HandleSpotUpdated_ShouldReturnError_WhenUpsertFails(t *testing
 	assert.Error(t, err)
 	repo.AssertExpectations(t)
 }
-
-func TestSpotSync_HandleNATSEvent_ShouldUpsertSpot(t *testing.T) {
-	repo := new(mockSpotRepo)
-	syncer := NewSpotSync(repo)
-
-	data := []byte(`{"id":"spot-2","floor_number":3,"spot_number":10,"vehicle_type":"motorcycle","spot_code":"F3-M-010","status":"available"}`)
-	expectedSpot := SpotData{
-		ID:          "spot-2",
-		FloorNumber: 3,
-		SpotNumber:  10,
-		VehicleType: "motorcycle",
-		SpotCode:    "F3-M-010",
-		Status:      "available",
-	}
-
-	repo.On("UpsertSpot", mock.Anything, expectedSpot).Return(nil)
-
-	syncer.HandleNATSEvent(t.Context(), "spot.updated", data)
-	repo.AssertExpectations(t)
-}
-
-func TestSpotSync_HandleNATSEvent_ShouldLogWarning_WhenUnmarshalFails(t *testing.T) {
-	repo := new(mockSpotRepo)
-	syncer := NewSpotSync(repo)
-
-	syncer.HandleNATSEvent(t.Context(), "spot.updated", []byte("invalid json"))
-
-	repo.AssertNotCalled(t, "UpsertSpot")
-}

@@ -60,6 +60,14 @@ type Locker interface {
 	Acquire(ctx context.Context, key string) (Lock, error)
 }
 
+// TaskEnqueuer enqueues asynchronous tasks (e.g. reservation expiry).
+// Implementations must be safe to call concurrently.
+//
+//go:generate mockgen -destination=../mocks/mock_task_enqueuer.go -package=mocks parkir-pintar/internal/reservation/usecase TaskEnqueuer
+type TaskEnqueuer interface {
+	EnqueueReservationExpiry(ctx context.Context, reservationID string, delay time.Duration) (string, error)
+}
+
 type lockerAdapter struct {
 	inner *redislock.Locker
 }
@@ -99,20 +107,31 @@ type reservationUsecase struct {
 	locker        Locker
 	billingClient BillingClient
 	paymentClient PaymentClient
+	taskEnqueuer  TaskEnqueuer
+	expiryTimeout time.Duration
 }
 
 // NewUsecase creates a new reservation Usecase with all required dependencies.
+// taskEnqueuer is optional (nil-safe); when nil, no async tasks are enqueued.
 func NewUsecase(
 	repo repository.Repository,
 	locker Locker,
 	billingClient BillingClient,
 	paymentClient PaymentClient,
+	taskEnqueuer TaskEnqueuer,
+	expiryTimeoutMinutes int,
 ) Usecase {
+	timeout := time.Duration(expiryTimeoutMinutes) * time.Minute
+	if timeout <= 0 {
+		timeout = 60 * time.Minute
+	}
 	return &reservationUsecase{
 		repo:          repo,
 		locker:        locker,
 		billingClient: billingClient,
 		paymentClient: paymentClient,
+		taskEnqueuer:  taskEnqueuer,
+		expiryTimeout: timeout,
 	}
 }
 
@@ -221,6 +240,15 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.New("PAYMENT_FAILED", "unable to create billing record", 402)
+	}
+
+	// Step 7: Enqueue expiry task (non-critical, best-effort)
+	if uc.taskEnqueuer != nil {
+		if _, err := uc.taskEnqueuer.EnqueueReservationExpiry(ctx, reservation.ID, uc.expiryTimeout); err != nil {
+			slog.Error("failed to enqueue reservation expiry task",
+				slog.String("reservation_id", reservation.ID),
+				slog.Any("error", err))
+		}
 	}
 
 	return reservation, nil

@@ -204,7 +204,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, 60)
 
 	// --- Phase 1: Create Reservation ---
 

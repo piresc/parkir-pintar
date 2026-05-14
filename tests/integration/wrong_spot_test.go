@@ -39,7 +39,7 @@ func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *test
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, 60)
 
 	// --- Phase 1: Create Reservation ---
 	repo.On("FindByIdempotencyKey", mock.Anything, "wrongspot-key").Return(nil, model.ErrNotFound)

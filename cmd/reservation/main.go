@@ -130,10 +130,17 @@ func main() {
 		log.Error("failed to create locker", slog.Any("error", err))
 		os.Exit(1)
 	}
+	// Start Asynq task queue (delayed tasks: reservation expiry, payment hold timeout).
+	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
+	asynqClient := taskqueue.NewClient(redisAddr)
+	asynqServer := taskqueue.NewServer(redisAddr, cfg.Asynq.Concurrency)
+
 	uc := usecase.NewUsecase(
 		repo, usecase.NewLockerAdapter(redislockLocker),
 		client.NewBillingClient(billingGRPC),
 		client.NewPaymentClient(paymentGRPC),
+		asynqClient,
+		cfg.Reservation.ExpiryTimeoutMinutes,
 	)
 	handler := reservationhandler.NewHandler(uc)
 
@@ -141,11 +148,6 @@ func main() {
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go worker.RunExpiryWorker(workerCtx, 30*time.Second, repo, uc)
 	go worker.RunPaymentTimeoutWorker(workerCtx, 30*time.Second, repo, uc, cfg.Reservation.PaymentTimeoutMinutes)
-
-	// Start Asynq task queue (delayed tasks: reservation expiry, payment hold timeout).
-	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
-	asynqClient := taskqueue.NewClient(redisAddr)
-	asynqServer := taskqueue.NewServer(redisAddr, cfg.Asynq.Concurrency)
 
 	expiryHandler := taskqueue.NewReservationExpiryHandler(&usecaseExpirerAdapter{uc: uc})
 	paymentHandler := taskqueue.NewPaymentHoldTimeoutHandler(&usecaseFailerAdapter{uc: uc})
@@ -156,9 +158,6 @@ func main() {
 			log.Error("asynq server error", slog.Any("error", err))
 		}
 	}()
-
-	// Make asynq client available for enqueuing (used by usecase hooks or future integration).
-	_ = asynqClient
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { workerCancel(); return nil })

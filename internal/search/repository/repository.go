@@ -48,21 +48,30 @@ func NewRepository(db *sqlx.DB) Repository {
 }
 
 // GetAvailabilityByVehicleType returns per-floor availability counts.
-// It counts available spots grouped by floor_number and vehicle_type.
+// When vehicleType is non-empty, only spots matching that type are included.
+// When vehicleType is empty, all vehicle types are counted.
 func (r *sqlxRepository) GetAvailabilityByVehicleType(ctx context.Context, vehicleType string) ([]model.FloorAvailability, error) {
-	query := `
+	baseQuery := `
 		SELECT
 			floor_number,
 			COUNT(*) FILTER (WHERE status = 'available' AND vehicle_type = 'car') AS available_car,
 			COUNT(*) FILTER (WHERE status = 'available' AND vehicle_type = 'motorcycle') AS available_moto,
 			COUNT(*) FILTER (WHERE vehicle_type = 'car') AS total_car,
 			COUNT(*) FILTER (WHERE vehicle_type = 'motorcycle') AS total_moto
-		FROM spot_read_model
-		GROUP BY floor_number
-		ORDER BY floor_number`
+		FROM spot_read_model`
 
 	var floors []model.FloorAvailability
-	if err := r.db.SelectContext(ctx, &floors, query); err != nil {
+	var err error
+
+	if vehicleType != "" {
+		query := baseQuery + ` WHERE vehicle_type = $1 GROUP BY floor_number ORDER BY floor_number`
+		err = r.db.SelectContext(ctx, &floors, query, vehicleType)
+	} else {
+		query := baseQuery + ` GROUP BY floor_number ORDER BY floor_number`
+		err = r.db.SelectContext(ctx, &floors, query)
+	}
+
+	if err != nil {
 		return nil, fmt.Errorf("get availability: %w", err)
 	}
 	return floors, nil

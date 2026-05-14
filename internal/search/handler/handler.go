@@ -24,6 +24,12 @@ import (
 	searchv1 "parkir-pintar/proto/search/v1"
 )
 
+// Vehicle type constants used across the search domain.
+const (
+	vehicleTypeCar        = "car"
+	vehicleTypeMotorcycle = "motorcycle"
+)
+
 // Handler implements the searchv1.SearchServiceServer gRPC interface.
 type Handler struct {
 	searchv1.UnimplementedSearchServiceServer
@@ -64,10 +70,10 @@ func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabi
 			TotalMoto:     int32(f.TotalMoto),
 		}
 		switch req.GetVehicleType() {
-		case "car":
+		case vehicleTypeCar:
 			totalAvailable += int32(f.AvailableCar)
 			totalCapacity += int32(f.TotalCar)
-		case "motorcycle":
+		case vehicleTypeMotorcycle:
 			totalAvailable += int32(f.AvailableMoto)
 			totalCapacity += int32(f.TotalMoto)
 		default:

@@ -12,6 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	analyticsrepo "parkir-pintar/internal/analytics/repository"
+	analyticsusecase "parkir-pintar/internal/analytics/usecase"
 	gatewayhandler "parkir-pintar/internal/gateway/handler"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
@@ -183,13 +185,21 @@ func main() {
 	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
-	// 13. Start server
+	// 13. Register analytics REST routes (DB-backed, with JWT auth)
+	if pgClient != nil {
+		analyticsRepo := analyticsrepo.NewRepository(pgClient.GetDB())
+		analyticsUC := analyticsusecase.NewUsecase(analyticsRepo)
+		analyticsHandler := gatewayhandler.NewAnalyticsHandler(analyticsUC)
+		analyticsHandler.RegisterRoutes(engine, mw, jwtSecret)
+	}
+
+	// 14. Start server
 	srv := server.NewGracefulServer(engine, log, cfg.Server.Port, time.Duration(cfg.Server.ShutdownTimeout)*time.Second)
 	if err := srv.Start(); err != nil {
 		log.Error("server error", slog.Any("error", err))
 	}
 
-	// 14. Run shutdown manager
+	// 15. Run shutdown manager
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {

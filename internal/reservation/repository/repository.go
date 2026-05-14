@@ -23,7 +23,6 @@ type Repository interface {
 	GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
 	UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, spotID string, status string) error
-	UpdateReservation(ctx context.Context, reservation *model.Reservation) error
 	UpdateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
 	FindExpiredReservations(ctx context.Context) ([]*model.Reservation, error)
 	GetByID(ctx context.Context, id string) (*model.Reservation, error)
@@ -128,22 +127,6 @@ func (r *sqlxRepository) UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, sp
 	)
 	if err != nil {
 		return fmt.Errorf("update spot status: %w", err)
-	}
-	return nil
-}
-
-// UpdateReservation updates an existing reservation's mutable fields.
-func (r *sqlxRepository) UpdateReservation(ctx context.Context, reservation *model.Reservation) error {
-	_, err := r.db.NamedExecContext(ctx,
-		`UPDATE reservations SET status = :status, confirmed_at = :confirmed_at,
-		 expires_at = :expires_at, checked_in_at = :checked_in_at,
-		 checked_out_at = :checked_out_at, cancelled_at = :cancelled_at,
-		 updated_at = :updated_at
-		 WHERE id = :id`,
-		reservation,
-	)
-	if err != nil {
-		return fmt.Errorf("update reservation: %w", err)
 	}
 	return nil
 }

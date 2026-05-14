@@ -73,4 +73,5 @@ type ApplyPenaltyRequest struct {
 // ApplyOvernightFeeRequest is the payload for applying an overnight fee.
 type ApplyOvernightFeeRequest struct {
 	ReservationID string `json:"reservation_id"`
+	Amount        int64  `json:"amount"` // configurable overnight fee amount; falls back to pricing.OvernightPerNight if 0
 }

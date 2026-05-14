@@ -51,7 +51,6 @@ func BenchmarkCreateReservation(b *testing.B) {
 	repo.On("CreateReservationTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(billingRecord, nil)
-	repo.On("UpdateReservation", mock.Anything, mock.Anything).Return(nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	ctx := context.Background()

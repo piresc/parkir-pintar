@@ -154,7 +154,12 @@ func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.Appl
 		return nil, fmt.Errorf("apply overnight fee get record: %w", err)
 	}
 
-	record.OvernightFee = pricing.OvernightPerNight
+	overnightFee := req.Amount
+	if overnightFee <= 0 {
+		overnightFee = pricing.OvernightPerNight
+	}
+
+	record.OvernightFee = overnightFee
 	record.IsOvernight = true
 	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
 	record.UpdatedAt = time.Now()

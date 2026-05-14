@@ -56,7 +56,7 @@ func (f *fakeRepo) CreateReservationTx(_ context.Context, _ *sqlx.Tx, _ *model.R
 func (f *fakeRepo) UpdateSpotStatusTx(_ context.Context, _ *sqlx.Tx, _ string, _ string) error {
 	return nil
 }
-func (f *fakeRepo) UpdateReservation(context.Context, *model.Reservation) error { return nil }
+
 func (f *fakeRepo) UpdateReservationTx(_ context.Context, _ *sqlx.Tx, _ *model.Reservation) error {
 	return nil
 }

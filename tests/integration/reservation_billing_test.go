@@ -87,10 +87,7 @@ func (m *MockRepository) UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, sp
 	return args.Error(0)
 }
 
-func (m *MockRepository) UpdateReservation(ctx context.Context, reservation *model.Reservation) error {
-	args := m.Called(ctx, reservation)
-	return args.Error(0)
-}
+
 
 func (m *MockRepository) UpdateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error {
 	args := m.Called(ctx, tx, reservation)

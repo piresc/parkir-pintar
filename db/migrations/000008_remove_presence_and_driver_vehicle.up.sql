@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS reservation.outbox_events CASCADE;
 DROP TABLE IF EXISTS outbox_events CASCADE;
 
 -- 3. Remove vehicle_type and vehicle_plate from drivers
+ALTER TABLE reservation.drivers DROP CONSTRAINT IF EXISTS drivers_vehicle_type_check;
 ALTER TABLE reservation.drivers
     DROP COLUMN IF EXISTS vehicle_type,
     DROP COLUMN IF EXISTS vehicle_plate;

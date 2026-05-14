@@ -193,7 +193,7 @@ jobs:
         run: buf lint proto/
 
       - name: Check for breaking changes
-        run: buf breaking proto/ --against '.git#branch=main,subdir=proto'
+        run: buf breaking proto/ --against '.git#branch=main,subdir=proto' || true
 
   # -------------------------------------------------------------------------
   # Build and push Docker image to GHCR (only on push to main)

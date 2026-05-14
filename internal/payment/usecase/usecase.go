@@ -25,6 +25,9 @@ import (
 	"parkir-pintar/internal/payment/repository"
 )
 
+// paymentMethodQRIS is the constant for the QRIS payment method.
+const paymentMethodQRIS = "qris"
+
 // Usecase defines the business logic interface for payment operations.
 type Usecase interface {
 	ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error)
@@ -132,7 +135,7 @@ func (uc *paymentUsecase) ProcessQRIS(ctx context.Context, req *model.ProcessQRI
 	return uc.ProcessPayment(ctx, &model.ProcessPaymentRequest{
 		BillingID:      req.BillingID,
 		Amount:         req.Amount,
-		PaymentMethod:  "qris",
+		PaymentMethod:  paymentMethodQRIS,
 		IdempotencyKey: req.IdempotencyKey,
 	})
 }

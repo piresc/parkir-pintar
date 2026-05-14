@@ -89,8 +89,6 @@ func (m *MockPaymentGateway) GetStatus(ctx context.Context, transactionRef strin
 	return args.String(0), args.Error(1)
 }
 
-
-
 // --- Test Cases ---
 
 // TestProcessPayment_ShouldReturnExisting_WhenDuplicateIdempotencyKey verifies

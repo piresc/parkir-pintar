@@ -8,9 +8,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	billingmodel "parkir-pintar/internal/billing/model"
-	billingv1 "parkir-pintar/proto/billing/v1"
 	"parkir-pintar/pkg/apperror"
 	"parkir-pintar/pkg/circuitbreaker"
+	billingv1 "parkir-pintar/proto/billing/v1"
 )
 
 type BillingClient struct {
@@ -22,8 +22,8 @@ func NewBillingClient(client billingv1.BillingServiceClient) *BillingClient {
 	return &BillingClient{
 		client: client,
 		cb: circuitbreaker.New(circuitbreaker.Config{
-			FailureThreshold: 5,
-			OpenTimeout:      30 * time.Second,
+			FailureThreshold:  5,
+			OpenTimeout:       30 * time.Second,
 			HalfOpenMaxProbes: 1,
 		}),
 	}

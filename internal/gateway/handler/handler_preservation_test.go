@@ -38,9 +38,9 @@ import (
 
 type preservationReservationClient struct {
 	reservationv1.ReservationServiceClient
-	lastCreateReq *reservationv1.CreateReservationRequest
-	lastCancelID  string
-	lastCheckInID string
+	lastCreateReq  *reservationv1.CreateReservationRequest
+	lastCancelID   string
+	lastCheckInID  string
 	lastCheckOutID string
 }
 

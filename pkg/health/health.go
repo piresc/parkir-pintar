@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+// Health status constants.
+const (
+	StatusHealthy   = "healthy"
+	StatusUnhealthy = "unhealthy"
+	KeyStatus       = "status"
+)
+
 // Checker defines the interface for a health check dependency.
 type Checker interface {
 	// Check verifies the dependency is healthy. Returns nil if healthy.
@@ -60,15 +67,15 @@ func (s *Service) CheckAll(ctx context.Context) (map[string]interface{}, error) 
 		depResult := s.runChecker(ctx, name, checker)
 		dependencies[name] = depResult
 
-		if depResult["status"] != "healthy" {
+		if depResult[KeyStatus] != StatusHealthy {
 			allHealthy = false
 		}
 	}
 
 	if allHealthy {
-		result["status"] = "healthy"
+		result[KeyStatus] = StatusHealthy
 	} else {
-		result["status"] = "unhealthy"
+		result[KeyStatus] = StatusUnhealthy
 	}
 	result["dependencies"] = dependencies
 
@@ -90,14 +97,14 @@ func (s *Service) runChecker(ctx context.Context, name string, checker Checker) 
 	}
 
 	if err != nil {
-		depResult["status"] = "unhealthy"
+		depResult[KeyStatus] = StatusUnhealthy
 		depResult["error"] = err.Error()
 		s.logger.Error("health check failed",
 			slog.String("checker", name),
 			slog.String("error", err.Error()),
 			slog.Int64("duration_ms", duration.Milliseconds()))
 	} else {
-		depResult["status"] = "healthy"
+		depResult[KeyStatus] = StatusHealthy
 	}
 
 	return depResult

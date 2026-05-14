@@ -3,6 +3,7 @@
 package grpcserver
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -51,7 +52,8 @@ func (s *GRPCServer) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
 // Start listens on the configured port and blocks until SIGINT or SIGTERM.
 // Returns an error if the port bind fails or graceful stop times out.
 func (s *GRPCServer) Start() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
 		return fmt.Errorf("failed to listen on port %d: %w", s.port, err)
 	}

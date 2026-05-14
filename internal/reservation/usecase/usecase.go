@@ -23,6 +23,16 @@ import (
 	"parkir-pintar/pkg/redislock"
 )
 
+// Spot status constants.
+const (
+	spotStatusAvailable = "available"
+	spotStatusReserved  = "reserved"
+	spotStatusOccupied  = "occupied"
+)
+
+// paymentMethodQRIS is the constant for the QRIS payment method.
+const paymentMethodQRIS = "qris"
+
 // BillingClient defines the interface for billing service operations.
 //
 //go:generate mockgen -destination=../mocks/mock_billing_client.go -package=mocks parkir-pintar/internal/reservation/usecase BillingClient
@@ -129,7 +139,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	}
 
 	// Check if driver already has an active reservation
-	active, _ := uc.repo.ListByDriverID(ctx, req.DriverID, "")
+	active, _ := uc.repo.ListByDriverID(ctx, req.DriverID, "") //nolint:errcheck // best-effort duplicate check
 	for _, r := range active {
 		if r.Status == model.StatusWaitingPayment || r.Status == model.StatusConfirmed || r.Status == model.StatusCheckedIn {
 			return nil, apperror.New("CONFLICT", "driver already has an active reservation", 409)
@@ -168,7 +178,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 	// Step 4: Double-check spot availability and vehicle-type compatibility under lock
 	spot, err := uc.repo.GetSpotForUpdate(ctx, spotID)
-	if err != nil || spot.Status != "available" {
+	if err != nil || spot.Status != spotStatusAvailable {
 		return nil, apperror.New("CONFLICT", "spot no longer available", 409)
 	}
 	if req.AssignmentMode == model.AssignmentUserSelected && spot.VehicleType != req.VehicleType {
@@ -193,7 +203,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		if err := uc.repo.CreateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, "reserved")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, spotStatusReserved)
 	}); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -250,7 +260,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Process payment for booking fee
 	paymentIdempotencyKey := fmt.Sprintf("booking-payment-%s", reservation.ID)
-	_, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, "qris", paymentIdempotencyKey)
+	_, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, paymentMethodQRIS, paymentIdempotencyKey)
 
 	if payErr != nil {
 		slog.Error("booking fee payment failed",
@@ -291,7 +301,7 @@ func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reser
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "available")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); txErr != nil {
 		slog.Error("failed to release spot on payment failure",
 			slog.String("reservation_id", reservation.ID),
@@ -330,7 +340,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "available")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); err != nil {
 		return nil, err
 	}
@@ -376,7 +386,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "occupied")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusOccupied)
 	}); err != nil {
 		return nil, err
 	}
@@ -479,14 +489,14 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 
 	// Process payment for the total amount
 	paymentIdempotencyKey := fmt.Sprintf("payment-%s", reservation.ID)
-	paymentID, err := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingRecord.TotalAmount, "qris", paymentIdempotencyKey)
+	paymentID, err := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingRecord.TotalAmount, paymentMethodQRIS, paymentIdempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("complete checkout process payment: %w", err)
 	}
 
 	// Release spot
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "available")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); err != nil {
 		slog.Error("failed to release spot after checkout payment",
 			slog.String("reservation_id", reservation.ID),
@@ -529,7 +539,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "available")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); err != nil {
 		return err
 	}
@@ -565,7 +575,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "available")
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); err != nil {
 		return err
 	}

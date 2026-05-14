@@ -157,7 +157,7 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 		}
 		return nil
 
-	default: // StateClosed
+	case StateClosed:
 		cb.mu.Unlock()
 		err := fn()
 		cb.mu.Lock()
@@ -173,6 +173,10 @@ func (cb *CircuitBreaker) Execute(fn func() error) error {
 		}
 
 		cb.failureCount = 0
+		return nil
+
+	default:
+		cb.mu.Unlock()
 		return nil
 	}
 }

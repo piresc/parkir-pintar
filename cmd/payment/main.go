@@ -86,8 +86,8 @@ func main() {
 			interceptors.TracingUnaryInterceptor(),
 			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
 				RequestsPerSecond: 100,
-				BurstSize:        200,
-				CleanupInterval:  5 * time.Minute,
+				BurstSize:         200,
+				CleanupInterval:   5 * time.Minute,
 			}),
 		),
 	)

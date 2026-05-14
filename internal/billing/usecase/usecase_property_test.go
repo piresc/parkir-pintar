@@ -49,8 +49,8 @@ func (m *concurrentMockRepository) GetByReservationID(ctx context.Context, reser
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// Return a copy to simulate DB read (each caller gets the current snapshot)
-	copy := *m.billingRecord
-	return &copy, nil
+	rec := *m.billingRecord
+	return &rec, nil
 }
 
 func (m *concurrentMockRepository) GetByIdempotencyKey(ctx context.Context, key string) (*model.BillingRecord, error) {
@@ -80,8 +80,8 @@ func (m *concurrentMockRepository) AddPenaltyAmount(ctx context.Context, reserva
 	m.billingRecord.PenaltyAmount += amount
 	m.billingRecord.TotalAmount = m.billingRecord.BookingFee + m.billingRecord.ParkingFee +
 		m.billingRecord.OvernightFee + m.billingRecord.CancellationFee + m.billingRecord.PenaltyAmount
-	copy := *m.billingRecord
-	return &copy, nil
+	rec := *m.billingRecord
+	return &rec, nil
 }
 
 // TestApplyPenalty_ShouldSumAllAmounts_WhenCalledConcurrently launches 5
@@ -105,7 +105,6 @@ func TestApplyPenalty_ShouldSumAllAmounts_WhenCalledConcurrently(t *testing.T) {
 	repo := &concurrentMockRepository{
 		billingRecord: baseRecord,
 	}
-
 
 	uc := NewUsecase(repo)
 

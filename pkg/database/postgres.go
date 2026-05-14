@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/jackc/pgx/v5/stdlib" // PostgreSQL driver
+	"github.com/jmoiron/sqlx"
 
 	"parkir-pintar/pkg/config"
 )

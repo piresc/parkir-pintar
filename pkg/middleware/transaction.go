@@ -50,13 +50,16 @@ func createTransactionID(cfg *config.Config, msisdn string) string {
 	return appID + ts + suffix
 }
 
+// Environment name constants.
+const envLocal = "local"
+
 // envAppID returns a short prefix based on the configured environment.
 func envAppID(cfg *config.Config) string {
 	if cfg == nil {
 		return "L"
 	}
 	switch cfg.App.Environment {
-	case "local":
+	case envLocal:
 		return "L"
 	case "development":
 		return "D"

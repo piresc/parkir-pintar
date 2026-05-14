@@ -35,7 +35,7 @@ type Config struct {
 
 // Locker manages distributed lock acquisition using a Redis client.
 type Locker struct {
-	client *redis.RedisClient
+	client *redis.Client
 	cfg    Config
 }
 
@@ -43,12 +43,12 @@ type Locker struct {
 type Lock struct {
 	key    string
 	value  string
-	client *redis.RedisClient
+	client *redis.Client
 }
 
 // NewLocker creates a new Locker with the given Redis client and configuration.
 // It returns an error if the client is nil.
-func NewLocker(client *redis.RedisClient, cfg Config) (*Locker, error) {
+func NewLocker(client *redis.Client, cfg Config) (*Locker, error) {
 	if client == nil {
 		return nil, ErrNilClient
 	}

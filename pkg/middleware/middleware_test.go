@@ -65,7 +65,6 @@ func TestNewMiddleware_ShouldUseDefaults_WhenNilLoggerAndTracer(t *testing.T) {
 	assert.NotNil(t, mw.tracer)
 }
 
-
 // --- 5.2 SetContextValues ---
 
 func TestSetContextValues_ShouldStoreHeaders_WhenPresent(t *testing.T) {
@@ -76,11 +75,11 @@ func TestSetContextValues_ShouldStoreHeaders_WhenPresent(t *testing.T) {
 	engine.Use(mw.SetContextValues())
 	engine.GET("/test", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"txid":    c.GetString(KeyTransactionID),
-			"msisdn":  c.GetString(KeyMsisdn),
-			"app":     c.GetString(KeyAppVersion),
-			"os":      c.GetString(KeyOSVersion),
-			"device":  c.GetString(KeyDeviceID),
+			"txid":   c.GetString(KeyTransactionID),
+			"msisdn": c.GetString(KeyMsisdn),
+			"app":    c.GetString(KeyAppVersion),
+			"os":     c.GetString(KeyOSVersion),
+			"device": c.GetString(KeyDeviceID),
 		})
 	})
 
@@ -254,7 +253,6 @@ func TestEnvAppID_ShouldReturnCorrectPrefix_WhenDifferentEnvironments(t *testing
 func TestEnvAppID_ShouldReturnL_WhenNilConfig(t *testing.T) {
 	assert.Equal(t, "L", envAppID(nil))
 }
-
 
 // --- 5.5 LogResponse ---
 
@@ -438,7 +436,6 @@ func TestRecoveryHandler_ShouldNotInterfere_WhenNoPanic(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-
 
 // --- 5.9 JWTAuth ---
 
@@ -677,9 +674,6 @@ func TestMiddlewareChain_ShouldWorkTogether_WhenAllApplied(t *testing.T) {
 	// Transaction ID should be generated
 	assert.NotEmpty(t, body["txid"])
 }
-
-
-
 
 // --- 5.10 RateLimiter ---
 

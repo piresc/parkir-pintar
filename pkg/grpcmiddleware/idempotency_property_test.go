@@ -39,7 +39,7 @@ import (
 )
 
 // newTestRedisClient creates a miniredis server and a RedisClient connected to it.
-func newTestRedisClient(t *testing.T) (*pkgredis.RedisClient, *miniredis.Miniredis) {
+func newTestRedisClient(t *testing.T) (*pkgredis.Client, *miniredis.Miniredis) {
 	t.Helper()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func newTestRedisClient(t *testing.T) (*pkgredis.RedisClient, *miniredis.Minired
 	port, err := strconv.Atoi(portStr)
 	require.NoError(t, err)
 
-	rc, err := pkgredis.NewRedisClient(config.RedisConfig{
+	rc, err := pkgredis.NewClient(config.RedisConfig{
 		Host:     host,
 		Port:     port,
 		Password: "",

@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 

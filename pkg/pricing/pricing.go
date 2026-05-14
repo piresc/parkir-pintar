@@ -13,12 +13,12 @@ import "time"
 
 // Pricing constants — all monetary values in IDR.
 const (
-	BookingFee       int64 = 5_000
-	HourlyRate       int64 = 5_000
+	BookingFee        int64 = 5_000
+	HourlyRate        int64 = 5_000
 	OvernightPerNight int64 = 20_000
-	WrongSpotPenalty int64 = 200_000
-	CancelFee        int64 = 5_000
-	NoShowFee        int64 = 0
+	WrongSpotPenalty  int64 = 200_000
+	CancelFee         int64 = 5_000
+	NoShowFee         int64 = 0
 
 	CancelFreeWindow = 2 * time.Minute
 )

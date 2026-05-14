@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
+	"github.com/redis/go-redis/v9"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"

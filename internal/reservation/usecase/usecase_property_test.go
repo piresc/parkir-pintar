@@ -119,16 +119,16 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			}, nil)
 			repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 			repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "reserved").Return(nil)
-		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+			billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-		uc := NewUsecase(repo, locker, billing, payment)
-		req := &model.CreateReservationRequest{
-			DriverID:       "driver-1",
-			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
-			IdempotencyKey: key,
-		}
-		return uc.CreateReservation(t.Context(), req)
+			uc := NewUsecase(repo, locker, billing, payment)
+			req := &model.CreateReservationRequest{
+				DriverID:       "driver-1",
+				VehicleType:    "car",
+				AssignmentMode: model.AssignmentSystemAssigned,
+				IdempotencyKey: key,
+			}
+			return uc.CreateReservation(t.Context(), req)
 		}
 
 		// Act

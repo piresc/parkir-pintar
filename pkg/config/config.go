@@ -27,15 +27,14 @@ type Config struct {
 
 // ReservationConfig holds reservation service settings.
 type ReservationConfig struct {
-	PaymentTimeoutMinutes  int // default 10 — time allowed to complete payment before reservation fails
-	ExpiryTimeoutMinutes   int // default 60 — time allowed to check in after confirmation before expiry
+	PaymentTimeoutMinutes int // default 10 — time allowed to complete payment before reservation fails
+	ExpiryTimeoutMinutes  int // default 60 — time allowed to check in after confirmation before expiry
 }
 
 // AsynqConfig holds Redis-based task queue settings.
 type AsynqConfig struct {
 	Concurrency int // number of concurrent workers (default 10)
 }
-
 
 // GRPCServerConfig holds gRPC server settings.
 type GRPCServerConfig struct {

@@ -19,17 +19,15 @@ func RegisterPprof(engine *gin.Engine) {
 	}
 
 	debug := engine.Group("/debug/pprof")
-	{
-		debug.GET("/", gin.WrapF(pprof.Index))
-		debug.GET("/cmdline", gin.WrapF(pprof.Cmdline))
-		debug.GET("/profile", gin.WrapF(pprof.Profile))
-		debug.GET("/symbol", gin.WrapF(pprof.Symbol))
-		debug.POST("/symbol", gin.WrapF(pprof.Symbol))
-		debug.GET("/trace", gin.WrapF(pprof.Trace))
+	debug.GET("/", gin.WrapF(pprof.Index))
+	debug.GET("/cmdline", gin.WrapF(pprof.Cmdline))
+	debug.GET("/profile", gin.WrapF(pprof.Profile))
+	debug.GET("/symbol", gin.WrapF(pprof.Symbol))
+	debug.POST("/symbol", gin.WrapF(pprof.Symbol))
+	debug.GET("/trace", gin.WrapF(pprof.Trace))
 
-		// Named profiles: allocs, block, goroutine, heap, mutex, threadcreate
-		debug.GET("/:name", gin.WrapH(http.DefaultServeMux))
-	}
+	// Named profiles: allocs, block, goroutine, heap, mutex, threadcreate
+	debug.GET("/:name", gin.WrapH(http.DefaultServeMux))
 
 	// Register the default pprof handlers on DefaultServeMux so that
 	// the named profile wildcard route works correctly.

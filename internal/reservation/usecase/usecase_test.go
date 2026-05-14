@@ -194,8 +194,6 @@ func (m *MockLocker) Acquire(ctx context.Context, key string) (Lock, error) {
 	return args.Get(0).(Lock), args.Error(1)
 }
 
-
-
 // --- Test Cases ---
 
 // TestCreateReservation_ShouldReturnExisting_WhenDuplicateIdempotencyKey verifies

@@ -32,8 +32,8 @@ type UsagePattern struct {
 
 // DailyOccupancy represents the average spot occupancy for a single day.
 type DailyOccupancy struct {
-	Date           time.Time `json:"date" db:"date"`
-	AvgOccupancy   float64   `json:"avg_occupancy" db:"avg_occupancy"`
-	TotalSpots     int       `json:"total_spots" db:"total_spots"`
-	OccupiedSpots  int       `json:"occupied_spots" db:"occupied_spots"`
+	Date          time.Time `json:"date" db:"date"`
+	AvgOccupancy  float64   `json:"avg_occupancy" db:"avg_occupancy"`
+	TotalSpots    int       `json:"total_spots" db:"total_spots"`
+	OccupiedSpots int       `json:"occupied_spots" db:"occupied_spots"`
 }

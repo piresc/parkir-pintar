@@ -114,16 +114,22 @@ func (f *fanoutHandler) WithGroup(name string) slog.Handler {
 	return &fanoutHandler{handlers: handlers}
 }
 
+// Log level string constants.
+const (
+	levelDebug = "debug"
+	levelInfo  = "info"
+)
+
 // parseLevel converts a string log level to slog.Level.
 func parseLevel(level string) slog.Level {
 	switch strings.ToLower(level) {
-	case "debug":
+	case levelDebug:
 		return slog.LevelDebug
 	case "warn":
 		return slog.LevelWarn
 	case "error":
 		return slog.LevelError
-	case "info":
+	case levelInfo:
 		return slog.LevelInfo
 	default:
 		return slog.LevelInfo

@@ -234,7 +234,7 @@ func TestExecute_ShouldTransitionToClosed_WhenHalfOpenProbeSucceeds(t *testing.T
 	openTimeout := 50 * time.Millisecond
 	cb, advance := newTestCB(1, openTimeout)
 	_ = cb.Execute(func() error { return errTest }) // → Open
-	advance(openTimeout + time.Millisecond)          // → HalfOpen
+	advance(openTimeout + time.Millisecond)         // → HalfOpen
 	assert.Equal(t, StateHalfOpen, cb.State())
 
 	// Act — successful probe
@@ -252,7 +252,7 @@ func TestExecute_ShouldTransitionBackToOpen_WhenHalfOpenProbeFails(t *testing.T)
 	openTimeout := 50 * time.Millisecond
 	cb, advance := newTestCB(1, openTimeout)
 	_ = cb.Execute(func() error { return errTest }) // → Open
-	advance(openTimeout + time.Millisecond)          // → HalfOpen
+	advance(openTimeout + time.Millisecond)         // → HalfOpen
 	assert.Equal(t, StateHalfOpen, cb.State())
 
 	// Act — failed probe

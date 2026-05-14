@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	paymentv1 "parkir-pintar/proto/payment/v1"
 	"parkir-pintar/pkg/apperror"
 	"parkir-pintar/pkg/circuitbreaker"
+	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
 type PaymentClient struct {
@@ -19,8 +19,8 @@ func NewPaymentClient(client paymentv1.PaymentServiceClient) *PaymentClient {
 	return &PaymentClient{
 		client: client,
 		cb: circuitbreaker.New(circuitbreaker.Config{
-			FailureThreshold: 5,
-			OpenTimeout:      30 * time.Second,
+			FailureThreshold:  5,
+			OpenTimeout:       30 * time.Second,
 			HalfOpenMaxProbes: 1,
 		}),
 	}

@@ -2,6 +2,7 @@
 package testhelpers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -40,9 +41,13 @@ func WaitForHealth(url string, timeout time.Duration) error {
 	client := &http.Client{Timeout: 2 * time.Second}
 
 	for time.Now().Before(deadline) {
-		resp, err := client.Get(url)
+		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
+		if reqErr != nil {
+			return fmt.Errorf("WaitForHealth: failed to create request: %w", reqErr)
+		}
+		resp, err := client.Do(req)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}

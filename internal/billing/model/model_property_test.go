@@ -107,7 +107,6 @@ func genCrossDaySession() *rapid.Generator[[2]time.Time] {
 	})
 }
 
-
 // --- Property 1: Pricing Correctness ---
 
 // TestProperty1_PricingCorrectness verifies that for any checkIn before checkOut

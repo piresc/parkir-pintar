@@ -82,7 +82,7 @@ func main() {
 		log.Error("postgres connect failed", slog.Any("error", err))
 		os.Exit(1)
 	}
-	redisClient, err := redis.NewRedisClient(cfg.Redis)
+	redisClient, err := redis.NewClient(cfg.Redis)
 	if err != nil {
 		log.Error("redis connect failed", slog.Any("error", err))
 		os.Exit(1)

@@ -83,7 +83,6 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, 0, cfg.Redis.DB)
 	assert.Equal(t, 10, cfg.Redis.PoolSize)
 
-
 	// JWT defaults
 	assert.Equal(t, "test-default-secret", cfg.JWT.Secret)
 	assert.Equal(t, 60, cfg.JWT.Expiration)

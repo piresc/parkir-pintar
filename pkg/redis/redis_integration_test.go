@@ -21,7 +21,7 @@ import (
 )
 
 // setupMiniredis creates a miniredis server and a RedisClient pointing to it.
-func setupMiniredis(t *testing.T) (*RedisClient, *miniredis.Miniredis, func()) {
+func setupMiniredis(t *testing.T) (*Client, *miniredis.Miniredis, func()) {
 	t.Helper()
 	mr, err := miniredis.Run()
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func setupMiniredis(t *testing.T) (*RedisClient, *miniredis.Miniredis, func()) {
 	client := redis.NewClient(&redis.Options{
 		Addr: mr.Addr(),
 	})
-	rc := &RedisClient{client: client}
+	rc := &Client{client: client}
 
 	cleanup := func() {
 		_ = client.Close()

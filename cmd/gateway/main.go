@@ -170,7 +170,7 @@ func main() {
 		shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	}
 
-	redisClient, err := redispkg.NewRedisClient(cfg.Redis)
+	redisClient, err := redispkg.NewClient(cfg.Redis)
 	if err == nil {
 		healthSvc.AddChecker("redis", health.NewRedisChecker(redisClient))
 		shutdownMgr.Register(func(_ context.Context) error { _ = redisClient.GetClient().Close(); return nil })

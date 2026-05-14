@@ -102,7 +102,7 @@ func NewTracer(cfg *Config) (Tracer, error) {
 		return NewNoOpTracer(), nil
 	}
 
-	if !cfg.Enabled || cfg.NoOpForTesting || cfg.Exporter == "noop" {
+	if !cfg.Enabled || cfg.NoOpForTesting || cfg.Exporter == ExporterNoop {
 		return NewNoOpTracer(), nil
 	}
 

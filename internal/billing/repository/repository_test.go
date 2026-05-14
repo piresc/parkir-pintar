@@ -103,21 +103,21 @@ func TestCreateBillingRecord(t *testing.T) {
 
 	now := time.Now()
 	record := &model.BillingRecord{
-		ID:             "bill-1",
-		ReservationID:  "res-1",
-		BookingFee:     5000,
-		ParkingFee:     0,
-		OvernightFee:   0,
+		ID:              "bill-1",
+		ReservationID:   "res-1",
+		BookingFee:      5000,
+		ParkingFee:      0,
+		OvernightFee:    0,
 		CancellationFee: 0,
-		PenaltyAmount:  0,
-		TotalAmount:    5000,
+		PenaltyAmount:   0,
+		TotalAmount:     5000,
 		DurationMinutes: 0,
-		BilledHours:    0,
-		IsOvernight:    false,
-		IdempotencyKey: "key-bill-1",
-		Status:         "pending",
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		BilledHours:     0,
+		IsOvernight:     false,
+		IdempotencyKey:  "key-bill-1",
+		Status:          "pending",
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	mock.ExpectExec(regexp.QuoteMeta(

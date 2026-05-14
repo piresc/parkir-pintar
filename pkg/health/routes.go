@@ -19,7 +19,7 @@ func RegisterRoutes(r *gin.Engine, serviceName, version string, svc *Service) {
 	// GET /health — build info
 	healthGroup.GET("", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status":       "ok",
+			KeyStatus:      "ok",
 			"service_name": serviceName,
 			"version":      version,
 			"go_version":   runtime.Version(),
@@ -29,7 +29,7 @@ func RegisterRoutes(r *gin.Engine, serviceName, version string, svc *Service) {
 	// GET /health/live — liveness probe
 	healthGroup.GET("/live", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
+			KeyStatus: "ok",
 		})
 	})
 
@@ -38,14 +38,14 @@ func RegisterRoutes(r *gin.Engine, serviceName, version string, svc *Service) {
 		result, err := svc.CheckAll(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status": "unhealthy",
-				"error":  err.Error(),
+				KeyStatus: StatusUnhealthy,
+				"error":   err.Error(),
 			})
 			return
 		}
 
-		status, _ := result["status"].(string)
-		if status != "healthy" {
+		status, _ := result[KeyStatus].(string)
+		if status != StatusHealthy {
 			c.JSON(http.StatusServiceUnavailable, result)
 			return
 		}
@@ -58,14 +58,14 @@ func RegisterRoutes(r *gin.Engine, serviceName, version string, svc *Service) {
 		result, err := svc.CheckAll(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"status": "unhealthy",
-				"error":  err.Error(),
+				KeyStatus: StatusUnhealthy,
+				"error":   err.Error(),
 			})
 			return
 		}
 
-		status, _ := result["status"].(string)
-		if status != "healthy" {
+		status, _ := result[KeyStatus].(string)
+		if status != StatusHealthy {
 			c.JSON(http.StatusServiceUnavailable, result)
 			return
 		}

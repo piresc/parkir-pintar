@@ -23,7 +23,8 @@ var errSimulated = errors.New("simulated failure")
 // (c) in Open state, calls are rejected immediately without invoking the wrapped function;
 // (d) after the open timeout, the state transitions to Half-Open;
 // (e) in Half-Open, a successful probe transitions to Closed and a failed probe
-//     transitions back to Open.
+//
+//	transitions back to Open.
 func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		threshold := rapid.IntRange(1, 10).Draw(t, "threshold")

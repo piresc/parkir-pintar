@@ -39,7 +39,7 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 var uuidPattern = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
 // numericPattern matches purely numeric path segments.
-var numericPattern = regexp.MustCompile(`^[0-9]+$`)
+var numericPattern = regexp.MustCompile(`^\d+$`)
 
 // normalizePath replaces dynamic path segments (UUIDs, numeric IDs) with :id
 // to reduce metric cardinality.

@@ -3,6 +3,7 @@ package grpcmiddleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -128,7 +129,7 @@ func (i *Interceptors) pollForCachedResponse(ctx context.Context, redisKey strin
 		}
 
 		cached, err := i.redisClient.Get(ctx, redisKey)
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			// Key was deleted (handler error) — let the caller retry.
 			return nil, status.Errorf(codes.Aborted, "concurrent request failed, please retry")
 		}

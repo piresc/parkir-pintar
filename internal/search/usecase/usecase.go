@@ -91,7 +91,11 @@ func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvai
 		return nil, err
 	}
 
-	return result.([]model.FloorAvailability), nil
+	floors, ok := result.([]model.FloorAvailability)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type in singleflight result")
+	}
+	return floors, nil
 }
 
 // GetFloorMap returns all spots on a floor. It tries Redis cache first
@@ -129,7 +133,11 @@ func (uc *searchUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMap
 		return nil, err
 	}
 
-	return result.([]model.SpotDetails), nil
+	spots, ok := result.([]model.SpotDetails)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type in singleflight result")
+	}
+	return spots, nil
 }
 
 // GetSpotDetails returns details for a single spot. No caching — direct DB query.

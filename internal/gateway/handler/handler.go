@@ -5,6 +5,7 @@ package handler
 
 import (
 	"context"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -264,6 +265,10 @@ func (h *Handler) GetFloorMap(c *gin.Context) {
 	floor, err := strconv.Atoi(floorStr)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid floor number")
+		return
+	}
+	if floor < 0 || floor > math.MaxInt32 {
+		response.Error(c, http.StatusBadRequest, "floor number out of range")
 		return
 	}
 

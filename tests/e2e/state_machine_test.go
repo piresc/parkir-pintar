@@ -54,7 +54,6 @@ func TestStateMachine_ShouldAllowConfirmedToCancelled(t *testing.T) {
 	require.NoError(t, err, "CONFIRMED → CANCELLED should be allowed")
 }
 
-
 // TestStateMachine_ShouldAllowCheckedInToCheckedOut verifies that the
 // transition CHECKED_IN → CHECKED_OUT is allowed.
 //

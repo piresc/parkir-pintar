@@ -79,7 +79,6 @@ func TestSchema_ShouldHave400ParkingSpots(t *testing.T) {
 	assert.Equal(t, 250, motoCount, "should have 250 motorcycle spots")
 }
 
-
 // TestSchema_ShouldHaveCorrectFloorDistribution verifies that parking spots
 // are distributed as 5 floors × 30 car + 5 floors × 50 motorcycle.
 //

@@ -170,9 +170,9 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, int64(10_000), result.ParkingFee)   // 2h × 5000
-	assert.Equal(t, int64(0), result.OvernightFee)       // same day
-	assert.Equal(t, 120, result.DurationMinutes)         // 2 hours
+	assert.Equal(t, int64(10_000), result.ParkingFee) // 2h × 5000
+	assert.Equal(t, int64(0), result.OvernightFee)    // same day
+	assert.Equal(t, 120, result.DurationMinutes)      // 2 hours
 	assert.Equal(t, 2, result.BilledHours)
 	assert.False(t, result.IsOvernight)
 	assert.Equal(t, model.BillingStatusCalculated, result.Status)
@@ -213,9 +213,9 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, int64(40_000), result.ParkingFee)    // 8h × 5000
+	assert.Equal(t, int64(40_000), result.ParkingFee)               // 8h × 5000
 	assert.Equal(t, pricing.OvernightPerNight, result.OvernightFee) // 20,000
-	assert.Equal(t, 480, result.DurationMinutes)          // 8 hours
+	assert.Equal(t, 480, result.DurationMinutes)                    // 8 hours
 	assert.Equal(t, 8, result.BilledHours)
 	assert.True(t, result.IsOvernight)
 	// total = 5000 + 40000 + 20000 = 65000

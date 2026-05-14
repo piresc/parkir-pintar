@@ -12,6 +12,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// Exporter type constants.
+const (
+	ExporterStdout = "stdout"
+	ExporterNoop   = "noop"
+)
+
 // newExporter creates a SpanExporter based on the Config.Exporter value.
 //
 //   - "stdout"    → stdouttrace exporter for local development
@@ -21,7 +27,7 @@ import (
 //   - "noop"      → returns nil (caller should use NoOpTracer instead)
 func newExporter(cfg *Config) (sdktrace.SpanExporter, error) {
 	switch cfg.Exporter {
-	case "stdout":
+	case ExporterStdout:
 		return stdouttrace.New(stdouttrace.WithPrettyPrint())
 
 	case "otlp":
@@ -62,7 +68,7 @@ func newExporter(cfg *Config) (sdktrace.SpanExporter, error) {
 			}),
 		)
 
-	case "noop", "":
+	case ExporterNoop, "":
 		return nil, nil
 
 	default:

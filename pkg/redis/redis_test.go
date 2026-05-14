@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewRedisClient_ShouldReturnError_WhenConnectionFails(t *testing.T) {
+func TestNewClient_ShouldReturnError_WhenConnectionFails(t *testing.T) {
 	// Arrange: invalid config that cannot connect
 	cfg := config.RedisConfig{
 		Host:     "invalid-host-that-does-not-exist",
@@ -28,7 +28,7 @@ func TestNewRedisClient_ShouldReturnError_WhenConnectionFails(t *testing.T) {
 	}
 
 	// Act
-	client, err := NewRedisClient(cfg)
+	client, err := NewClient(cfg)
 
 	// Assert
 	assert.Error(t, err)
@@ -39,20 +39,20 @@ func TestNewRedisClient_ShouldReturnError_WhenConnectionFails(t *testing.T) {
 func TestNewTracedRedisClient_ShouldReturnValidClient_WhenCreated(t *testing.T) {
 	// Arrange
 	tracer := tracing.NewNoOpTracer()
-	// Create a RedisClient with nil underlying client for constructor testing
-	redisClient := &RedisClient{client: nil}
+	// Create a Client with nil underlying client for constructor testing
+	redisClient := &Client{client: nil}
 
 	// Act
 	traced := NewTracedRedisClient(redisClient, tracer)
 
 	// Assert
 	require.NotNil(t, traced)
-	assert.Equal(t, redisClient, traced.RedisClient)
+	assert.Equal(t, redisClient, traced.Client)
 }
 
 func TestRedisClient_GetClient_ShouldReturnUnderlyingClient(t *testing.T) {
 	// Arrange: nil client for constructor test
-	redisClient := &RedisClient{client: nil}
+	redisClient := &Client{client: nil}
 
 	// Act & Assert
 	assert.Nil(t, redisClient.GetClient())
@@ -62,11 +62,11 @@ func TestTracedRedisClient_Close_ShouldDelegateToUnderlying(t *testing.T) {
 	// Arrange: TracedRedisClient.Close delegates to RedisClient.Close
 	// We verify the delegation chain exists
 	tracer := tracing.NewNoOpTracer()
-	redisClient := &RedisClient{client: nil}
+	redisClient := &Client{client: nil}
 	traced := NewTracedRedisClient(redisClient, tracer)
 
 	// Act: Close on nil client will panic, but the delegation is correct
 	// This test verifies the struct composition is wired correctly
 	require.NotNil(t, traced)
-	assert.Equal(t, redisClient, traced.RedisClient)
+	assert.Equal(t, redisClient, traced.Client)
 }

@@ -61,7 +61,7 @@ func main() {
 		log.Error("postgres connect failed", slog.Any("error", err))
 		os.Exit(1)
 	}
-	redisClient, err := redis.NewRedisClient(cfg.Redis)
+	redisClient, err := redis.NewClient(cfg.Redis)
 	if err != nil {
 		log.Error("redis connect failed", slog.Any("error", err))
 		os.Exit(1)
@@ -91,8 +91,8 @@ func main() {
 			interceptors.TracingUnaryInterceptor(),
 			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
 				RequestsPerSecond: 100,
-				BurstSize:        200,
-				CleanupInterval:  5 * time.Minute,
+				BurstSize:         200,
+				CleanupInterval:   5 * time.Minute,
 			}),
 		),
 	)

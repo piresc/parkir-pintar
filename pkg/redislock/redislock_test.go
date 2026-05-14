@@ -36,7 +36,7 @@ func setupTestLocker(t *testing.T, cfg Config) (*Locker, *miniredis.Miniredis, f
 	port, err := strconv.Atoi(portStr)
 	require.NoError(t, err)
 
-	rc, err := redis.NewRedisClient(config.RedisConfig{
+	rc, err := redis.NewClient(config.RedisConfig{
 		Host:     host,
 		Port:     port,
 		Password: "",
@@ -77,7 +77,7 @@ func TestNewLocker_ShouldReturnLocker_WhenClientIsValid(t *testing.T) {
 	port, err := strconv.Atoi(portStr)
 	require.NoError(t, err)
 
-	rc, err := redis.NewRedisClient(config.RedisConfig{
+	rc, err := redis.NewClient(config.RedisConfig{
 		Host: host, Port: port, PoolSize: 5,
 	})
 	require.NoError(t, err)

@@ -113,6 +113,42 @@ services:
       - monitoring
       - coolify
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: monitoring-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USERNAME}:${DB_PASSWORD}@staging-postgres:5432/${DB_DATABASE}?sslmode=disable"
+    networks:
+      - monitoring
+      - coolify
+    depends_on:
+      - prometheus
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: monitoring-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis://staging-redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    networks:
+      - monitoring
+      - coolify
+    depends_on:
+      - prometheus
+
+  nats-exporter:
+    image: natsio/prometheus-nats-exporter:latest
+    container_name: monitoring-nats-exporter
+    restart: unless-stopped
+    command: ["-varz", "-jsz=all", "-connz", "-routez", "-subz", "http://staging-nats:8222"]
+    networks:
+      - monitoring
+      - coolify
+    depends_on:
+      - prometheus
+
 volumes:
   prometheus_data:
   grafana_data:

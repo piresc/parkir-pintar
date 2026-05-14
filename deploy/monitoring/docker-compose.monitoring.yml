@@ -6,7 +6,7 @@ services:
     container_name: monitoring-prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "100.79.123.39:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -20,40 +20,30 @@ services:
     networks:
       - monitoring
       - coolify
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.piresc.dev`)"
-      - "traefik.http.routers.prometheus.entrypoints=http"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
 
   grafana:
     image: grafana/grafana:latest
     container_name: monitoring-grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "100.79.123.39:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=parkir-pintar-2026
+      - GF_SECURITY_ADMIN_PASSWORD=parkir2026
       - GF_USERS_ALLOW_SIGN_UP=false
     networks:
       - monitoring
       - coolify
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.piresc.dev`)"
-      - "traefik.http.routers.grafana.entrypoints=http"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
 
   alertmanager:
     image: prom/alertmanager:latest
     container_name: monitoring-alertmanager
     restart: unless-stopped
     ports:
-      - "9093:9093"
+      - "100.79.123.39:9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -69,7 +59,7 @@ services:
     container_name: monitoring-tempo
     restart: unless-stopped
     ports:
-      - "3200:3200"
+      - "100.79.123.39:3200:3200"
       - "4317:4317"
       - "4318:4318"
     volumes:
@@ -86,7 +76,7 @@ services:
     container_name: monitoring-loki
     restart: unless-stopped
     ports:
-      - "3100:3100"
+      - "100.79.123.39:3100:3100"
     volumes:
       - ./loki/loki.yml:/etc/loki/loki.yml:ro
       - loki_data:/loki
@@ -101,7 +91,7 @@ services:
     container_name: monitoring-alloy
     restart: unless-stopped
     ports:
-      - "12345:12345"
+      - "100.79.123.39:12345:12345"
       - "4319:4319"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro

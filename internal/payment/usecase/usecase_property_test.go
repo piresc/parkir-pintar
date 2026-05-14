@@ -42,7 +42,6 @@ func TestProcessPayment_ShouldReturnPromptly_WhenContextCancelledDuringRetry(t *
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	gatewayErr := errors.New("gateway unavailable")
 	repo.On("GetByIdempotencyKey", mock.Anything, "pay-ctx-cancel").Return(nil, repository.ErrNotFound)
@@ -50,9 +49,8 @@ func TestProcessPayment_ShouldReturnPromptly_WhenContextCancelledDuringRetry(t *
 	// Gateway always fails to force retries
 	gw.On("Charge", mock.Anything, int64(5000), "qris").Return("", gatewayErr)
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
-	natsClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.ProcessPaymentRequest{
 		BillingID:      "billing-ctx",
 		Amount:         5000,

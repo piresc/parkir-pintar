@@ -3,15 +3,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
-	"parkir-pintar/internal/natssetup"
 	reservationhandler "parkir-pintar/internal/reservation/handler"
+	"parkir-pintar/internal/reservation/model"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/internal/reservation/usecase"
 	"parkir-pintar/internal/reservation/worker"
+	taskqueue "parkir-pintar/pkg/asynq"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
 	"parkir-pintar/pkg/grpcclient"
@@ -19,7 +21,6 @@ import (
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
-	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/redislock"
 	"parkir-pintar/pkg/server"
@@ -86,15 +87,6 @@ func main() {
 		log.Error("redis connect failed", slog.Any("error", err))
 		os.Exit(1)
 	}
-	natsClient, err := nats.NewClient(cfg.NATS.URL)
-	if err != nil {
-		log.Error("nats connect failed", slog.Any("error", err))
-		os.Exit(1)
-	}
-	if err := natssetup.SetupStreams(natsClient); err != nil {
-		log.Error("nats stream setup failed", slog.Any("error", err))
-		os.Exit(1)
-	}
 
 	tracedPG := database.NewTracedPostgresClient(pgClient, tracer)
 	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, redisClient)
@@ -139,22 +131,39 @@ func main() {
 		os.Exit(1)
 	}
 	uc := usecase.NewUsecase(
-		repo, usecase.NewLockerAdapter(redislockLocker), natsClient,
+		repo, usecase.NewLockerAdapter(redislockLocker),
 		client.NewBillingClient(billingGRPC),
 		client.NewPaymentClient(paymentGRPC),
 	)
 	handler := reservationhandler.NewHandler(uc)
 
-	// Start expiry worker.
+	// Start legacy polling workers (fallback — catches anything Asynq misses).
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	go worker.RunExpiryWorker(workerCtx, 30*time.Second, repo, uc)
-
-	// Start payment timeout worker.
 	go worker.RunPaymentTimeoutWorker(workerCtx, 30*time.Second, repo, uc, cfg.Reservation.PaymentTimeoutMinutes)
+
+	// Start Asynq task queue (delayed tasks: reservation expiry, payment hold timeout).
+	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
+	asynqClient := taskqueue.NewClient(redisAddr)
+	asynqServer := taskqueue.NewServer(redisAddr, cfg.Asynq.Concurrency)
+
+	expiryHandler := taskqueue.NewReservationExpiryHandler(&usecaseExpirerAdapter{uc: uc})
+	paymentHandler := taskqueue.NewPaymentHoldTimeoutHandler(&usecaseFailerAdapter{uc: uc})
+	asynqServer.RegisterHandlers(expiryHandler, paymentHandler)
+
+	go func() {
+		if err := asynqServer.Start(); err != nil {
+			log.Error("asynq server error", slog.Any("error", err))
+		}
+	}()
+
+	// Make asynq client available for enqueuing (used by usecase hooks or future integration).
+	_ = asynqClient
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { workerCancel(); return nil })
-	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
+	shutdownMgr.Register(func(_ context.Context) error { asynqServer.Shutdown(); return nil })
+	shutdownMgr.Register(func(_ context.Context) error { return asynqClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
@@ -196,4 +205,26 @@ func getEnv(key, defaultValue string) string {
 		return v
 	}
 	return defaultValue
+}
+
+// usecaseExpirerAdapter adapts the reservation usecase to the taskqueue.ReservationExpirer interface.
+type usecaseExpirerAdapter struct {
+	uc usecase.Usecase
+}
+
+func (a *usecaseExpirerAdapter) ExpireReservation(ctx context.Context, reservationID string) error {
+	return a.uc.ExpireReservation(ctx, &model.ExpireReservationRequest{
+		ReservationID: reservationID,
+	})
+}
+
+// usecaseFailerAdapter adapts the reservation usecase to the taskqueue.ReservationFailer interface.
+type usecaseFailerAdapter struct {
+	uc usecase.Usecase
+}
+
+func (a *usecaseFailerAdapter) FailReservation(ctx context.Context, reservationID string, _ string) error {
+	return a.uc.FailReservation(ctx, &model.FailReservationRequest{
+		ReservationID: reservationID,
+	})
 }

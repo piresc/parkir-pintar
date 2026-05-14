@@ -25,6 +25,7 @@ import (
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot tests
@@ -35,11 +36,10 @@ import (
 func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *testing.T) {
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, billing, payment)
 
 	// --- Phase 1: Create Reservation ---
 	repo.On("FindByIdempotencyKey", mock.Anything, "wrongspot-key").Return(nil, model.ErrNotFound)
@@ -59,7 +59,7 @@ func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *test
 	repo.On("ListByDriverID", mock.Anything, "driver-wrongspot", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-assigned", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
@@ -83,8 +83,7 @@ func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *test
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
 		return r.Status == model.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", billingmodel.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -104,7 +103,6 @@ func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *test
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-assigned", "occupied").Return(nil)
 	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
-	natsClient.On("Publish", "reservation.checked_in", mock.Anything).Return(nil)
 
 	checkedIn, err := uc.CheckIn(t.Context(), &model.CheckInRequest{ReservationID: reservation.ID})
 	require.NoError(t, err)
@@ -115,8 +113,8 @@ func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *test
 	// Total = 5000 booking + 10000 parking + 200000 penalty = 215000
 	billingRecord := &billingmodel.BillingRecord{
 		ID:            "billing-wrongspot",
-		TotalAmount:   billingmodel.BookingFee + 10000 + billingmodel.WrongSpotPenalty,
-		PenaltyAmount: billingmodel.WrongSpotPenalty,
+		TotalAmount:   pricing.BookingFee + 10000 + pricing.WrongSpotPenalty,
+		PenaltyAmount: pricing.WrongSpotPenalty,
 	}
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
@@ -137,6 +135,6 @@ func TestWrongSpotFlow_ShouldApply200kPenalty_WhenDriverParksInWrongSpot(t *test
 	require.NoError(t, err)
 	require.NotNil(t, checkOutResult)
 	assert.Equal(t, model.StatusCheckedOut, checkOutResult.Reservation.Status)
-	assert.Equal(t, billingmodel.BookingFee+10000+billingmodel.WrongSpotPenalty, checkOutResult.TotalAmount,
+	assert.Equal(t, pricing.BookingFee+10000+pricing.WrongSpotPenalty, checkOutResult.TotalAmount,
 		"wrong-spot penalty total should be 215,000 IDR (5000 booking + 10000 parking + 200000 penalty)")
 }

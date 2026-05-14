@@ -57,13 +57,11 @@ func TestApplyPenalty_ShouldIncrementPenaltyAndRecalcTotal_WhenSingleRequest(t *
 		}
 
 		repo := new(MockRepository)
-		natsClient := new(MockNATSClient)
 
 		repo.On("CreatePenalty", mock.Anything, mock.AnythingOfType("*model.Penalty")).Return(nil)
 		repo.On("AddPenaltyAmount", mock.Anything, "res-pres", penaltyAmount).Return(updatedRecord, nil)
-		natsClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-		uc := NewUsecase(repo, natsClient)
+		uc := NewUsecase(repo)
 
 		// Act — single request, no concurrency
 		result, err := uc.ApplyPenalty(t.Context(), &model.ApplyPenaltyRequest{

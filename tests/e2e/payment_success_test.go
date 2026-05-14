@@ -30,7 +30,7 @@ func TestPaymentSuccess_ShouldCreateSuccessRecord_WhenCheckoutCompletes(t *testi
 	// Arrange
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	env.paymentGW.ShouldFail = false

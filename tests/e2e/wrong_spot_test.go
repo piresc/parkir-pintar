@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -28,7 +29,7 @@ import (
 func TestWrongSpot_ShouldApplyPenalty_WhenDriverParksInWrongSpot(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -58,13 +59,13 @@ func TestWrongSpot_ShouldApplyPenalty_WhenDriverParksInWrongSpot(t *testing.T) {
 	_, err = env.billingUC.ApplyPenalty(ctx, &billingmodel.ApplyPenaltyRequest{
 		ReservationID: reservation.ID,
 		PenaltyType:   "wrong_spot",
-		Amount:        billingmodel.WrongSpotPenalty,
+		Amount:        pricing.WrongSpotPenalty,
 		Description:   "driver parked in wrong spot",
 	})
 
 	// Assert — Penalty record exists
 	require.NoError(t, err)
-	testhelpers.AssertPenaltyExists(t, env.db, reservation.ID, "wrong_spot", billingmodel.WrongSpotPenalty)
+	testhelpers.AssertPenaltyExists(t, env.db, reservation.ID, "wrong_spot", pricing.WrongSpotPenalty)
 
 	// Assert — Billing total includes penalty
 	testhelpers.AssertBillingTotal(t, env.db, reservation.ID)

@@ -1,5 +1,4 @@
-// Package model defines domain structs, pricing constants, and fee calculation
-// functions for the billing module.
+// Package model defines domain structs and request types for the billing module.
 //
 // Best practices applied (from coding standards KB):
 // - Table-driven tests with t.Run() subtests for comprehensive pricing coverage
@@ -15,6 +14,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"parkir-pintar/pkg/pricing"
 )
 
 // wib returns the WIB (UTC+7) timezone used for all test times.
@@ -22,7 +23,7 @@ func wib() *time.Location {
 	return time.FixedZone("WIB", 7*60*60)
 }
 
-func TestCalculateParkingFee_ShouldComputeCorrectFees(t *testing.T) {
+func TestCalculateSessionFee_ShouldComputeCorrectFees(t *testing.T) {
 	loc := wib()
 
 	tests := []struct {
@@ -113,7 +114,7 @@ func TestCalculateParkingFee_ShouldComputeCorrectFees(t *testing.T) {
 			_ = t.Context()
 
 			// Act
-			result := CalculateParkingFee(tt.checkIn, tt.checkOut)
+			result := pricing.CalculateSessionFee(tt.checkIn, tt.checkOut)
 
 			// Assert
 			assert.Equal(t, tt.billedHours, result.BilledHours)
@@ -166,7 +167,7 @@ func TestCalculateCancellationFee_ShouldReturnCorrectFee(t *testing.T) {
 			_ = t.Context()
 
 			// Act
-			fee := CalculateCancellationFee(tt.confirmedAt, tt.cancelledAt)
+			fee := pricing.CalculateCancellationFee(tt.confirmedAt, tt.cancelledAt)
 
 			// Assert
 			assert.Equal(t, tt.expectedFee, fee)
@@ -174,12 +175,12 @@ func TestCalculateCancellationFee_ShouldReturnCorrectFee(t *testing.T) {
 	}
 }
 
-func TestCalculateBillingTotal_ShouldSumAllFees(t *testing.T) {
+func TestCalculateTotal_ShouldSumAllFees(t *testing.T) {
 	tests := []struct {
-		name            string
-		record          *BillingRecord
-		expectedTotal   int64
-		totalGEBooking  bool
+		name           string
+		record         *BillingRecord
+		expectedTotal  int64
+		totalGEBooking bool
 	}{
 		{
 			name: "all fees present",
@@ -213,7 +214,8 @@ func TestCalculateBillingTotal_ShouldSumAllFees(t *testing.T) {
 			_ = t.Context()
 
 			// Act
-			total := CalculateBillingTotal(tt.record)
+			total := pricing.CalculateTotal(tt.record.BookingFee, tt.record.ParkingFee,
+				tt.record.OvernightFee, tt.record.CancellationFee, tt.record.PenaltyAmount)
 
 			// Assert
 			assert.Equal(t, tt.expectedTotal, total)

@@ -1,6 +1,6 @@
 // Package usecase implements the business logic layer for the payment domain
 // module. It orchestrates payment processing, QRIS payments, refunds, and
-// status queries, coordinating with the repository, payment gateway, and NATS.
+// status queries, coordinating with the repository and payment gateway.
 //
 // Best practices applied (from Go coding standards KB):
 // - Document all exported functions and types with proper Godoc format
@@ -13,7 +13,6 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -26,11 +25,6 @@ import (
 	"parkir-pintar/internal/payment/repository"
 )
 
-// NATSClient defines the interface for NATS JetStream event publishing.
-type NATSClient interface {
-	Publish(subject string, data []byte) error
-}
-
 // Usecase defines the business logic interface for payment operations.
 type Usecase interface {
 	ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error)
@@ -41,17 +35,15 @@ type Usecase interface {
 
 // paymentUsecase is the concrete implementation of Usecase.
 type paymentUsecase struct {
-	repo    repository.Repository
-	gw      gateway.PaymentGateway
-	nats    NATSClient
+	repo repository.Repository
+	gw   gateway.PaymentGateway
 }
 
 // NewUsecase creates a new payment Usecase with all required dependencies.
-func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway, nats NATSClient) Usecase {
+func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway) Usecase {
 	return &paymentUsecase{
 		repo: repo,
 		gw:   gw,
-		nats: nats,
 	}
 }
 
@@ -118,7 +110,6 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
 			slog.Error("failed to update payment status to failed", slog.Any("error", updateErr))
 		}
-		uc.publishEvent("payment.failed", payment)
 		return payment, nil
 	}
 
@@ -133,7 +124,6 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		return nil, fmt.Errorf("process payment update success: %w", err)
 	}
 
-	uc.publishEvent("payment.success", payment)
 	return payment, nil
 }
 
@@ -192,17 +182,4 @@ func (uc *paymentUsecase) GetPaymentStatus(ctx context.Context, req *model.GetPa
 		return nil, fmt.Errorf("get payment status: %w", err)
 	}
 	return payment, nil
-}
-
-// publishEvent serializes the payment and publishes it to NATS.
-// Errors are logged but do not fail the operation.
-func (uc *paymentUsecase) publishEvent(subject string, payment *model.Payment) {
-	data, err := json.Marshal(payment)
-	if err != nil {
-		slog.Error("failed to marshal payment event", slog.String("subject", subject), slog.Any("error", err))
-		return
-	}
-	if err := uc.nats.Publish(subject, data); err != nil {
-		slog.Error("failed to publish payment event", slog.String("subject", subject), slog.Any("error", err))
-	}
 }

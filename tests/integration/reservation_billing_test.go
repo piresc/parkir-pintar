@@ -27,6 +27,7 @@ import (
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
+	"parkir-pintar/pkg/pricing"
 )
 
 // --- Mock Implementations ---
@@ -189,19 +190,6 @@ func (m *MockLocker) Acquire(ctx context.Context, key string) (usecase.Lock, err
 	return nil, args.Error(1)
 }
 
-// MockNATSClient implements usecase.NATSClient using testify/mock.
-type MockNATSClient struct {
-	mock.Mock
-}
-
-func (m *MockNATSClient) Publish(subject string, data []byte) error {
-	if subject == "spot.updated" {
-		return nil
-	}
-	args := m.Called(subject, data)
-	return args.Error(0)
-}
-
 // --- Integration Test: Full Reservation-to-Billing Flow ---
 
 // TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath tests the
@@ -213,11 +201,10 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	// Arrange — set up all mocks
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, billing, payment)
 
 	// --- Phase 1: Create Reservation ---
 
@@ -238,7 +225,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	repo.On("ListByDriverID", mock.Anything, "driver-integ-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-integ-1", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	createReq := &model.CreateReservationRequest{
@@ -256,7 +243,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	assert.Equal(t, "spot-integ-1", reservation.SpotID)
 
 	// Verify billing StartBilling was called with booking_fee=5000
-	billing.AssertCalled(t, "StartBilling", mock.Anything, reservation.ID, billingmodel.BookingFee, mock.AnythingOfType("string"))
+	billing.AssertCalled(t, "StartBilling", mock.Anything, reservation.ID, pricing.BookingFee, mock.AnythingOfType("string"))
 
 	// --- Phase 1b: Confirm reservation ---
 	confirmedAt := time.Now().Add(-2 * time.Hour)
@@ -270,8 +257,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
 		return r.Status == model.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", billingmodel.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	confirmed, err := uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -295,7 +281,6 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-integ-1", "occupied").Return(nil)
 	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
-	natsClient.On("Publish", "reservation.checked_in", mock.Anything).Return(nil)
 
 	// Act: check in
 	checkInReq := &model.CheckInRequest{ReservationID: reservation.ID}
@@ -317,7 +302,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	billingRecord := &billingmodel.BillingRecord{
 		ID:          "billing-integ-1",
 		TotalAmount: 15000,
-		BookingFee:  billingmodel.BookingFee,
+		BookingFee:  pricing.BookingFee,
 		ParkingFee:  10000,
 	}
 
@@ -346,7 +331,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	assert.Equal(t, int64(15000), checkOutResult.TotalAmount)
 	assert.Equal(t, "billing-integ-1", checkOutResult.BillingID)
 	assert.Equal(t, "", checkOutResult.PaymentID)
-	assert.Equal(t, billingmodel.BookingFee, checkOutResult.BookingFee)
+	assert.Equal(t, pricing.BookingFee, checkOutResult.BookingFee)
 	assert.Equal(t, int64(10000), checkOutResult.ParkingFee)
 	assert.Equal(t, int64(0), checkOutResult.OvernightFee)
 	assert.Equal(t, int64(0), checkOutResult.PenaltyAmount)
@@ -361,7 +346,6 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
 	lock.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)
 }

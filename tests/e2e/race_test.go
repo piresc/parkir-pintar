@@ -31,7 +31,7 @@ import (
 func TestRace_ConcurrentReservationCreation_ShouldNotDoubleBook(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestRace_ConcurrentReservationCreation_ShouldNotDoubleBook(t *testing.T) {
 func TestRace_SameSpotContention_ShouldAllowExactlyOne(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
@@ -157,7 +157,7 @@ func TestRace_SameSpotContention_ShouldAllowExactlyOne(t *testing.T) {
 func TestRace_ConcurrentIdempotency_ShouldReturnSameReservation(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestRace_ConcurrentIdempotency_ShouldReturnSameReservation(t *testing.T) {
 func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
@@ -302,7 +302,7 @@ func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T
 func TestRace_ConcurrentCreateAndCancel_ShouldMaintainInventory(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
@@ -354,7 +354,7 @@ func TestRace_ConcurrentCreateAndCancel_ShouldMaintainInventory(t *testing.T) {
 func TestRace_MixedVehicleTypes_ShouldNotCrossAssign(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)
@@ -424,7 +424,7 @@ func TestRace_MixedVehicleTypes_ShouldNotCrossAssign(t *testing.T) {
 func TestRace_ConcurrentCheckouts_ShouldNotDuplicatePayments(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 	err = testhelpers.ResetSpots(ctx, env.db)
 	require.NoError(t, err)

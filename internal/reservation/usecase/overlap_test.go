@@ -16,6 +16,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved verifies that when
@@ -27,7 +28,6 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
@@ -48,7 +48,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 		Status:      "reserved",
 	}, nil)
 
-	uc := NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, billing, payment)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -67,7 +67,6 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	repo.AssertNotCalled(t, "CreateReservationTx")
 	repo.AssertNotCalled(t, "UpdateSpotStatusTx")
 	billing.AssertNotCalled(t, "StartBilling")
-	natsClient.AssertNotCalled(t, "Publish")
 	payment.AssertNotCalled(t, "ProcessPayment")
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
@@ -80,7 +79,6 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
@@ -101,9 +99,9 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-a", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-	uc := NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, billing, payment)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -124,7 +122,6 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)
 }
@@ -137,7 +134,6 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	// Arrange
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
@@ -158,9 +154,9 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-boundary", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
 
-	uc := NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, billing, payment)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "motorcycle",
@@ -181,7 +177,6 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)
 }

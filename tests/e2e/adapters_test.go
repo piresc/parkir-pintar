@@ -2,7 +2,7 @@
 //
 // This file defines thin adapter types that bridge the real usecase
 // implementations to the interfaces expected by the reservation usecase,
-// plus Redis adapters for each domain and a stub NATS client.
+// plus Redis adapters for each domain.
 //
 // Best practices applied (from Go coding standards):
 // - Use keyed fields in struct literals to prevent breakages during refactors
@@ -14,7 +14,6 @@ package e2e_test
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -130,29 +129,6 @@ func (l *redisLock) Release(ctx context.Context) error {
 }
 
 // ---------------------------------------------------------------------------
-// presenceRedisAdapter — wraps *redis.Client → presence.RedisClient
-// ---------------------------------------------------------------------------
-
-// presenceRedisAdapter satisfies the presence.RedisClient interface
-// (XAdd + Delete) using a real go-redis/v8 client.
-type presenceRedisAdapter struct {
-	client *redis.Client
-}
-
-// XAdd appends an entry to a Redis stream.
-func (a *presenceRedisAdapter) XAdd(ctx context.Context, stream string, values map[string]interface{}) error {
-	return a.client.XAdd(ctx, &redis.XAddArgs{
-		Stream: stream,
-		Values: values,
-	}).Err()
-}
-
-// Delete removes a key from Redis.
-func (a *presenceRedisAdapter) Delete(ctx context.Context, key string) error {
-	return a.client.Del(ctx, key).Err()
-}
-
-// ---------------------------------------------------------------------------
 // searchRedisAdapter — wraps *redis.Client → search.RedisClient
 // ---------------------------------------------------------------------------
 
@@ -175,19 +151,4 @@ func (a *searchRedisAdapter) Set(ctx context.Context, key string, value interfac
 // Delete removes a key from Redis.
 func (a *searchRedisAdapter) Delete(ctx context.Context, key string) error {
 	return a.client.Del(ctx, key).Err()
-}
-
-// ---------------------------------------------------------------------------
-// stubNATSClient — satisfies all domain NATSClient interfaces
-// ---------------------------------------------------------------------------
-
-// stubNATSClient is a no-op NATS client that logs publishes without failing.
-// It satisfies the NATSClient interface used by reservation, billing, payment,
-// and presence usecases.
-type stubNATSClient struct{}
-
-// Publish logs the subject but always returns nil.
-func (s *stubNATSClient) Publish(subject string, data []byte) error {
-	slog.Debug("stub NATS publish", "subject", subject, "bytes", len(data))
-	return nil
 }

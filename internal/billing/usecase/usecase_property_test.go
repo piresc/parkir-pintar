@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 )
 
 // concurrentMockRepository is a thread-safe mock that simulates a real DB
@@ -95,7 +96,7 @@ func TestApplyPenalty_ShouldSumAllAmounts_WhenCalledConcurrently(t *testing.T) {
 	baseRecord := &model.BillingRecord{
 		ID:            "billing-concurrent",
 		ReservationID: "res-concurrent",
-		BookingFee:    model.BookingFee,
+		BookingFee:    pricing.BookingFee,
 		ParkingFee:    10_000,
 		TotalAmount:   15_000,
 		Status:        model.BillingStatusCalculated,
@@ -105,10 +106,8 @@ func TestApplyPenalty_ShouldSumAllAmounts_WhenCalledConcurrently(t *testing.T) {
 		billingRecord: baseRecord,
 	}
 
-	natsClient := new(MockNATSClient)
-	natsClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 
 	concurrentRequests := 5
 	penaltyAmount := int64(10_000)

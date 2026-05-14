@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"parkir-pintar/pkg/database"
-	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 )
 
@@ -49,25 +48,4 @@ func (c *redisChecker) Check(ctx context.Context) error {
 
 func (c *redisChecker) Name() string {
 	return "redis"
-}
-
-// natsChecker verifies NATS connectivity via IsConnected.
-type natsChecker struct {
-	nats *nats.Client
-}
-
-// NewNATSChecker creates a health checker for NATS.
-func NewNATSChecker(nats *nats.Client) Checker {
-	return &natsChecker{nats: nats}
-}
-
-func (c *natsChecker) Check(_ context.Context) error {
-	if !c.nats.IsConnected() {
-		return fmt.Errorf("nats is not connected")
-	}
-	return nil
-}
-
-func (c *natsChecker) Name() string {
-	return "nats"
 }

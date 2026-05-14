@@ -1,7 +1,7 @@
 // Package e2e_test provides Layer 1 E2E integration tests for ParkirPintar.
 //
-// This file contains TestMain which bootstraps real PostgreSQL, Redis, and
-// NATS JetStream containers via testcontainers-go, applies migrations,
+// This file contains TestMain which bootstraps real PostgreSQL and Redis
+// containers via testcontainers-go, applies migrations,
 // wires all repositories and usecases, and tears everything down on exit.
 //
 // Best practices applied (from Go coding standards):
@@ -22,7 +22,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/nats-io/nats.go"
 	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
@@ -33,8 +32,6 @@ import (
 	"parkir-pintar/internal/payment/gateway"
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	paymentuc "parkir-pintar/internal/payment/usecase"
-	presencerepo "parkir-pintar/internal/presence/repository"
-	presenceuc "parkir-pintar/internal/presence/usecase"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
 	reservationuc "parkir-pintar/internal/reservation/usecase"
 	searchrepo "parkir-pintar/internal/search/repository"
@@ -47,16 +44,13 @@ import (
 type testEnvStruct struct {
 	db              *sqlx.DB
 	redisClient     *redis.Client
-	natsConn        *nats.Conn
 	reservationUC   reservationuc.Usecase
 	billingUC       billinguc.Usecase
 	paymentUC       paymentuc.Usecase
-	presenceUC      presenceuc.Usecase
 	searchUC        searchuc.Usecase
 	reservationRepo reservationrepo.Repository
 	billingRepo     billingrepo.Repository
 	paymentRepo     paymentrepo.Repository
-	presenceRepo    presencerepo.Repository
 	searchRepo      searchrepo.Repository
 	paymentGW       *gateway.StubGateway
 }
@@ -94,20 +88,6 @@ func TestMain(m *testing.M) {
 		log.Fatalf("start redis container: %v", err)
 	}
 
-	// NATS with JetStream
-	natsContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "nats:latest",
-			ExposedPorts: []string{"4222/tcp"},
-			Cmd:          []string{"-js"},
-			WaitingFor:   wait.ForListeningPort("4222/tcp").WithStartupTimeout(60 * time.Second),
-		},
-		Started: true,
-	})
-	if err != nil {
-		log.Fatalf("start nats container: %v", err)
-	}
-
 	// -----------------------------------------------------------------------
 	// 2. Obtain connection strings
 	// -----------------------------------------------------------------------
@@ -121,16 +101,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("redis connection string: %v", err)
 	}
-
-	natsHost, err := natsContainer.Host(ctx)
-	if err != nil {
-		log.Fatalf("nats host: %v", err)
-	}
-	natsPort, err := natsContainer.MappedPort(ctx, "4222")
-	if err != nil {
-		log.Fatalf("nats mapped port: %v", err)
-	}
-	natsURL := fmt.Sprintf("nats://%s:%s", natsHost, natsPort.Port())
 
 	// -----------------------------------------------------------------------
 	// 3. Create clients
@@ -148,11 +118,6 @@ func TestMain(m *testing.M) {
 	redisClient := redis.NewClient(redisOpts)
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		log.Fatalf("ping redis: %v", err)
-	}
-
-	natsConn, err := nats.Connect(natsURL)
-	if err != nil {
-		log.Fatalf("connect to nats: %v", err)
 	}
 
 	// -----------------------------------------------------------------------
@@ -178,7 +143,7 @@ func TestMain(m *testing.M) {
 	// Set default search_path at database level so all pool connections inherit it
 	var dbName string
 	_ = db.QueryRowContext(ctx, "SELECT current_database()").Scan(&dbName)
-	_, _ = db.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s SET search_path TO reservation, billing, payment, presence, search, public", dbName))
+	_, _ = db.ExecContext(ctx, fmt.Sprintf("ALTER DATABASE %s SET search_path TO reservation, billing, payment, search, public", dbName))
 	db.Close()
 	var reconnectErr error
 	for i := 0; i < 5; i++ {
@@ -200,26 +165,22 @@ func TestMain(m *testing.M) {
 	resRepo := reservationrepo.NewRepository(db)
 	billRepo := billingrepo.NewRepository(db)
 	payRepo := paymentrepo.NewRepository(db)
-	presRepo := presencerepo.NewRepository(db)
 	srchRepo := searchrepo.NewRepository(db)
 
 	// Stub / adapters
-	natsStub := &stubNATSClient{}
 	stubGW := gateway.NewStubGateway(false)
 
 	redisAdapter := &reservationLockerAdapter{client: redisClient}
-	presRedisAdapter := &presenceRedisAdapter{client: redisClient}
 	srchRedisAdapter := &searchRedisAdapter{client: redisClient}
 
 	// Usecases
-	billUC := billinguc.NewUsecase(billRepo, natsStub)
-	payUC := paymentuc.NewUsecase(payRepo, stubGW, natsStub)
+	billUC := billinguc.NewUsecase(billRepo)
+	payUC := paymentuc.NewUsecase(payRepo, stubGW)
 
 	billAdapter := &billingAdapter{uc: billUC}
 	payAdapter := &paymentAdapter{uc: payUC}
 
-	resUC := reservationuc.NewUsecase(resRepo, redisAdapter, natsStub, billAdapter, payAdapter)
-	presUC := presenceuc.NewUsecase(presRepo, presRedisAdapter, natsStub)
+	resUC := reservationuc.NewUsecase(resRepo, redisAdapter, billAdapter, payAdapter)
 	srchUC := searchuc.NewUsecase(srchRepo, srchRedisAdapter)
 
 	// -----------------------------------------------------------------------
@@ -229,16 +190,13 @@ func TestMain(m *testing.M) {
 	env = &testEnvStruct{
 		db:              db,
 		redisClient:     redisClient,
-		natsConn:        natsConn,
 		reservationUC:   resUC,
 		billingUC:       billUC,
 		paymentUC:       payUC,
-		presenceUC:      presUC,
 		searchUC:        srchUC,
 		reservationRepo: resRepo,
 		billingRepo:     billRepo,
 		paymentRepo:     payRepo,
-		presenceRepo:    presRepo,
 		searchRepo:      srchRepo,
 		paymentGW:       stubGW,
 	}
@@ -252,11 +210,9 @@ func TestMain(m *testing.M) {
 	// Cleanup
 	db.Close()
 	_ = redisClient.Close()
-	natsConn.Close()
 
 	_ = pgContainer.Terminate(ctx)
 	_ = redisContainer.Terminate(ctx)
-	_ = natsContainer.Terminate(ctx)
 
 	os.Exit(code)
 }

@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -29,7 +29,7 @@ import (
 func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -73,28 +73,30 @@ func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *tes
 
 	// Assert — Parking fee = billed_hours × 5000 (PRD §9.2: ceiling-based)
 	var billing struct {
-		BookingFee  int64 `db:"booking_fee"`
-		ParkingFee  int64 `db:"parking_fee"`
-		TotalAmount int64 `db:"total_amount"`
-		BilledHours int   `db:"billed_hours"`
+		BookingFee   int64 `db:"booking_fee"`
+		ParkingFee   int64 `db:"parking_fee"`
+		OvernightFee int64 `db:"overnight_fee"`
+		TotalAmount  int64 `db:"total_amount"`
+		BilledHours  int   `db:"billed_hours"`
 	}
 	err = env.db.GetContext(ctx, &billing,
-		"SELECT booking_fee, parking_fee, total_amount, billed_hours FROM billing_records WHERE reservation_id = $1",
+		"SELECT booking_fee, parking_fee, overnight_fee, total_amount, billed_hours FROM billing_records WHERE reservation_id = $1",
 		reservation.ID)
 	require.NoError(t, err)
 	// Billed hours should be at least 5 (could be 6 due to sub-second drift)
 	assert.GreaterOrEqual(t, billing.BilledHours, 5,
 		"billed hours should be at least 5")
-	assert.Equal(t, int64(billing.BilledHours)*billingmodel.HourlyRate, billing.ParkingFee,
+	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee,
 		"parking fee should be billed_hours × 5000")
 
 	// Assert — No overstay penalty (PRD §9.4: no overstay penalty)
 	testhelpers.AssertNoPenalty(t, env.db, reservation.ID)
 
-	// Assert — Total = booking_fee + parking_fee (no penalty, no overnight)
-	expectedTotal := billingmodel.BookingFee + billing.ParkingFee
+	// Assert — Total = booking_fee + parking_fee + overnight_fee (no penalty)
+	// Overnight fee may be non-zero if the 5-hour session crosses midnight in WIB.
+	expectedTotal := pricing.BookingFee + billing.ParkingFee + billing.OvernightFee
 	assert.Equal(t, expectedTotal, billing.TotalAmount,
-		"total should be booking_fee + parking_fee")
+		"total should be booking_fee + parking_fee + overnight_fee")
 
 	// Assert — Billing total consistency
 	testhelpers.AssertBillingTotal(t, env.db, reservation.ID)

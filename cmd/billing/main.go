@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"parkir-pintar/internal/natssetup"
 	billinghandler "parkir-pintar/internal/billing/handler"
 	billingrepo "parkir-pintar/internal/billing/repository"
 	billinguc "parkir-pintar/internal/billing/usecase"
@@ -17,7 +16,6 @@ import (
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
-	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	billingv1 "parkir-pintar/proto/billing/v1"
@@ -57,19 +55,9 @@ func main() {
 		os.Exit(1)
 	}
 
-
 	pgClient, err := database.NewPostgresClient(cfg.Database)
 	if err != nil {
 		log.Error("postgres connect failed", slog.Any("error", err))
-		os.Exit(1)
-	}
-	natsClient, err := nats.NewClient(cfg.NATS.URL)
-	if err != nil {
-		log.Error("nats connect failed", slog.Any("error", err))
-		os.Exit(1)
-	}
-	if err := natssetup.SetupStreams(natsClient); err != nil {
-		log.Error("nats stream setup failed", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -78,11 +66,10 @@ func main() {
 	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, nil)
 
 	repo := billingrepo.NewRepository(tracedPG.GetDB())
-	uc := billinguc.NewUsecase(repo, natsClient)
+	uc := billinguc.NewUsecase(repo)
 	handler := billinghandler.NewHandler(uc)
 
 	shutdownMgr := server.NewShutdownManager(log)
-	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })

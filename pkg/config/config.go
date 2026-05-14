@@ -16,19 +16,26 @@ type Config struct {
 	Server      ServerConfig
 	Database    DatabaseConfig
 	Redis       RedisConfig
-	NATS        NATSConfig
 	JWT         JWTConfig
 	Auth        AuthConfig
 	Tracing     TracingConfig
 	Logger      LoggerConfig
 	GRPC        GRPCConfig
 	Reservation ReservationConfig
+	Asynq       AsynqConfig
 }
 
 // ReservationConfig holds reservation service settings.
 type ReservationConfig struct {
-	PaymentTimeoutMinutes int // default 10
+	PaymentTimeoutMinutes  int // default 10 — time allowed to complete payment before reservation fails
+	ExpiryTimeoutMinutes   int // default 60 — time allowed to check in after confirmation before expiry
 }
+
+// AsynqConfig holds Redis-based task queue settings.
+type AsynqConfig struct {
+	Concurrency int // number of concurrent workers (default 10)
+}
+
 
 // GRPCServerConfig holds gRPC server settings.
 type GRPCServerConfig struct {
@@ -90,11 +97,6 @@ type RedisConfig struct {
 	Password string
 	DB       int
 	PoolSize int
-}
-
-// NATSConfig holds NATS connection settings.
-type NATSConfig struct {
-	URL string
 }
 
 // JWTConfig holds JWT token settings.
@@ -178,9 +180,6 @@ func Load(envPath string) (*Config, error) {
 	cfg.Redis.DB = getEnvAsInt("REDIS_DB", 0)
 	cfg.Redis.PoolSize = getEnvAsInt("REDIS_POOL_SIZE", 10)
 
-	// NATS
-	cfg.NATS.URL = getEnv("NATS_URL", "nats://localhost:4222")
-
 	// JWT — no default for Secret (security)
 	cfg.JWT.Secret = getEnv("JWT_SECRET", "")
 	cfg.JWT.Expiration = getEnvAsInt("JWT_EXPIRATION", 60)
@@ -214,6 +213,10 @@ func Load(envPath string) (*Config, error) {
 
 	// Reservation
 	cfg.Reservation.PaymentTimeoutMinutes = getEnvAsInt("PAYMENT_TIMEOUT_MINUTES", 10)
+	cfg.Reservation.ExpiryTimeoutMinutes = getEnvAsInt("RESERVATION_EXPIRY_MINUTES", 60)
+
+	// Asynq
+	cfg.Asynq.Concurrency = getEnvAsInt("ASYNQ_CONCURRENCY", 10)
 
 	if err := validate(cfg); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)

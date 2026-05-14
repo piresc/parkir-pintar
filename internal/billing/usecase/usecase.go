@@ -1,28 +1,20 @@
 // Package usecase implements the business logic layer for the billing domain
 // module. It orchestrates billing record creation, fee calculation, invoice
 // generation, penalty application, and overnight fee handling, coordinating
-// with the repository and NATS (event publishing).
+// with the repository.
 package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
+	"parkir-pintar/pkg/pricing"
 )
-
-// NATSClient defines the interface for NATS JetStream event publishing.
-//
-//go:generate mockgen -destination=../mocks/mock_nats_client.go -package=mocks parkir-pintar/internal/billing/usecase NATSClient
-type NATSClient interface {
-	Publish(subject string, data []byte) error
-}
 
 // Usecase defines the business logic interface for billing operations.
 //
@@ -38,14 +30,12 @@ type Usecase interface {
 // billingUsecase is the concrete implementation of Usecase.
 type billingUsecase struct {
 	repo repository.Repository
-	nats NATSClient
 }
 
 // NewUsecase creates a new billing Usecase with all required dependencies.
-func NewUsecase(repo repository.Repository, nats NATSClient) Usecase {
+func NewUsecase(repo repository.Repository) Usecase {
 	return &billingUsecase{
 		repo: repo,
-		nats: nats,
 	}
 }
 
@@ -72,7 +62,7 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
-	record.TotalAmount = model.CalculateBillingTotal(record)
+	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
 
 	if err := uc.repo.CreateBillingRecord(ctx, record); err != nil {
 		return nil, fmt.Errorf("start billing: %w", err)
@@ -82,30 +72,27 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 }
 
 // CalculateFee computes the parking fee based on actual session duration using
-// the pricing engine, updates the billing record, and publishes a billing.calculated event.
+// the pricing engine and updates the billing record.
 func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.CalculateFeeRequest) (*model.BillingRecord, error) {
 	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
 	if err != nil {
 		return nil, fmt.Errorf("calculate fee get record: %w", err)
 	}
 
-	feeResult := model.CalculateParkingFee(req.CheckInAt, req.CheckOutAt)
+	feeResult := pricing.CalculateSessionFee(req.CheckInAt, req.CheckOutAt)
 
 	record.ParkingFee = feeResult.ParkingFee
 	record.OvernightFee = feeResult.OvernightFee
 	record.DurationMinutes = feeResult.DurationMinutes
 	record.BilledHours = feeResult.BilledHours
 	record.IsOvernight = feeResult.IsOvernight
-	record.TotalAmount = model.CalculateBillingTotal(record)
+	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
 	record.Status = model.BillingStatusCalculated
 	record.UpdatedAt = time.Now()
 
 	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
 		return nil, fmt.Errorf("calculate fee update: %w", err)
 	}
-
-	// Publish billing.calculated event (non-critical)
-	uc.publishEvent("billing.calculated", record)
 
 	return record, nil
 }
@@ -130,9 +117,6 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
 		return nil, fmt.Errorf("generate invoice update: %w", err)
 	}
-
-	// Publish billing.invoiced event (non-critical)
-	uc.publishEvent("billing.invoiced", record)
 
 	return record, nil
 }
@@ -160,9 +144,6 @@ func (uc *billingUsecase) ApplyPenalty(ctx context.Context, req *model.ApplyPena
 		return nil, fmt.Errorf("apply penalty update: %w", err)
 	}
 
-	// Publish billing event (non-critical)
-	uc.publishEvent("billing.calculated", record)
-
 	return record, nil
 }
 
@@ -173,9 +154,9 @@ func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.Appl
 		return nil, fmt.Errorf("apply overnight fee get record: %w", err)
 	}
 
-	record.OvernightFee = model.OvernightFlatFee
+	record.OvernightFee = pricing.OvernightPerNight
 	record.IsOvernight = true
-	record.TotalAmount = model.CalculateBillingTotal(record)
+	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
 	record.UpdatedAt = time.Now()
 
 	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
@@ -183,17 +164,4 @@ func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.Appl
 	}
 
 	return record, nil
-}
-
-// publishEvent serializes the billing record and publishes it to NATS.
-// Errors are logged but do not fail the operation.
-func (uc *billingUsecase) publishEvent(subject string, record *model.BillingRecord) {
-	data, err := json.Marshal(record)
-	if err != nil {
-		slog.Error("failed to marshal billing event", slog.String("subject", subject), slog.Any("error", err))
-		return
-	}
-	if err := uc.nats.Publish(subject, data); err != nil {
-		slog.Error("failed to publish billing event", slog.String("subject", subject), slog.Any("error", err))
-	}
 }

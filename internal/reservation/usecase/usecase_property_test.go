@@ -21,6 +21,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
 
@@ -40,7 +41,6 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 
 		repo := new(MockRepository)
 		locker := new(MockLocker)
-		natsClient := new(MockNATSClient)
 		billing := new(MockBillingClient)
 		payment := new(MockPaymentClient)
 
@@ -57,7 +57,7 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 		// First call: returns existing (idempotent hit)
 		repo.On("FindByIdempotencyKey", mock.Anything, key).Return(existing, nil)
 
-		uc := NewUsecase(repo, locker, natsClient, billing, payment)
+		uc := NewUsecase(repo, locker, billing, payment)
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-1",
 			VehicleType:    "car",
@@ -99,7 +99,6 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 		createForKey := func(key string) (*model.Reservation, error) {
 			repo := new(MockRepository)
 			locker := new(MockLocker)
-			natsClient := new(MockNATSClient)
 			billing := new(MockBillingClient)
 			payment := new(MockPaymentClient)
 
@@ -120,9 +119,9 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			}, nil)
 			repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 			repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "reserved").Return(nil)
-		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-		uc := NewUsecase(repo, locker, natsClient, billing, payment)
+		uc := NewUsecase(repo, locker, billing, payment)
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-1",
 			VehicleType:    "car",
@@ -164,7 +163,6 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 
 		repo := new(MockRepository)
 		locker := new(MockLocker)
-		natsClient := new(MockNATSClient)
 		billing := new(MockBillingClient)
 		payment := new(MockPaymentClient)
 
@@ -185,9 +183,9 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		}, nil)
 		repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
+		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
 
-		uc := NewUsecase(repo, locker, natsClient, billing, payment)
+		uc := NewUsecase(repo, locker, billing, payment)
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-prop9",
 			VehicleType:    vehicleType,
@@ -237,7 +235,6 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		// --- First reservation: succeeds ---
 		repo1 := new(MockRepository)
 		locker1 := new(MockLocker)
-		nats1 := new(MockNATSClient)
 		billing1 := new(MockBillingClient)
 		payment1 := new(MockPaymentClient)
 
@@ -257,9 +254,9 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		}, nil)
 		repo1.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo1.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
+		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
 
-		uc1 := NewUsecase(repo1, locker1, nats1, billing1, payment1)
+		uc1 := NewUsecase(repo1, locker1, billing1, payment1)
 		req1 := &model.CreateReservationRequest{
 			DriverID:       "driver-first",
 			VehicleType:    "car",
@@ -277,7 +274,6 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		// --- Second reservation for same spot: fails due to lock contention ---
 		repo2 := new(MockRepository)
 		locker2 := new(MockLocker)
-		nats2 := new(MockNATSClient)
 		billing2 := new(MockBillingClient)
 		payment2 := new(MockPaymentClient)
 
@@ -291,7 +287,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		// Lock contention: Acquire returns ErrLockUnavailable
 		locker2.On("Acquire", mock.Anything, "spot:"+spotID).Return(nil, redislock.ErrLockUnavailable)
 
-		uc2 := NewUsecase(repo2, locker2, nats2, billing2, payment2)
+		uc2 := NewUsecase(repo2, locker2, billing2, payment2)
 		req2 := &model.CreateReservationRequest{
 			DriverID:       "driver-second",
 			VehicleType:    "car",

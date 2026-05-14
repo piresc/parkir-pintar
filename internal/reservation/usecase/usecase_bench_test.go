@@ -19,7 +19,6 @@ func BenchmarkCreateReservation(b *testing.B) {
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 	locker := new(MockLocker)
-	nats := new(MockNATSClient)
 	mockLock := new(MockLock)
 
 	spot := &model.ParkingSpot{
@@ -53,9 +52,8 @@ func BenchmarkCreateReservation(b *testing.B) {
 	repo.On("UpdateSpotStatusTx", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(billingRecord, nil)
 	repo.On("UpdateReservation", mock.Anything, mock.Anything).Return(nil)
-	nats.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, locker, nats, billing, payment)
+	uc := NewUsecase(repo, locker, billing, payment)
 	ctx := context.Background()
 
 	b.ResetTimer()
@@ -76,7 +74,6 @@ func BenchmarkCancelReservation(b *testing.B) {
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 	locker := new(MockLocker)
-	nats := new(MockNATSClient)
 	mockLock := new(MockLock)
 
 	reservation := &model.Reservation{
@@ -102,9 +99,8 @@ func BenchmarkCancelReservation(b *testing.B) {
 		ID: "spot-1", FloorNumber: 1, SpotNumber: 1, VehicleType: "car", SpotCode: "F1-C-001", Status: "reserved",
 	}, nil)
 	billing.On("ApplyPenalty", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	nats.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, locker, nats, billing, payment)
+	uc := NewUsecase(repo, locker, billing, payment)
 	ctx := context.Background()
 
 	b.ResetTimer()

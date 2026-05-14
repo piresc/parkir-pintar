@@ -26,6 +26,7 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
+	"parkir-pintar/pkg/pricing"
 
 	"pgregory.net/rapid"
 )
@@ -42,13 +43,12 @@ func TestStartBilling_ShouldCreateRecord_WhenNewKey(t *testing.T) {
 		idempotencyKey := rapid.StringMatching(`[a-z0-9]{16}`).Draw(t, "idempotencyKey")
 
 		repo := new(MockRepository)
-		natsClient := new(MockNATSClient)
 
 		repo.On("GetByIdempotencyKey", mock.Anything, idempotencyKey).Return(nil, repository.ErrNotFound)
 		repo.On("GetByReservationID", mock.Anything, "res-pres-billing").Return(nil, repository.ErrNotFound)
 		repo.On("CreateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
 
-		uc := NewUsecase(repo, natsClient)
+		uc := NewUsecase(repo)
 
 		// Act
 		result, err := uc.StartBilling(t.Context(), &model.StartBillingRequest{
@@ -90,13 +90,11 @@ func TestCalculateFee_ShouldComputeCorrectly_WhenStandardSession(t *testing.T) {
 		}
 
 		repo := new(MockRepository)
-		natsClient := new(MockNATSClient)
 
 		repo.On("GetByReservationID", mock.Anything, "res-calc").Return(existingRecord, nil)
 		repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
-		natsClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-		uc := NewUsecase(repo, natsClient)
+		uc := NewUsecase(repo)
 
 		// Act
 		result, err := uc.CalculateFee(t.Context(), &model.CalculateFeeRequest{
@@ -107,9 +105,9 @@ func TestCalculateFee_ShouldComputeCorrectly_WhenStandardSession(t *testing.T) {
 
 		// Assert
 		require.NoError(t, err)
-		expectedParkingFee := int64(hours) * model.HourlyRate
+		expectedParkingFee := int64(hours) * pricing.HourlyRate
 		assert.Equal(t, expectedParkingFee, result.ParkingFee,
-			"parking_fee should be %d hours × %d = %d", hours, model.HourlyRate, expectedParkingFee)
+			"parking_fee should be %d hours × %d = %d", hours, pricing.HourlyRate, expectedParkingFee)
 		assert.Equal(t, model.BillingStatusCalculated, result.Status)
 		assert.Equal(t, hours*60, result.DurationMinutes)
 		repo.AssertExpectations(t)
@@ -127,22 +125,20 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoicePreservation(t *testin
 		idempotencyKey := rapid.StringMatching(`[a-z0-9]{16}`).Draw(t, "idempotencyKey")
 
 		repo := new(MockRepository)
-		natsClient := new(MockNATSClient)
 
 		repo.On("GetByIdempotencyKey", mock.Anything, idempotencyKey).Return(nil, repository.ErrNotFound)
 		existingRecord := &model.BillingRecord{
 			ID:            "billing-inv",
 			ReservationID: "res-inv",
-			BookingFee:    model.BookingFee,
+			BookingFee:    pricing.BookingFee,
 			ParkingFee:    10_000,
 			TotalAmount:   15_000,
 			Status:        model.BillingStatusCalculated,
 		}
 		repo.On("GetByReservationID", mock.Anything, "res-inv").Return(existingRecord, nil)
 		repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
-		natsClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-		uc := NewUsecase(repo, natsClient)
+		uc := NewUsecase(repo)
 
 		// Act
 		result, err := uc.GenerateInvoice(t.Context(), &model.GenerateInvoiceRequest{
@@ -178,12 +174,11 @@ func TestApplyOvernightFee_ShouldSetOvernightFields_WhenCalled(t *testing.T) {
 		}
 
 		repo := new(MockRepository)
-		natsClient := new(MockNATSClient)
 
 		repo.On("GetByReservationID", mock.Anything, "res-overnight").Return(existingRecord, nil)
 		repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
 
-		uc := NewUsecase(repo, natsClient)
+		uc := NewUsecase(repo)
 
 		// Act
 		result, err := uc.ApplyOvernightFee(t.Context(), &model.ApplyOvernightFeeRequest{
@@ -192,9 +187,9 @@ func TestApplyOvernightFee_ShouldSetOvernightFields_WhenCalled(t *testing.T) {
 
 		// Assert
 		require.NoError(t, err)
-		assert.Equal(t, model.OvernightFlatFee, result.OvernightFee)
+		assert.Equal(t, pricing.OvernightPerNight, result.OvernightFee)
 		assert.True(t, result.IsOvernight)
-		expectedTotal := bookingFee + parkingFee + model.OvernightFlatFee
+		expectedTotal := bookingFee + parkingFee + pricing.OvernightPerNight
 		assert.Equal(t, expectedTotal, result.TotalAmount,
 			"total should include overnight fee")
 		repo.AssertExpectations(t)

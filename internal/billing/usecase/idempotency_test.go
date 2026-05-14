@@ -10,6 +10,7 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys
@@ -17,13 +18,12 @@ import (
 func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys(t *testing.T) {
 	// Arrange — first invoice
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-key-1").Return(nil, repository.ErrNotFound).Once()
 	record1 := &model.BillingRecord{
 		ID:             "billing-1",
 		ReservationID:  "res-1",
-		BookingFee:     model.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     10000,
 		TotalAmount:    15000,
 		IdempotencyKey: "billing-res-1",
@@ -33,9 +33,8 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	repo.On("UpdateBillingRecord", mock.Anything, mock.MatchedBy(func(r *model.BillingRecord) bool {
 		return r.Status == model.BillingStatusInvoiced
 	})).Return(nil).Once()
-	natsClient.On("Publish", "billing.invoiced", mock.Anything).Return(nil).Once()
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	inv1, err := uc.GenerateInvoice(t.Context(), &model.GenerateInvoiceRequest{
 		ReservationID:  "res-1",
 		IdempotencyKey: "invoice-key-1",
@@ -48,7 +47,7 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	record2 := &model.BillingRecord{
 		ID:             "billing-2",
 		ReservationID:  "res-2",
-		BookingFee:     model.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     20000,
 		TotalAmount:    25000,
 		IdempotencyKey: "billing-res-2",
@@ -58,7 +57,6 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	repo.On("UpdateBillingRecord", mock.Anything, mock.MatchedBy(func(r *model.BillingRecord) bool {
 		return r.Status == model.BillingStatusInvoiced
 	})).Return(nil).Once()
-	natsClient.On("Publish", "billing.invoiced", mock.Anything).Return(nil).Once()
 
 	inv2, err := uc.GenerateInvoice(t.Context(), &model.GenerateInvoiceRequest{
 		ReservationID:  "res-2",
@@ -75,5 +73,4 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	repo.AssertNumberOfCalls(t, "UpdateBillingRecord", 2)
 
 	repo.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 }

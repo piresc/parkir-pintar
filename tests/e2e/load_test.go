@@ -1,7 +1,7 @@
 // Package e2e_test — load and stress tests for ParkirPintar.
 //
 // These tests measure throughput, latency, and correctness under sustained
-// concurrent load against real PostgreSQL, Redis, and NATS via testcontainers.
+// concurrent load against real PostgreSQL and Redis via testcontainers.
 // They validate the PRD non-functional requirements:
 //   - Support 100+ simultaneous reservations (PRD §18.1)
 //   - Spot inventory conservation under load
@@ -38,7 +38,7 @@ type loadResult struct {
 func TestLoad_100ConcurrentReservations_ShouldAllSucceed(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	const numReservations = 100
@@ -110,7 +110,7 @@ func TestLoad_100ConcurrentReservations_ShouldAllSucceed(t *testing.T) {
 func TestLoad_FullLifecycleThroughput(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	env.paymentGW.ShouldFail = false
@@ -229,7 +229,7 @@ func TestLoad_FullLifecycleThroughput(t *testing.T) {
 func TestLoad_SustainedCreateCancelCycles(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	const waves = 5
@@ -291,7 +291,7 @@ func TestLoad_SustainedCreateCancelCycles(t *testing.T) {
 func TestLoad_MixedOperations_ShouldMaintainConsistency(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	env.paymentGW.ShouldFail = false
@@ -396,7 +396,7 @@ func TestLoad_MixedOperations_ShouldMaintainConsistency(t *testing.T) {
 func TestLoad_AvailabilityQueryUnderReservationPressure(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	const numReservations = 30
@@ -465,7 +465,7 @@ func TestLoad_AvailabilityQueryUnderReservationPressure(t *testing.T) {
 func TestLoad_SpotExhaustion_ShouldGracefullyReject(t *testing.T) {
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+		"penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	// We have 150 car spots. Try to reserve 160.

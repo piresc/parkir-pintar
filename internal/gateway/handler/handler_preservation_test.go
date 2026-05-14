@@ -112,7 +112,7 @@ func TestCreateReservation_ShouldTranscodeCorrectly_WhenValidRequest(t *testing.
 		idempotencyKey := rapid.StringMatching(`[a-z0-9]{16}`).Draw(t, "idempotencyKey")
 
 		resSpy := &preservationReservationClient{}
-		h := NewHandler(resSpy, nil, nil, nil)
+		h := NewHandler(resSpy, nil, nil)
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
@@ -152,7 +152,7 @@ func TestCancelReservation_ShouldPassID_WhenCalled(t *testing.T) {
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
 		resSpy := &preservationReservationClient{}
-		h := NewHandler(resSpy, nil, nil, nil)
+		h := NewHandler(resSpy, nil, nil)
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
@@ -181,7 +181,7 @@ func TestCheckIn_ShouldPassID_WhenCalled(t *testing.T) {
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
 		resSpy := &preservationReservationClient{}
-		h := NewHandler(resSpy, nil, nil, nil)
+		h := NewHandler(resSpy, nil, nil)
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
@@ -210,7 +210,7 @@ func TestCheckOut_ShouldPassID_WhenCalled(t *testing.T) {
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
 		resSpy := &preservationReservationClient{}
-		h := NewHandler(resSpy, nil, nil, nil)
+		h := NewHandler(resSpy, nil, nil)
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
@@ -239,7 +239,7 @@ func TestGetAvailability_ShouldPassVehicleType_WhenCalled(t *testing.T) {
 		vehicleType := rapid.SampledFrom([]string{"car", "motorcycle"}).Draw(t, "vehicleType")
 
 		searchSpy := &preservationSearchClient{}
-		h := NewHandler(nil, searchSpy, nil, nil)
+		h := NewHandler(nil, searchSpy, nil)
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
@@ -268,7 +268,7 @@ func TestGetPaymentStatus_ShouldPassPaymentID_WhenCalled(t *testing.T) {
 		paymentID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "paymentID")
 
 		paySpy := &preservationPaymentClient{}
-		h := NewHandler(nil, nil, paySpy, nil)
+		h := NewHandler(nil, nil, paySpy)
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()

@@ -31,7 +31,6 @@ func TestSchema_ShouldHaveAllTables(t *testing.T) {
 		"billing.billing_records",
 		"billing.penalties",
 		"payment.payments",
-		"presence.presence_logs",
 		"search.spot_read_model",
 	}
 
@@ -40,7 +39,7 @@ func TestSchema_ShouldHaveAllTables(t *testing.T) {
 	err := env.db.SelectContext(ctx, &tables,
 		`SELECT table_schema || '.' || table_name AS table_name
 		 FROM information_schema.tables
-		 WHERE table_schema IN ('reservation', 'billing', 'payment', 'presence', 'search')
+		 WHERE table_schema IN ('reservation', 'billing', 'payment', 'search')
 		   AND table_type = 'BASE TABLE'
 		 ORDER BY table_name`)
 
@@ -200,7 +199,7 @@ func TestSchema_ShouldHaveAllRequiredIndexes(t *testing.T) {
 		"idx_reservations_stale_payment",
 		"idx_billing_reservation",
 		"idx_payments_billing",
-		"idx_presence_reservation_time",
+
 		"idx_search_spot_availability",
 		"idx_search_spot_floor",
 	}
@@ -209,7 +208,7 @@ func TestSchema_ShouldHaveAllRequiredIndexes(t *testing.T) {
 	var indexes []string
 	err := env.db.SelectContext(ctx, &indexes,
 		`SELECT indexname FROM pg_indexes
-		 WHERE schemaname IN ('reservation', 'billing', 'payment', 'presence', 'search')
+		 WHERE schemaname IN ('reservation', 'billing', 'payment', 'search')
 		 ORDER BY indexname`)
 
 	// Assert

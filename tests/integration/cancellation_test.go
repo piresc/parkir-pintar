@@ -25,6 +25,7 @@ import (
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min tests the full
@@ -36,11 +37,10 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	// Arrange — set up all mocks
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, billing, payment)
 
 	// --- Phase 1: Create Reservation ---
 
@@ -60,7 +60,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	repo.On("ListByDriverID", mock.Anything, "driver-cancel-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
@@ -91,8 +91,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
 		return r.Status == model.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", billingmodel.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -113,7 +112,6 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		return r.Status == model.StatusCancelled
 	})).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1", "available").Return(nil)
-	natsClient.On("Publish", "reservation.cancelled", mock.Anything).Return(nil)
 
 	// Act: cancel reservation
 	cancelled, err := uc.CancelReservation(t.Context(), &model.CancelReservationRequest{
@@ -136,7 +134,6 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
 	lock.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)
 }
@@ -150,11 +147,10 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 	// Arrange — set up all mocks
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := usecase.NewUsecase(repo, locker, billing, payment)
 
 	// --- Phase 1: Create Reservation ---
 
@@ -174,7 +170,7 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 	repo.On("ListByDriverID", mock.Anything, "driver-cancel-2", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-2", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
@@ -198,8 +194,7 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
 		return r.Status == model.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", billingmodel.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
-	natsClient.On("Publish", "reservation.confirmed", mock.Anything).Return(nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -220,8 +215,7 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 		return r.Status == model.StatusCancelled
 	})).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-2", "available").Return(nil)
-	billing.On("ApplyPenalty", mock.Anything, reservation.ID, "cancellation", billingmodel.CancelFee, "cancellation fee").Return(nil)
-	natsClient.On("Publish", "reservation.cancelled", mock.Anything).Return(nil)
+	billing.On("ApplyPenalty", mock.Anything, reservation.ID, "cancellation", pricing.CancelFee, "cancellation fee").Return(nil)
 
 	// Act: cancel reservation
 	cancelled, err := uc.CancelReservation(t.Context(), &model.CancelReservationRequest{
@@ -235,7 +229,7 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 	assert.NotNil(t, cancelled.CancelledAt)
 
 	// Verify: ApplyPenalty WAS called with "cancellation" and 5000 IDR
-	billing.AssertCalled(t, "ApplyPenalty", mock.Anything, reservation.ID, "cancellation", billingmodel.CancelFee, "cancellation fee")
+	billing.AssertCalled(t, "ApplyPenalty", mock.Anything, reservation.ID, "cancellation", pricing.CancelFee, "cancellation fee")
 
 	// Verify: spot released to "available"
 	repo.AssertCalled(t, "UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-2", "available")
@@ -244,7 +238,6 @@ func TestCancellationFlow_ShouldCharge5000IDR_WhenCancelledAfter2Min(t *testing.
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
 	lock.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)
 }

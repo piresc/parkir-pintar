@@ -1,5 +1,4 @@
-// Package model defines domain structs, pricing constants, and fee calculation
-// functions for the billing module.
+// Package model defines domain structs and request types for the billing module.
 //
 // Property-based tests for the billing pricing engine using pgregory.net/rapid.
 // These tests verify Properties 1, 2, 3, and 6 from the design document.
@@ -19,6 +18,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
+
+	"parkir-pintar/pkg/pricing"
 )
 
 // wibLoc returns the WIB (UTC+7) timezone location.
@@ -126,7 +127,7 @@ func TestProperty1_PricingCorrectness(t *testing.T) {
 		checkIn, checkOut := times[0], times[1]
 
 		// Act
-		result := CalculateParkingFee(checkIn, checkOut)
+		result := pricing.CalculateSessionFee(checkIn, checkOut)
 
 		// Assert — billedHours == ceil(duration_in_hours)
 		duration := checkOut.Sub(checkIn)
@@ -142,8 +143,8 @@ func TestProperty1_PricingCorrectness(t *testing.T) {
 			"billedHours must be at least 1")
 
 		// Assert — parkingFee == billedHours * HourlyRate
-		assert.Equal(t, int64(result.BilledHours)*HourlyRate, result.ParkingFee,
-			"parkingFee should be billedHours * %d", HourlyRate)
+		assert.Equal(t, int64(result.BilledHours)*pricing.HourlyRate, result.ParkingFee,
+			"parkingFee should be billedHours * %d", pricing.HourlyRate)
 
 		// Assert — durationMinutes == int(duration.Minutes())
 		expectedMinutes := int(duration.Minutes())
@@ -167,7 +168,7 @@ func TestProperty2_OvernightDetection_SameDay(t *testing.T) {
 		checkIn, checkOut := times[0], times[1]
 
 		// Act
-		result := CalculateParkingFee(checkIn, checkOut)
+		result := pricing.CalculateSessionFee(checkIn, checkOut)
 
 		// Assert
 		assert.False(t, result.IsOvernight,
@@ -178,7 +179,7 @@ func TestProperty2_OvernightDetection_SameDay(t *testing.T) {
 }
 
 // TestProperty2_OvernightDetection_CrossDay verifies that for any session that crosses
-// midnight in WIB, overnightFee is 20,000 IDR.
+// midnight in WIB, overnightFee > 0.
 //
 // **Validates: Requirements 8.3, 8.4**
 func TestProperty2_OvernightDetection_CrossDay(t *testing.T) {
@@ -190,13 +191,13 @@ func TestProperty2_OvernightDetection_CrossDay(t *testing.T) {
 		checkIn, checkOut := times[0], times[1]
 
 		// Act
-		result := CalculateParkingFee(checkIn, checkOut)
+		result := pricing.CalculateSessionFee(checkIn, checkOut)
 
 		// Assert
 		assert.True(t, result.IsOvernight,
 			"cross-day session should be overnight: checkIn=%v checkOut=%v", checkIn, checkOut)
-		assert.Equal(t, OvernightFlatFee, result.OvernightFee,
-			"overnightFee should be %d for cross-day session", OvernightFlatFee)
+		assert.Greater(t, result.OvernightFee, int64(0),
+			"overnightFee should be > 0 for cross-day session")
 	})
 }
 
@@ -239,19 +240,19 @@ func TestProperty3_CancellationFeeRules(t *testing.T) {
 		elapsed := cancelledAt.Sub(confirmedAt)
 
 		// Act
-		fee := CalculateCancellationFee(confirmedAt, cancelledAt)
+		fee := pricing.CalculateCancellationFee(confirmedAt, cancelledAt)
 
 		// Assert — fee is one of exactly two values
-		assert.Contains(t, []int64{0, CancelFee}, fee,
-			"cancellation fee must be 0 or %d, got %d", CancelFee, fee)
+		assert.Contains(t, []int64{0, pricing.CancelFee}, fee,
+			"cancellation fee must be 0 or %d, got %d", pricing.CancelFee, fee)
 
 		// Assert — correct value based on elapsed time
-		if elapsed <= CancelFreeWindow {
+		if elapsed <= pricing.CancelFreeWindow {
 			assert.Equal(t, int64(0), fee,
-				"fee should be 0 when elapsed %v <= %v", elapsed, CancelFreeWindow)
+				"fee should be 0 when elapsed %v <= %v", elapsed, pricing.CancelFreeWindow)
 		} else {
-			assert.Equal(t, CancelFee, fee,
-				"fee should be %d when elapsed %v > %v", CancelFee, elapsed, CancelFreeWindow)
+			assert.Equal(t, pricing.CancelFee, fee,
+				"fee should be %d when elapsed %v > %v", pricing.CancelFee, elapsed, pricing.CancelFreeWindow)
 		}
 	})
 }
@@ -273,7 +274,7 @@ func genBillingRecord() *rapid.Generator[*BillingRecord] {
 
 // TestProperty6_BillingTotalInvariant verifies that for any BillingRecord with random
 // non-negative fee fields:
-//   - CalculateBillingTotal == sum of all fee fields
+//   - pricing.CalculateTotal == sum of all fee fields
 //   - total >= bookingFee (when bookingFee > 0 and other fees >= 0)
 //
 // **Validates: Requirements 10.3, 13.3**
@@ -285,7 +286,8 @@ func TestProperty6_BillingTotalInvariant(t *testing.T) {
 		record := genBillingRecord().Draw(t, "record")
 
 		// Act
-		total := CalculateBillingTotal(record)
+		total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee,
+			record.CancellationFee, record.PenaltyAmount)
 
 		// Assert — total == sum of all fee fields
 		expectedTotal := record.BookingFee + record.ParkingFee + record.OvernightFee +

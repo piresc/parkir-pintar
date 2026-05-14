@@ -28,7 +28,6 @@ func clearEnv(t *testing.T) {
 		"DB_HOST", "DB_PORT", "DB_USERNAME", "DB_PASSWORD", "DB_DATABASE",
 		"DB_SSL_MODE", "DB_MAX_CONNS", "DB_IDLE_CONNS", "DB_MAX_LIFETIME",
 		"REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD", "REDIS_DB", "REDIS_POOL_SIZE",
-		"NATS_URL",
 		"JWT_SECRET", "JWT_EXPIRATION", "JWT_ISSUER",
 		"AUTH_API_KEYS",
 		"TRACING_ENABLED", "TRACING_SERVICE_NAME", "TRACING_SAMPLE_RATE",
@@ -84,8 +83,6 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, 0, cfg.Redis.DB)
 	assert.Equal(t, 10, cfg.Redis.PoolSize)
 
-	// NATS defaults
-	assert.Equal(t, "nats://localhost:4222", cfg.NATS.URL)
 
 	// JWT defaults
 	assert.Equal(t, "test-default-secret", cfg.JWT.Secret)
@@ -137,7 +134,6 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	t.Setenv("DB_SSL_MODE", "require")
 	t.Setenv("REDIS_PORT", "6380")
 	t.Setenv("REDIS_POOL_SIZE", "20")
-	t.Setenv("NATS_URL", "nats://nats.example.com:4222")
 	t.Setenv("JWT_SECRET", "my-jwt-secret")
 	t.Setenv("JWT_EXPIRATION", "120")
 	t.Setenv("AUTH_API_KEYS", "svc1:key1,svc2:key2")
@@ -164,7 +160,6 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	assert.Equal(t, "require", cfg.Database.SSLMode)
 	assert.Equal(t, 6380, cfg.Redis.Port)
 	assert.Equal(t, 20, cfg.Redis.PoolSize)
-	assert.Equal(t, "nats://nats.example.com:4222", cfg.NATS.URL)
 	assert.Equal(t, "my-jwt-secret", cfg.JWT.Secret)
 	assert.Equal(t, 120, cfg.JWT.Expiration)
 	assert.Equal(t, map[string]string{"svc1": "key1", "svc2": "key2"}, cfg.Auth.APIKeys)

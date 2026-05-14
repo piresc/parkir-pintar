@@ -23,6 +23,7 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
+	"parkir-pintar/pkg/pricing"
 )
 
 // --- Mock Implementations ---
@@ -71,16 +72,6 @@ func (m *MockRepository) AddPenaltyAmount(ctx context.Context, reservationID str
 	return args.Get(0).(*model.BillingRecord), args.Error(1)
 }
 
-// MockNATSClient implements NATSClient using testify/mock.
-type MockNATSClient struct {
-	mock.Mock
-}
-
-func (m *MockNATSClient) Publish(subject string, data []byte) error {
-	args := m.Called(subject, data)
-	return args.Error(0)
-}
-
 // --- Test Cases ---
 
 // TestStartBilling_ShouldCreateRecord_WhenNewReservation verifies that
@@ -88,16 +79,15 @@ func (m *MockNATSClient) Publish(subject string, data []byte) error {
 func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	repo.On("GetByIdempotencyKey", mock.Anything, "billing-res-1").Return(nil, repository.ErrNotFound)
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(nil, repository.ErrNotFound)
 	repo.On("CreateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.StartBillingRequest{
 		ReservationID:  "res-1",
-		BookingFee:     model.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
 	}
 
@@ -107,9 +97,9 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "res-1", result.ReservationID)
-	assert.Equal(t, model.BookingFee, result.BookingFee)
+	assert.Equal(t, pricing.BookingFee, result.BookingFee)
 	assert.Equal(t, model.BillingStatusPending, result.Status)
-	assert.Equal(t, model.BookingFee, result.TotalAmount)
+	assert.Equal(t, pricing.BookingFee, result.TotalAmount)
 	assert.NotEmpty(t, result.ID)
 	repo.AssertExpectations(t)
 }
@@ -119,22 +109,21 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	existing := &model.BillingRecord{
 		ID:             "existing-billing-id",
 		ReservationID:  "res-1",
-		BookingFee:     model.BookingFee,
-		TotalAmount:    model.BookingFee,
+		BookingFee:     pricing.BookingFee,
+		TotalAmount:    pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
 		Status:         model.BillingStatusPending,
 	}
 	repo.On("GetByIdempotencyKey", mock.Anything, "billing-res-1").Return(existing, nil)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.StartBillingRequest{
 		ReservationID:  "res-1",
-		BookingFee:     model.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
 	}
 
@@ -155,23 +144,21 @@ func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testin
 func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	existingRecord := &model.BillingRecord{
 		ID:            "billing-1",
 		ReservationID: "res-1",
-		BookingFee:    model.BookingFee,
+		BookingFee:    pricing.BookingFee,
 		Status:        model.BillingStatusPending,
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(existingRecord, nil)
 	repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
-	natsClient.On("Publish", "billing.calculated", mock.Anything).Return(nil)
 
 	loc := time.FixedZone("WIB", 7*60*60)
 	checkIn := time.Date(2026, 4, 24, 10, 0, 0, 0, loc)
 	checkOut := time.Date(2026, 4, 24, 12, 0, 0, 0, loc)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.CalculateFeeRequest{
 		ReservationID: "res-1",
 		CheckInAt:     checkIn,
@@ -190,10 +177,9 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 	assert.False(t, result.IsOvernight)
 	assert.Equal(t, model.BillingStatusCalculated, result.Status)
 	// total = booking_fee + parking_fee + overnight_fee + cancellation_fee + penalty_amount
-	expectedTotal := model.BookingFee + int64(10_000)
+	expectedTotal := pricing.BookingFee + int64(10_000)
 	assert.Equal(t, expectedTotal, result.TotalAmount)
 	repo.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 }
 
 // TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight verifies
@@ -201,23 +187,21 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	existingRecord := &model.BillingRecord{
 		ID:            "billing-2",
 		ReservationID: "res-2",
-		BookingFee:    model.BookingFee,
+		BookingFee:    pricing.BookingFee,
 		Status:        model.BillingStatusPending,
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-2").Return(existingRecord, nil)
 	repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
-	natsClient.On("Publish", "billing.calculated", mock.Anything).Return(nil)
 
 	loc := time.FixedZone("WIB", 7*60*60)
 	checkIn := time.Date(2026, 4, 24, 22, 0, 0, 0, loc)
 	checkOut := time.Date(2026, 4, 25, 6, 0, 0, 0, loc)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.CalculateFeeRequest{
 		ReservationID: "res-2",
 		CheckInAt:     checkIn,
@@ -230,14 +214,13 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, int64(40_000), result.ParkingFee)    // 8h × 5000
-	assert.Equal(t, model.OvernightFlatFee, result.OvernightFee) // 20,000
+	assert.Equal(t, pricing.OvernightPerNight, result.OvernightFee) // 20,000
 	assert.Equal(t, 480, result.DurationMinutes)          // 8 hours
 	assert.Equal(t, 8, result.BilledHours)
 	assert.True(t, result.IsOvernight)
 	// total = 5000 + 40000 + 20000 = 65000
 	assert.Equal(t, int64(65_000), result.TotalAmount)
 	repo.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 }
 
 // TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey verifies
@@ -245,12 +228,11 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 func TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	existing := &model.BillingRecord{
 		ID:             "billing-3",
 		ReservationID:  "res-3",
-		BookingFee:     model.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "invoice-res-3",
@@ -258,7 +240,7 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *tes
 	}
 	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-res-3").Return(existing, nil)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.GenerateInvoiceRequest{
 		ReservationID:  "res-3",
 		IdempotencyKey: "invoice-res-3",
@@ -281,13 +263,12 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *tes
 func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-res-4").Return(nil, repository.ErrNotFound)
 	existingRecord := &model.BillingRecord{
 		ID:             "billing-4",
 		ReservationID:  "res-4",
-		BookingFee:     model.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "billing-res-4",
@@ -295,9 +276,8 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-4").Return(existingRecord, nil)
 	repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
-	natsClient.On("Publish", "billing.invoiced", mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.GenerateInvoiceRequest{
 		ReservationID:  "res-4",
 		IdempotencyKey: "invoice-res-4",
@@ -310,7 +290,6 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, model.BillingStatusInvoiced, result.Status)
 	repo.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 }
 
 // TestApplyPenalty_ShouldUpdateTotal_WhenPenaltyApplied verifies
@@ -318,26 +297,24 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 func TestApplyPenalty_ShouldUpdateTotal_WhenPenaltyApplied(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
-	natsClient := new(MockNATSClient)
 
 	updatedRecord := &model.BillingRecord{
 		ID:            "billing-5",
 		ReservationID: "res-5",
-		BookingFee:    model.BookingFee,
+		BookingFee:    pricing.BookingFee,
 		ParkingFee:    10_000,
-		PenaltyAmount: model.WrongSpotPenalty,
-		TotalAmount:   model.BookingFee + int64(10_000) + model.WrongSpotPenalty,
+		PenaltyAmount: pricing.WrongSpotPenalty,
+		TotalAmount:   pricing.BookingFee + int64(10_000) + pricing.WrongSpotPenalty,
 		Status:        model.BillingStatusCalculated,
 	}
 	repo.On("CreatePenalty", mock.Anything, mock.AnythingOfType("*model.Penalty")).Return(nil)
-	repo.On("AddPenaltyAmount", mock.Anything, "res-5", model.WrongSpotPenalty).Return(updatedRecord, nil)
-	natsClient.On("Publish", "billing.calculated", mock.Anything).Return(nil)
+	repo.On("AddPenaltyAmount", mock.Anything, "res-5", pricing.WrongSpotPenalty).Return(updatedRecord, nil)
 
-	uc := NewUsecase(repo, natsClient)
+	uc := NewUsecase(repo)
 	req := &model.ApplyPenaltyRequest{
 		ReservationID: "res-5",
 		PenaltyType:   "wrong_spot",
-		Amount:        model.WrongSpotPenalty,
+		Amount:        pricing.WrongSpotPenalty,
 		Description:   "parked in wrong spot",
 	}
 
@@ -346,12 +323,11 @@ func TestApplyPenalty_ShouldUpdateTotal_WhenPenaltyApplied(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, model.WrongSpotPenalty, result.PenaltyAmount)
+	assert.Equal(t, pricing.WrongSpotPenalty, result.PenaltyAmount)
 	// total = booking_fee + parking_fee + penalty_amount = 5000 + 10000 + 200000 = 215000
-	expectedTotal := model.BookingFee + int64(10_000) + model.WrongSpotPenalty
+	expectedTotal := pricing.BookingFee + int64(10_000) + pricing.WrongSpotPenalty
 	assert.Equal(t, expectedTotal, result.TotalAmount)
 	repo.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 }
 
 // TestBillingTotalInvariant_ShouldEqualSumOfFees verifies
@@ -359,19 +335,19 @@ func TestApplyPenalty_ShouldUpdateTotal_WhenPenaltyApplied(t *testing.T) {
 func TestBillingTotalInvariant_ShouldEqualSumOfFees(t *testing.T) {
 	// Arrange
 	record := &model.BillingRecord{
-		BookingFee:      model.BookingFee,
+		BookingFee:      pricing.BookingFee,
 		ParkingFee:      15_000,
-		OvernightFee:    model.OvernightFlatFee,
+		OvernightFee:    pricing.OvernightPerNight,
 		CancellationFee: 0,
-		PenaltyAmount:   model.WrongSpotPenalty,
+		PenaltyAmount:   pricing.WrongSpotPenalty,
 	}
 
 	// Act
-	total := model.CalculateBillingTotal(record)
+	total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
 
 	// Assert
-	expectedTotal := model.BookingFee + int64(15_000) + model.OvernightFlatFee + model.WrongSpotPenalty
+	expectedTotal := pricing.BookingFee + int64(15_000) + pricing.OvernightPerNight + pricing.WrongSpotPenalty
 	assert.Equal(t, expectedTotal, total)
 	assert.Equal(t, record.BookingFee+record.ParkingFee+record.OvernightFee+record.CancellationFee+record.PenaltyAmount, total)
-	assert.GreaterOrEqual(t, total, model.BookingFee)
+	assert.GreaterOrEqual(t, total, pricing.BookingFee)
 }

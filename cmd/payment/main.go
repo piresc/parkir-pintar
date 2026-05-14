@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"parkir-pintar/internal/natssetup"
 	paymentgateway "parkir-pintar/internal/payment/gateway"
 	paymenthandler "parkir-pintar/internal/payment/handler"
 	paymentrepo "parkir-pintar/internal/payment/repository"
@@ -18,7 +17,6 @@ import (
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
-	"parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	paymentv1 "parkir-pintar/proto/payment/v1"
@@ -58,19 +56,9 @@ func main() {
 		os.Exit(1)
 	}
 
-
 	pgClient, err := database.NewPostgresClient(cfg.Database)
 	if err != nil {
 		log.Error("postgres connect failed", slog.Any("error", err))
-		os.Exit(1)
-	}
-	natsClient, err := nats.NewClient(cfg.NATS.URL)
-	if err != nil {
-		log.Error("nats connect failed", slog.Any("error", err))
-		os.Exit(1)
-	}
-	if err := natssetup.SetupStreams(natsClient); err != nil {
-		log.Error("nats stream setup failed", slog.Any("error", err))
 		os.Exit(1)
 	}
 
@@ -80,11 +68,10 @@ func main() {
 
 	repo := paymentrepo.NewRepository(tracedPG.GetDB())
 	gw := paymentgateway.NewStubGateway(false)
-	uc := paymentuc.NewUsecase(repo, gw, natsClient)
+	uc := paymentuc.NewUsecase(repo, gw)
 	handler := paymenthandler.NewHandler(uc)
 
 	shutdownMgr := server.NewShutdownManager(log)
-	shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })

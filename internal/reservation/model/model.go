@@ -57,15 +57,14 @@ type ParkingSpot struct {
 }
 
 // Driver represents a driver domain entity.
+// Vehicle type is per-booking (chosen at reservation time), not per-driver.
 type Driver struct {
-	ID           string    `json:"id" db:"id"`
-	Name         string    `json:"name" db:"name"`
-	Phone        string    `json:"phone" db:"phone"`
-	Email        string    `json:"email" db:"email"`
-	VehicleType  string    `json:"vehicle_type" db:"vehicle_type"`
-	VehiclePlate string    `json:"vehicle_plate" db:"vehicle_plate"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID        string    `json:"id" db:"id"`
+	Name      string    `json:"name" db:"name"`
+	Phone     string    `json:"phone" db:"phone"`
+	Email     string    `json:"email" db:"email"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // allowedTransitions defines the valid reservation state transitions.

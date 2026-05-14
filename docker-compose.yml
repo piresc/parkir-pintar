@@ -43,25 +43,6 @@ services:
       retries: 5
       start_period: 10s
 
-  nats:
-    image: nats:2.11-alpine
-    container_name: assessment-nats
-    command: ["--jetstream", "--store_dir=/data", "--http_port=8222"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    volumes:
-      - nats_data:/data
-    networks:
-      - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8222/healthz || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   gateway:
     build:
       context: .
@@ -78,7 +59,6 @@ services:
       GRPC_RESERVATION_TARGET: reservation:9090
       GRPC_SEARCH_TARGET: search:9090
       GRPC_PAYMENT_TARGET: payment:9090
-      GRPC_PRESENCE_TARGET: presence:9090
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
@@ -88,7 +68,6 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
       SERVER_ALLOWED_ORIGINS: "http://localhost:3000,http://100.79.123.39:3002,http://100.79.123.39:3000"
     depends_on:
@@ -129,14 +108,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      nats:
         condition: service_healthy
     networks:
       - backend
@@ -171,17 +147,16 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
       GRPC_BILLING_TARGET: billing:9090
       GRPC_PAYMENT_TARGET: payment:9090
       PAYMENT_TIMEOUT_MINUTES: "10"
+      RESERVATION_EXPIRY_MINUTES: "60"
+      ASYNQ_CONCURRENCY: "10"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      nats:
         condition: service_healthy
       billing:
         condition: service_healthy
@@ -217,12 +192,9 @@ services:
       DB_DATABASE: ${DB_DATABASE}
       DB_SCHEMA: billing
       DB_SSL_MODE: disable
-      NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
     depends_on:
       postgres:
-        condition: service_healthy
-      nats:
         condition: service_healthy
     networks:
       - backend
@@ -254,12 +226,9 @@ services:
       DB_DATABASE: ${DB_DATABASE}
       DB_SCHEMA: payment
       DB_SSL_MODE: disable
-      NATS_URL: nats://nats:4222
       TRACING_ENABLED: "false"
     depends_on:
       postgres:
-        condition: service_healthy
-      nats:
         condition: service_healthy
     networks:
       - backend
@@ -271,80 +240,9 @@ services:
       retries: 5
       start_period: 15s
 
-  presence:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: parkir-presence
-    command: ["/app/presence"]
-    ports:
-      - "11005:9090"
-    environment:
-      APP_NAME: parkir-pintar-presence
-      APP_ENV: local
-      GRPC_SERVER_PORT: "9090"
-      JWT_SECRET: ${JWT_SECRET}
-      DB_HOST: postgres
-      DB_PORT: "5432"
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_SCHEMA: presence
-      DB_SSL_MODE: disable
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-      NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      nats:
-        condition: service_healthy
-    networks:
-      - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/presence || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
-  notification:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: parkir-notification
-    command: ["/app/notification"]
-    ports:
-      - "11006:9090"
-    environment:
-      APP_NAME: parkir-pintar-notification
-      APP_ENV: local
-      GRPC_SERVER_PORT: "9090"
-      JWT_SECRET: ${JWT_SECRET}
-      NATS_URL: nats://nats:4222
-      TRACING_ENABLED: "false"
-    depends_on:
-      nats:
-        condition: service_healthy
-    networks:
-      - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/notification || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
 volumes:
   postgres_data:
   redis_data:
-  nats_data:
 
 networks:
   backend:

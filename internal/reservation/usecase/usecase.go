@@ -1,12 +1,11 @@
 // Package usecase implements the business logic layer for the reservation domain
 // module. It orchestrates the reservation lifecycle: create, cancel, check-in,
 // check-out, and expiry, coordinating with the repository, Redis (distributed
-// locks), NATS (event publishing), and external billing/payment clients.
+// locks), and external billing/payment clients.
 package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,6 +19,7 @@ import (
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
 
@@ -67,13 +67,6 @@ func NewLockerAdapter(l *redislock.Locker) Locker {
 	return &lockerAdapter{inner: l}
 }
 
-// NATSClient defines the interface for NATS JetStream event publishing.
-//
-//go:generate mockgen -destination=../mocks/mock_nats_client.go -package=mocks parkir-pintar/internal/reservation/usecase NATSClient
-type NATSClient interface {
-	Publish(subject string, data []byte) error
-}
-
 // Usecase defines the business logic interface for the reservation lifecycle.
 //
 //go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/reservation/usecase Usecase
@@ -94,7 +87,6 @@ type Usecase interface {
 type reservationUsecase struct {
 	repo          repository.Repository
 	locker        Locker
-	nats          NATSClient
 	billingClient BillingClient
 	paymentClient PaymentClient
 }
@@ -103,14 +95,12 @@ type reservationUsecase struct {
 func NewUsecase(
 	repo repository.Repository,
 	locker Locker,
-	nats NATSClient,
 	billingClient BillingClient,
 	paymentClient PaymentClient,
 ) Usecase {
 	return &reservationUsecase{
 		repo:          repo,
 		locker:        locker,
-		nats:          nats,
 		billingClient: billingClient,
 		paymentClient: paymentClient,
 	}
@@ -215,12 +205,9 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		return nil, fmt.Errorf("create reservation: %w", err)
 	}
 
-	spot.Status = "reserved"
-	uc.publishSpotUpdated(ctx, spot)
-
 	// Step 6: Create billing record with booking fee
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, billingmodel.BookingFee, billingIdempotencyKey); err != nil {
+	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey); err != nil {
 		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.New("PAYMENT_FAILED", "unable to create billing record", 402)
@@ -255,7 +242,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Re-call StartBilling (idempotent) to obtain billing record
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, billingmodel.BookingFee, billingIdempotencyKey)
+	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey)
 	if err != nil {
 		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 		return nil, apperror.New("PAYMENT_FAILED", "unable to retrieve billing record", 402)
@@ -263,7 +250,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Process payment for booking fee
 	paymentIdempotencyKey := fmt.Sprintf("booking-payment-%s", reservation.ID)
-	_, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingmodel.BookingFee, "qris", paymentIdempotencyKey)
+	_, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, "qris", paymentIdempotencyKey)
 
 	if payErr != nil {
 		slog.Error("booking fee payment failed",
@@ -290,19 +277,11 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		return nil, fmt.Errorf("confirm reservation: %w", err)
 	}
 
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.confirmed", data); err != nil {
-			slog.Error("failed to publish reservation.confirmed", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
-	}
-
 	return reservation, nil
 }
 
 // failReservationInternal transitions a waiting_payment reservation to failed,
-// releases the spot, and publishes a payment_failed event. Used when payment
-// fails during ConfirmReservation or CreateReservation.
+// releases the spot. Used when payment fails during ConfirmReservation or CreateReservation.
 func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reservation *model.Reservation) {
 	now := time.Now()
 	reservation.Status = model.StatusFailed
@@ -317,22 +296,12 @@ func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reser
 		slog.Error("failed to release spot on payment failure",
 			slog.String("reservation_id", reservation.ID),
 			slog.Any("error", txErr))
-		return
-	}
-
-	uc.publishSpotStatusChange(ctx, reservation.SpotID, "available")
-
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.payment_failed", data); err != nil {
-			slog.Error("failed to publish reservation.payment_failed", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
 	}
 }
 
 // CancelReservation cancels a confirmed or waiting_payment reservation, calculates
-// the cancellation fee if applicable, releases the spot, and publishes a
-// cancellation event. Uses SELECT FOR UPDATE to prevent TOCTOU races.
+// the cancellation fee if applicable, releases the spot.
+// Uses SELECT FOR UPDATE to prevent TOCTOU races.
 //
 // When cancelled from waiting_payment state, no cancellation fee is charged
 // (the booking fee was never successfully collected).
@@ -366,11 +335,9 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		return nil, err
 	}
 
-	uc.publishSpotStatusChange(ctx, reservation.SpotID, "available")
-
 	// Apply cancellation fee only if reservation was confirmed (not waiting_payment)
 	if reservation.ConfirmedAt != nil {
-		cancellationFee := billingmodel.CalculateCancellationFee(*reservation.ConfirmedAt, *reservation.CancelledAt)
+		cancellationFee := pricing.CalculateCancellationFee(*reservation.ConfirmedAt, *reservation.CancelledAt)
 		if cancellationFee > 0 {
 			if err := uc.billingClient.ApplyPenalty(ctx, reservation.ID, "cancellation", cancellationFee, "cancellation fee"); err != nil {
 				slog.Error("failed to apply cancellation fee", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
@@ -378,18 +345,11 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		}
 	}
 
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.cancelled", data); err != nil {
-			slog.Error("failed to publish reservation.cancelled", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
-	}
-
 	return reservation, nil
 }
 
 // CheckIn transitions a confirmed reservation to checked_in, updates the spot
-// to occupied, notifies billing, and publishes a check-in event.
+// to occupied, and notifies billing.
 // Uses SELECT FOR UPDATE to prevent TOCTOU races.
 func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.Reservation, error) {
 	var reservation *model.Reservation
@@ -421,19 +381,10 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		return nil, err
 	}
 
-	uc.publishSpotStatusChange(ctx, reservation.SpotID, "occupied")
-
 	// Notify billing to activate (non-critical, outside transaction)
 	billingIdempotencyKey := fmt.Sprintf("checkin-billing-%s", reservation.ID)
 	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, 0, billingIdempotencyKey); err != nil {
 		slog.Error("failed to activate billing on check-in", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-	}
-
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.checked_in", data); err != nil {
-			slog.Error("failed to publish reservation.checked_in", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
 	}
 
 	return reservation, nil
@@ -543,15 +494,6 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		return nil, fmt.Errorf("complete checkout release spot: %w", err)
 	}
 
-	uc.publishSpotStatusChange(ctx, reservation.SpotID, "available")
-
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.checked_out", data); err != nil {
-			slog.Error("failed to publish reservation.checked_out", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
-	}
-
 	return &model.CheckOutResponse{
 		Reservation:   reservation,
 		TotalAmount:   billingRecord.TotalAmount,
@@ -564,43 +506,11 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 	}, nil
 }
 
-func (uc *reservationUsecase) publishSpotUpdated(ctx context.Context, spot *model.ParkingSpot) {
-	data, err := json.Marshal(map[string]interface{}{
-		"id":           spot.ID,
-		"floor_number": spot.FloorNumber,
-		"spot_number":  spot.SpotNumber,
-		"vehicle_type": spot.VehicleType,
-		"spot_code":    spot.SpotCode,
-		"status":       spot.Status,
-	})
-	if err != nil {
-		slog.Warn("reservation: failed to marshal spot.updated event", slog.Any("error", err))
-		return
-	}
-	if err := uc.nats.Publish("spot.updated", data); err != nil {
-		slog.Warn("reservation: failed to publish spot.updated event", slog.Any("error", err))
-	}
-}
-
-func (uc *reservationUsecase) publishSpotStatusChange(ctx context.Context, spotID string, status string) {
-	spot, err := uc.repo.GetSpotForUpdate(ctx, spotID)
-	if err != nil {
-		slog.Warn("reservation: failed to fetch spot for status change event",
-			slog.String("spot_id", spotID), slog.Any("error", err))
-		return
-	}
-	uc.publishSpotUpdated(ctx, spot)
-}
-
-// ExpireReservation transitions a confirmed reservation to expired, releases
-// the spot, and publishes an expiry event.
-// Uses SELECT FOR UPDATE to prevent TOCTOU races.
+// ExpireReservation transitions a confirmed reservation to expired and releases
+// the spot. Uses SELECT FOR UPDATE to prevent TOCTOU races.
 func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.ExpireReservationRequest) error {
-	var reservation *model.Reservation
-
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
-		var err error
-		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
+		reservation, err := uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
@@ -624,32 +534,19 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 		return err
 	}
 
-	uc.publishSpotStatusChange(ctx, reservation.SpotID, "available")
-
 	// No additional no-show penalty is applied. Per PRD, the booking fee
 	// (5,000 IDR, already charged at confirmation) is the only cost the
 	// driver forfeits when a reservation expires without check-in.
-
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.expired", data); err != nil {
-			slog.Error("failed to publish reservation.expired", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
-	}
 
 	return nil
 }
 
 // FailReservation transitions a waiting_payment reservation to failed, releases
-// the spot, and publishes a payment_failed event. Called by the payment timeout
-// worker for reservations that exceeded the payment window.
-// Uses SELECT FOR UPDATE to prevent TOCTOU races.
+// the spot. Called by the payment timeout worker for reservations that exceeded
+// the payment window. Uses SELECT FOR UPDATE to prevent TOCTOU races.
 func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.FailReservationRequest) error {
-	var reservation *model.Reservation
-
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
-		var err error
-		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
+		reservation, err := uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
@@ -671,15 +568,6 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, "available")
 	}); err != nil {
 		return err
-	}
-
-	uc.publishSpotStatusChange(ctx, reservation.SpotID, "available")
-
-	// Publish event (non-critical)
-	if data, err := json.Marshal(reservation); err == nil {
-		if err := uc.nats.Publish("reservation.payment_failed", data); err != nil {
-			slog.Error("failed to publish reservation.payment_failed", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-		}
 	}
 
 	return nil

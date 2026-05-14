@@ -89,15 +89,7 @@ func (m *MockPaymentGateway) GetStatus(ctx context.Context, transactionRef strin
 	return args.String(0), args.Error(1)
 }
 
-// MockNATSClient implements NATSClient using testify/mock.
-type MockNATSClient struct {
-	mock.Mock
-}
 
-func (m *MockNATSClient) Publish(subject string, data []byte) error {
-	args := m.Called(subject, data)
-	return args.Error(0)
-}
 
 // --- Test Cases ---
 
@@ -107,7 +99,6 @@ func TestProcessPayment_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *test
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	existing := &model.Payment{
 		ID:             "existing-pay-id",
@@ -119,7 +110,7 @@ func TestProcessPayment_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *test
 	}
 	repo.On("GetByIdempotencyKey", mock.Anything, "pay-key-1").Return(existing, nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.ProcessPaymentRequest{
 		BillingID:      "billing-1",
 		Amount:         5000,
@@ -146,15 +137,13 @@ func TestProcessPayment_ShouldReturnSuccess_WhenGatewaySucceeds(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	repo.On("GetByIdempotencyKey", mock.Anything, "pay-key-2").Return(nil, repository.ErrNotFound)
 	repo.On("CreatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
 	gw.On("Charge", mock.Anything, int64(10000), "credit_card").Return("txn-abc-123", nil)
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
-	natsClient.On("Publish", "payment.success", mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.ProcessPaymentRequest{
 		BillingID:      "billing-2",
 		Amount:         10000,
@@ -173,7 +162,6 @@ func TestProcessPayment_ShouldReturnSuccess_WhenGatewaySucceeds(t *testing.T) {
 	assert.Equal(t, int64(10000), result.Amount)
 	repo.AssertExpectations(t)
 	gw.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 }
 
 // TestProcessPayment_ShouldReturnFailed_WhenGatewayFails verifies
@@ -183,16 +171,14 @@ func TestProcessPayment_ShouldReturnFailed_WhenGatewayFails(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	gatewayErr := errors.New("gateway timeout")
 	repo.On("GetByIdempotencyKey", mock.Anything, "pay-key-3").Return(nil, repository.ErrNotFound)
 	repo.On("CreatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
 	gw.On("Charge", mock.Anything, int64(5000), "qris").Return("", gatewayErr)
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
-	natsClient.On("Publish", "payment.failed", mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.ProcessPaymentRequest{
 		BillingID:      "billing-3",
 		Amount:         5000,
@@ -210,7 +196,6 @@ func TestProcessPayment_ShouldReturnFailed_WhenGatewayFails(t *testing.T) {
 	assert.Nil(t, result.PaidAt)
 	// Gateway should have been called 3 times (circuit breaker retries)
 	gw.AssertNumberOfCalls(t, "Charge", 3)
-	natsClient.AssertCalled(t, "Publish", "payment.failed", mock.Anything)
 	repo.AssertExpectations(t)
 }
 
@@ -220,7 +205,6 @@ func TestRefundPayment_ShouldReturnRefunded_WhenSuccessful(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	paidAt := time.Now().Add(-1 * time.Hour)
 	existing := &model.Payment{
@@ -236,7 +220,7 @@ func TestRefundPayment_ShouldReturnRefunded_WhenSuccessful(t *testing.T) {
 	gw.On("Refund", mock.Anything, "txn-refund-123").Return(nil)
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.RefundPaymentRequest{PaymentID: "pay-4"}
 
 	// Act
@@ -256,7 +240,6 @@ func TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds(t *te
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	gatewayErr := errors.New("transient failure")
 	repo.On("GetByIdempotencyKey", mock.Anything, "pay-key-5").Return(nil, repository.ErrNotFound)
@@ -265,9 +248,8 @@ func TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds(t *te
 	gw.On("Charge", mock.Anything, int64(5000), "ewallet").Return("", gatewayErr).Once()
 	gw.On("Charge", mock.Anything, int64(5000), "ewallet").Return("txn-retry-ok", nil).Once()
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
-	natsClient.On("Publish", "payment.success", mock.Anything).Return(nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.ProcessPaymentRequest{
 		BillingID:      "billing-5",
 		Amount:         5000,
@@ -283,7 +265,6 @@ func TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds(t *te
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)
 	assert.Equal(t, "txn-retry-ok", result.TransactionRef)
 	gw.AssertNumberOfCalls(t, "Charge", 2)
-	natsClient.AssertCalled(t, "Publish", "payment.success", mock.Anything)
 	repo.AssertExpectations(t)
 	gw.AssertExpectations(t)
 }
@@ -294,7 +275,6 @@ func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	existing := &model.Payment{
 		ID:        "pay-6",
@@ -304,7 +284,7 @@ func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
 	}
 	repo.On("GetByID", mock.Anything, "pay-6").Return(existing, nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.GetPaymentStatusRequest{PaymentID: "pay-6"}
 
 	// Act
@@ -320,7 +300,6 @@ func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
 func TestRefundPayment_ShouldSucceed_WhenIdempotencyKeyNotFound(t *testing.T) {
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	paidAt := time.Now().Add(-1 * time.Hour)
 	existing := &model.Payment{
@@ -339,7 +318,7 @@ func TestRefundPayment_ShouldSucceed_WhenIdempotencyKeyNotFound(t *testing.T) {
 		return p.Status == model.PaymentStatusRefunded && p.IdempotencyKey == "refund-key-new"
 	})).Return(nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.RefundPaymentRequest{
 		PaymentID:      "pay-first-refund",
 		IdempotencyKey: "refund-key-new",
@@ -357,7 +336,6 @@ func TestRefundPayment_ShouldSucceed_WhenIdempotencyKeyNotFound(t *testing.T) {
 func TestRefundPayment_ShouldReturnExisting_WhenIdempotencyKeyExists(t *testing.T) {
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
-	natsClient := new(MockNATSClient)
 
 	existing := &model.Payment{
 		ID:             "existing-refund-id",
@@ -368,7 +346,7 @@ func TestRefundPayment_ShouldReturnExisting_WhenIdempotencyKeyExists(t *testing.
 	}
 	repo.On("GetByIdempotencyKey", mock.Anything, "refund-key-1").Return(existing, nil)
 
-	uc := NewUsecase(repo, gw, natsClient)
+	uc := NewUsecase(repo, gw)
 	req := &model.RefundPaymentRequest{
 		PaymentID:      "different-payment",
 		IdempotencyKey: "refund-key-1",

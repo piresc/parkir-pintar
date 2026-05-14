@@ -20,14 +20,12 @@ import (
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
 	"parkir-pintar/pkg/middleware"
-	natspkg "parkir-pintar/pkg/nats"
 	redispkg "parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 
 	paymentv1 "parkir-pintar/proto/payment/v1"
-	presencev1 "parkir-pintar/proto/presence/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
@@ -91,7 +89,6 @@ func main() {
 	reservationTarget := getEnv("GRPC_RESERVATION_TARGET", "localhost:9091")
 	searchTarget := getEnv("GRPC_SEARCH_TARGET", "localhost:9092")
 	paymentTarget := getEnv("GRPC_PAYMENT_TARGET", "localhost:9094")
-	presenceTarget := getEnv("GRPC_PRESENCE_TARGET", "localhost:9095")
 
 	clientCfg := grpcclient.ClientConfig{
 		DialTimeout:      cfg.GRPC.Client.DialTimeout,
@@ -122,25 +119,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	clientCfg.Target = presenceTarget
-	presenceConn, err := grpcclient.Dial(ctx, clientCfg)
-	if err != nil {
-		log.Error("failed to connect to presence service", slog.Any("error", err))
-		os.Exit(1)
-	}
-
 	// 7. Create gRPC service clients
 	reservationClient := reservationv1.NewReservationServiceClient(reservationConn)
 	searchClient := searchv1.NewSearchServiceClient(searchConn)
 	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
-	presenceClient := presencev1.NewPresenceServiceClient(presenceConn)
 
 	// 8. Setup shutdown manager
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return reservationConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return searchConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
-	shutdownMgr.Register(func(_ context.Context) error { return presenceConn.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 	if met != nil {
 		shutdownMgr.Register(func(ctx context.Context) error { return met.Shutdown(ctx) })
@@ -188,17 +176,11 @@ func main() {
 		shutdownMgr.Register(func(_ context.Context) error { _ = redisClient.GetClient().Close(); return nil })
 	}
 
-	natsClient, err := natspkg.NewClient(cfg.NATS.URL)
-	if err == nil {
-		healthSvc.AddChecker("nats", health.NewNATSChecker(natsClient))
-		shutdownMgr.Register(func(_ context.Context) error { natsClient.Close(); return nil })
-	}
-
 	health.RegisterRoutes(engine, cfg.App.Name, cfg.App.Version, healthSvc)
 
 	// 12. Register gateway REST routes (with JWT auth)
 	jwtSecret := cfg.JWT.Secret
-	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient, presenceClient)
+	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 13. Start server

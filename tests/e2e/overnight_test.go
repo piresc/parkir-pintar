@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -35,7 +35,7 @@ import (
 func TestOvernight_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -100,11 +100,11 @@ func TestOvernight_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing
 	assert.True(t, billing.IsOvernight, "is_overnight should be true")
 
 	// Assert — Overnight fee = 20000
-	assert.Equal(t, billingmodel.OvernightFlatFee, billing.OvernightFee,
+	assert.Equal(t, pricing.OvernightPerNight, billing.OvernightFee,
 		"overnight fee should be 20000")
 
 	// Assert — Parking fee = billed_hours × 5000
-	assert.Equal(t, int64(billing.BilledHours)*billingmodel.HourlyRate, billing.ParkingFee,
+	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee,
 		"parking fee should be billed_hours × 5000")
 
 	// Assert — Total = booking_fee + parking_fee + overnight_fee

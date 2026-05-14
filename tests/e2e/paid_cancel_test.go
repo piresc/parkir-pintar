@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -29,7 +29,7 @@ import (
 func TestPaidCancel_ShouldApplyFee_WhenCancelledAfter2Minutes(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -74,5 +74,5 @@ func TestPaidCancel_ShouldApplyFee_WhenCancelledAfter2Minutes(t *testing.T) {
 	assert.Equal(t, "available", spotStatus)
 
 	// Assert — Cancellation penalty of 5000 IDR exists
-	testhelpers.AssertPenaltyExists(t, env.db, reservation.ID, "cancellation", billingmodel.CancelFee)
+	testhelpers.AssertPenaltyExists(t, env.db, reservation.ID, "cancellation", pricing.CancelFee)
 }

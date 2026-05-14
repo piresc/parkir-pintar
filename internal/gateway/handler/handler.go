@@ -17,7 +17,6 @@ import (
 	"parkir-pintar/pkg/response"
 
 	paymentv1 "parkir-pintar/proto/payment/v1"
-	presencev1 "parkir-pintar/proto/presence/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
@@ -28,7 +27,6 @@ type Handler struct {
 	reservation reservationv1.ReservationServiceClient
 	search      searchv1.SearchServiceClient
 	payment     paymentv1.PaymentServiceClient
-	presence    presencev1.PresenceServiceClient
 }
 
 // NewHandler creates a new gateway Handler with gRPC clients for each service.
@@ -36,13 +34,11 @@ func NewHandler(
 	reservation reservationv1.ReservationServiceClient,
 	search searchv1.SearchServiceClient,
 	payment paymentv1.PaymentServiceClient,
-	presence presencev1.PresenceServiceClient,
 ) *Handler {
 	return &Handler{
 		reservation: reservation,
 		search:      search,
 		payment:     payment,
-		presence:    presence,
 	}
 }
 
@@ -65,9 +61,6 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 	api.GET("/availability", h.GetAvailability)
 	api.GET("/floors/:floor", h.GetFloorMap)
 	api.GET("/spots/:id", h.GetSpotDetails)
-
-	// Presence routes
-	api.POST("/presence/stream", h.StreamLocation)
 
 	// Payment routes
 	api.GET("/payments/:id/status", h.GetPaymentStatus)
@@ -295,33 +288,6 @@ func (h *Handler) GetSpotDetails(c *gin.Context) {
 
 	resp, err := h.search.GetSpotDetails(contextWithAuth(c), &searchv1.GetSpotDetailsRequest{
 		SpotId: id,
-	})
-	if err != nil {
-		writeGRPCError(c, err)
-		return
-	}
-
-	response.Success(c, http.StatusOK, resp)
-}
-
-// StreamLocation transcodes POST /api/v1/presence/stream to PresenceService.DetectArrival.
-// Note: the request body's `accuracy` field (if present) is not forwarded — the
-// DetectArrival RPC uses geofence center coordinates and radius instead.
-func (h *Handler) StreamLocation(c *gin.Context) {
-	var req struct {
-		ReservationID string  `json:"reservation_id"`
-		Latitude      float64 `json:"latitude"`
-		Longitude     float64 `json:"longitude"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid request body")
-		return
-	}
-
-	resp, err := h.presence.DetectArrival(contextWithAuth(c), &presencev1.DetectArrivalRequest{
-		ReservationId: req.ReservationID,
-		Latitude:      req.Latitude,
-		Longitude:     req.Longitude,
 	})
 	if err != nil {
 		writeGRPCError(c, err)

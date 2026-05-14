@@ -29,7 +29,7 @@ import (
 func TestContention_ShouldSerializeAccess_WhenMultipleDriversSelectSameSpot(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	const numDrivers = 5

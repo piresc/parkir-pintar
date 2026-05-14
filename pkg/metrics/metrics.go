@@ -1,6 +1,6 @@
 // Package metrics provides an OpenTelemetry-based metrics abstraction with
 // OTLP gRPC push exporter for the ParkirPintar platform. It exposes HTTP, gRPC,
-// database, NATS messaging, and business-domain metric instruments.
+// database, and business-domain metric instruments.
 package metrics
 
 import (
@@ -32,11 +32,6 @@ type Metrics struct {
 
 	// Database metrics
 	DBQueryDuration otelmetric.Float64Histogram
-
-	// NATS messaging metrics
-	NATSPublishedTotal     otelmetric.Int64Counter
-	NATSConsumedTotal      otelmetric.Int64Counter
-	NATSProcessingDuration otelmetric.Float64Histogram
 
 	// Business metrics
 	ActiveParkingSessions otelmetric.Int64Gauge
@@ -134,30 +129,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 
 	m.DBQueryDuration, err = meter.Float64Histogram("db_query_duration_seconds",
 		otelmetric.WithDescription("Database query duration in seconds"),
-		otelmetric.WithUnit("s"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// --- NATS messaging metrics ---
-
-	m.NATSPublishedTotal, err = meter.Int64Counter("nats_messages_published_total",
-		otelmetric.WithDescription("Total number of NATS messages published"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.NATSConsumedTotal, err = meter.Int64Counter("nats_messages_consumed_total",
-		otelmetric.WithDescription("Total number of NATS messages consumed"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.NATSProcessingDuration, err = meter.Float64Histogram("nats_processing_duration_seconds",
-		otelmetric.WithDescription("NATS message processing duration in seconds"),
 		otelmetric.WithUnit("s"),
 	)
 	if err != nil {

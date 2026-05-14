@@ -27,7 +27,7 @@ func TestRoutes_ShouldRegisterAllPRDRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 
-	h := gwhandler.NewHandler(nil, nil, nil, nil)
+	h := gwhandler.NewHandler(nil, nil, nil)
 	cfg := &config.Config{}
 	mw := middleware.NewMiddleware(cfg, nil, nil)
 	h.RegisterRoutes(engine, mw, "test-secret")
@@ -51,7 +51,7 @@ func TestRoutes_ShouldRegisterAllPRDRoutes(t *testing.T) {
 		{"GET /api/v1/availability", "GetAvailability"},
 		{"GET /api/v1/floors/:floor", "GetFloorMap"},
 		{"GET /api/v1/spots/:id", "GetSpotDetails"},
-		{"POST /api/v1/presence/stream", "StreamLocation"},
+
 		{"GET /api/v1/payments/:id/status", "GetPaymentStatus"},
 	}
 

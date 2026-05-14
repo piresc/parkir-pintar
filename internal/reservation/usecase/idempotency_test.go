@@ -11,6 +11,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys verifies
@@ -20,7 +21,6 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	// Arrange
 	repo := new(MockRepository)
 	locker := new(MockLocker)
-	natsClient := new(MockNATSClient)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
@@ -41,7 +41,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-alpha", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
 
 	// Second call mocks (key-beta -> spot-beta)
 	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, model.ErrNotFound).Once()
@@ -60,9 +60,9 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-beta", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), billingmodel.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
 
-	uc := NewUsecase(repo, locker, natsClient, billing, payment)
+	uc := NewUsecase(repo, locker, billing, payment)
 
 	req1 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
@@ -91,7 +91,6 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
-	natsClient.AssertExpectations(t)
 	billing.AssertExpectations(t)
 	payment.AssertExpectations(t)
 }

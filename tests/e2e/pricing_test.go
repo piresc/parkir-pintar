@@ -14,7 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestPricing_ShouldHaveCorrectBookingFee verifies that the booking fee
@@ -23,7 +23,7 @@ import (
 // Validates: Requirement 3.1
 func TestPricing_ShouldHaveCorrectBookingFee(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(5000), billingmodel.BookingFee,
+	assert.Equal(t, int64(5000), pricing.BookingFee,
 		"BookingFee should be 5000 IDR")
 }
 
@@ -33,7 +33,7 @@ func TestPricing_ShouldHaveCorrectBookingFee(t *testing.T) {
 // Validates: Requirement 3.2
 func TestPricing_ShouldHaveCorrectHourlyRate(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(5000), billingmodel.HourlyRate,
+	assert.Equal(t, int64(5000), pricing.HourlyRate,
 		"HourlyRate should be 5000 IDR")
 }
 
@@ -43,8 +43,8 @@ func TestPricing_ShouldHaveCorrectHourlyRate(t *testing.T) {
 // Validates: Requirement 3.3
 func TestPricing_ShouldHaveCorrectOvernightFlatFee(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(20000), billingmodel.OvernightFlatFee,
-		"OvernightFlatFee should be 20000 IDR")
+	assert.Equal(t, int64(20000), pricing.OvernightPerNight,
+		"OvernightPerNight should be 20000 IDR")
 }
 
 // TestPricing_ShouldHaveCorrectWrongSpotPenalty verifies that the wrong-spot
@@ -53,7 +53,7 @@ func TestPricing_ShouldHaveCorrectOvernightFlatFee(t *testing.T) {
 // Validates: Requirement 3.4
 func TestPricing_ShouldHaveCorrectWrongSpotPenalty(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(200000), billingmodel.WrongSpotPenalty,
+	assert.Equal(t, int64(200000), pricing.WrongSpotPenalty,
 		"WrongSpotPenalty should be 200000 IDR")
 }
 
@@ -63,7 +63,7 @@ func TestPricing_ShouldHaveCorrectWrongSpotPenalty(t *testing.T) {
 // Validates: Requirement 3.5
 func TestPricing_ShouldHaveCorrectCancelFreeWindow(t *testing.T) {
 	// Assert
-	assert.Equal(t, 2*time.Minute, billingmodel.CancelFreeWindow,
+	assert.Equal(t, 2*time.Minute, pricing.CancelFreeWindow,
 		"CancelFreeWindow should be 2 minutes")
 }
 
@@ -73,7 +73,7 @@ func TestPricing_ShouldHaveCorrectCancelFreeWindow(t *testing.T) {
 // Validates: Requirement 3.6
 func TestPricing_ShouldHaveCorrectCancelFee(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(5000), billingmodel.CancelFee,
+	assert.Equal(t, int64(5000), pricing.CancelFee,
 		"CancelFee should be 5000 IDR")
 }
 
@@ -84,6 +84,6 @@ func TestPricing_ShouldHaveCorrectCancelFee(t *testing.T) {
 // Validates: Requirement 3.7
 func TestPricing_ShouldHaveZeroNoShowFee(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(0), billingmodel.NoShowFee,
+	assert.Equal(t, int64(0), pricing.NoShowFee,
 		"NoShowFee should be 0 IDR — booking fee is the only no-show cost")
 }

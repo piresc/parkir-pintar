@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -29,7 +29,7 @@ import (
 func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "presence_logs", "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -71,7 +71,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&billingFee)
 	require.NoError(t, err)
-	assert.Equal(t, billingmodel.BookingFee, billingFee)
+	assert.Equal(t, pricing.BookingFee, billingFee)
 
 	// Act — Step 4: Check in
 	checkedIn, err := env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
@@ -127,7 +127,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		"SELECT parking_fee, billed_hours FROM billing_records WHERE reservation_id = $1",
 		reservation.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(billing.BilledHours)*billingmodel.HourlyRate, billing.ParkingFee)
+	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee)
 
 	// Verify payment record exists with status success
 	var paymentStatus string

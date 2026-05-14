@@ -184,10 +184,11 @@ parkir-pintar/
 │   └── payment/main.go           # Payment service
 ├── internal/                     # Domain logic (not importable externally)
 │   ├── gateway/handler/          # REST handlers, routing
-│   ├── search/                   # handler, usecase, repository, model
+│   ├── search/                   # handler, usecase, repository, model, sync
 │   ├── reservation/              # handler, usecase, repository, model, worker, client
 │   ├── billing/                  # handler, usecase, repository, model
-│   └── payment/                  # handler, usecase, gateway (stub)
+│   ├── payment/                  # handler, usecase, gateway (stub)
+│   └── analytics/                # usecase, repository (peak hours, occupancy)
 ├── pkg/                          # Shared libraries
 │   ├── asynq/                    # Task queue (client, server, handlers, tasks)
 │   ├── pricing/                  # Pricing engine (hourly, overnight, penalties)
@@ -460,6 +461,8 @@ All configuration is via environment variables (12-factor). See `pkg/config/conf
 | POST | `/api/reservations/:id/cancel` | Cancel reservation |
 | GET | `/api/reservations/:id` | Get reservation details |
 | GET | `/api/reservations` | List driver's reservations |
+| GET | `/api/v1/analytics/peak-hours` | Peak hour statistics |
+| GET | `/api/v1/analytics/occupancy` | Daily occupancy & usage patterns |
 
 ### Authentication
 
@@ -501,6 +504,7 @@ go tool cover -html=coverage.out
 | Category | Path | Description |
 |----------|------|-------------|
 | Unit | `internal/*/usecase/*_test.go` | Business logic, mocked dependencies |
+| Unit | `internal/*/handler/*_test.go` | gRPC handler request/response mapping |
 | Unit | `pkg/*_test.go` | Shared library tests |
 | Property | `internal/reservation/usecase/spot_inventory_property_test.go` | Spot inventory invariants |
 | Integration | `tests/integration/` | Database + Redis integration |
@@ -561,6 +565,7 @@ graph LR
 | **QRIS-only payment (stub)** | Indonesian market standard; stub allows testing without real provider |
 | **Redis distributed locks** | Prevents double-booking race conditions at scale |
 | **Asynq + polling fallback** | Asynq for precise delayed tasks; polling catches edge cases |
+| **DB trigger for read model sync** | Keeps search's `spot_read_model` in sync without cross-service queries |
 | **Two-moment payment** | Minimizes driver risk, ensures booking commitment |
 | **Per-midnight overnight fee** | Fair billing — only charges for actual midnight crossings |
 | **User-selected spot assignment** | Driver picks their preferred spot (vs. system auto-assign) |

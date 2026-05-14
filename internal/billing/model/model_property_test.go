@@ -1,7 +1,7 @@
 // Package model defines domain structs and request types for the billing module.
 //
 // Property-based tests for the billing pricing engine using pgregory.net/rapid.
-// These tests verify Properties 1, 2, 3, and 6 from the design document.
+// These tests verify Properties 1, 2, and 6 from the design document.
 //
 // Best practices applied (from coding standards KB):
 // - rapid.Custom generators for constrained time inputs in WIB timezone
@@ -200,73 +200,15 @@ func TestProperty2_OvernightDetection_CrossDay(t *testing.T) {
 	})
 }
 
-// --- Property 3: Cancellation Fee Rules ---
-
-// genConfirmedCancelled generates a (confirmedAt, cancelledAt) pair in WIB timezone
-// where cancelledAt is after confirmedAt, with elapsed time between 0s and 1 hour.
-func genConfirmedCancelled() *rapid.Generator[[2]time.Time] {
-	return rapid.Custom[[2]time.Time](func(t *rapid.T) [2]time.Time {
-		loc := wibLoc()
-		year := rapid.IntRange(2020, 2030).Draw(t, "year")
-		month := rapid.IntRange(1, 12).Draw(t, "month")
-		day := rapid.IntRange(1, 28).Draw(t, "day")
-		hour := rapid.IntRange(0, 23).Draw(t, "hour")
-		minute := rapid.IntRange(0, 59).Draw(t, "minute")
-
-		confirmedAt := time.Date(year, time.Month(month), day, hour, minute, 0, 0, loc)
-
-		// Elapsed between 0 and 3600 seconds (1 hour)
-		elapsedSec := rapid.Int64Range(0, 3600).Draw(t, "elapsedSec")
-		cancelledAt := confirmedAt.Add(time.Duration(elapsedSec) * time.Second)
-
-		return [2]time.Time{confirmedAt, cancelledAt}
-	})
-}
-
-// TestProperty3_CancellationFeeRules verifies that for any confirmedAt before cancelledAt:
-//   - fee == 0 if elapsed <= 2 minutes
-//   - fee == 5000 if elapsed > 2 minutes
-//   - fee is always either 0 or 5000 (no other values)
-//
-// **Validates: Requirements 3.1, 3.2, 9.1, 9.2, 9.3**
-func TestProperty3_CancellationFeeRules(t *testing.T) {
-	_ = t.Context()
-
-	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
-		times := genConfirmedCancelled().Draw(t, "cancellation")
-		confirmedAt, cancelledAt := times[0], times[1]
-		elapsed := cancelledAt.Sub(confirmedAt)
-
-		// Act
-		fee := pricing.CalculateCancellationFee(confirmedAt, cancelledAt)
-
-		// Assert — fee is one of exactly two values
-		assert.Contains(t, []int64{0, pricing.CancelFee}, fee,
-			"cancellation fee must be 0 or %d, got %d", pricing.CancelFee, fee)
-
-		// Assert — correct value based on elapsed time
-		if elapsed <= pricing.CancelFreeWindow {
-			assert.Equal(t, int64(0), fee,
-				"fee should be 0 when elapsed %v <= %v", elapsed, pricing.CancelFreeWindow)
-		} else {
-			assert.Equal(t, pricing.CancelFee, fee,
-				"fee should be %d when elapsed %v > %v", pricing.CancelFee, elapsed, pricing.CancelFreeWindow)
-		}
-	})
-}
-
 // --- Property 6: Billing Total Invariant ---
 
 // genBillingRecord generates a BillingRecord with random non-negative fee fields.
 func genBillingRecord() *rapid.Generator[*BillingRecord] {
 	return rapid.Custom[*BillingRecord](func(t *rapid.T) *BillingRecord {
 		return &BillingRecord{
-			BookingFee:      rapid.Int64Range(0, 100_000).Draw(t, "bookingFee"),
-			ParkingFee:      rapid.Int64Range(0, 500_000).Draw(t, "parkingFee"),
-			OvernightFee:    rapid.Int64Range(0, 20_000).Draw(t, "overnightFee"),
-			CancellationFee: rapid.Int64Range(0, 5_000).Draw(t, "cancellationFee"),
-			PenaltyAmount:   rapid.Int64Range(0, 200_000).Draw(t, "penaltyAmount"),
+			BookingFee:   rapid.Int64Range(0, 100_000).Draw(t, "bookingFee"),
+			ParkingFee:   rapid.Int64Range(0, 500_000).Draw(t, "parkingFee"),
+			OvernightFee: rapid.Int64Range(0, 20_000).Draw(t, "overnightFee"),
 		}
 	})
 }
@@ -285,12 +227,10 @@ func TestProperty6_BillingTotalInvariant(t *testing.T) {
 		record := genBillingRecord().Draw(t, "record")
 
 		// Act
-		total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee,
-			record.CancellationFee, record.PenaltyAmount)
+		total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
 		// Assert — total == sum of all fee fields
-		expectedTotal := record.BookingFee + record.ParkingFee + record.OvernightFee +
-			record.CancellationFee + record.PenaltyAmount
+		expectedTotal := record.BookingFee + record.ParkingFee + record.OvernightFee
 		assert.Equal(t, expectedTotal, total,
 			"total should equal sum of all fee fields")
 

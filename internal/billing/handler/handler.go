@@ -99,29 +99,9 @@ func (h *Handler) GenerateInvoice(ctx context.Context, req *billingv1.GenerateIn
 	return billingRecordToProto(result), nil
 }
 
-// ApplyPenalty validates required fields and delegates to the usecase.
-func (h *Handler) ApplyPenalty(ctx context.Context, req *billingv1.ApplyPenaltyRequest) (*billingv1.BillingResponse, error) {
-	if req.GetReservationId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
-	}
-	if req.GetPenaltyType() == "" {
-		return nil, status.Error(codes.InvalidArgument, "penalty_type is required")
-	}
-	if req.GetAmount() <= 0 {
-		return nil, status.Error(codes.InvalidArgument, "amount must be positive")
-	}
-
-	result, err := h.uc.ApplyPenalty(ctx, &model.ApplyPenaltyRequest{
-		ReservationID: req.GetReservationId(),
-		PenaltyType:   req.GetPenaltyType(),
-		Amount:        req.GetAmount(),
-		Description:   req.GetDescription(),
-	})
-	if err != nil {
-		return nil, mapError(err)
-	}
-
-	return billingRecordToProto(result), nil
+// ApplyPenalty is no longer supported. Returns Unimplemented to maintain wire compatibility.
+func (h *Handler) ApplyPenalty(_ context.Context, _ *billingv1.ApplyPenaltyRequest) (*billingv1.BillingResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "penalty system has been removed")
 }
 
 // ApplyOvernightFee validates required fields and delegates to the usecase.

@@ -16,7 +16,7 @@ import (
 // ErrNotFound is returned when a billing record or penalty is not found.
 var ErrNotFound = errors.New("billing record not found")
 
-// Repository defines the data access interface for billing records and penalties.
+// Repository defines the data access interface for billing records.
 //
 //go:generate mockgen -destination=../mocks/mock_repository.go -package=mocks parkir-pintar/internal/billing/repository Repository
 type Repository interface {
@@ -24,8 +24,6 @@ type Repository interface {
 	GetByReservationID(ctx context.Context, reservationID string) (*model.BillingRecord, error)
 	GetByIdempotencyKey(ctx context.Context, key string) (*model.BillingRecord, error)
 	UpdateBillingRecord(ctx context.Context, record *model.BillingRecord) error
-	CreatePenalty(ctx context.Context, penalty *model.Penalty) error
-	AddPenaltyAmount(ctx context.Context, reservationID string, amount int64) (*model.BillingRecord, error)
 }
 
 // sqlxRepository is the sqlx-backed implementation of Repository.
@@ -94,42 +92,6 @@ func (r *sqlxRepository) UpdateBillingRecord(ctx context.Context, record *model.
 	)
 	if err != nil {
 		return fmt.Errorf("update billing record: %w", err)
-	}
-	return nil
-}
-
-// AddPenaltyAmount atomically increments penalty_amount and recalculates total_amount
-// in a single SQL UPDATE, returning the updated record. This prevents lost updates
-// under concurrent ApplyPenalty calls for the same reservation.
-func (r *sqlxRepository) AddPenaltyAmount(ctx context.Context, reservationID string, amount int64) (*model.BillingRecord, error) {
-	var record model.BillingRecord
-	err := r.db.GetContext(ctx, &record,
-		`UPDATE billing_records
-		 SET penalty_amount = penalty_amount + $1,
-		     total_amount = booking_fee + parking_fee + overnight_fee + cancellation_fee + (penalty_amount + $1),
-		     updated_at = NOW()
-		 WHERE reservation_id = $2
-		 RETURNING *`,
-		amount, reservationID,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: reservation_id=%s", ErrNotFound, reservationID)
-		}
-		return nil, fmt.Errorf("add penalty amount: %w", err)
-	}
-	return &record, nil
-}
-
-// CreatePenalty inserts a new penalty record.
-func (r *sqlxRepository) CreatePenalty(ctx context.Context, penalty *model.Penalty) error {
-	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO penalties (id, reservation_id, penalty_type, amount, description, created_at)
-		 VALUES (:id, :reservation_id, :penalty_type, :amount, :description, :created_at)`,
-		penalty,
-	)
-	if err != nil {
-		return fmt.Errorf("create penalty: %w", err)
 	}
 	return nil
 }

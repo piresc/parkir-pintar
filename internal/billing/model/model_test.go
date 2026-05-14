@@ -126,83 +126,28 @@ func TestCalculateSessionFee_ShouldComputeCorrectFees(t *testing.T) {
 	}
 }
 
-func TestCalculateCancellationFee_ShouldReturnCorrectFee(t *testing.T) {
-	baseTime := time.Date(2026, 4, 24, 10, 0, 0, 0, wib())
-
-	tests := []struct {
-		name        string
-		confirmedAt time.Time
-		cancelledAt time.Time
-		expectedFee int64
-	}{
-		{
-			name:        "within 2 min is free",
-			confirmedAt: baseTime,
-			cancelledAt: baseTime.Add(1 * time.Minute),
-			expectedFee: 0,
-		},
-		{
-			name:        "exactly 2 min is free",
-			confirmedAt: baseTime,
-			cancelledAt: baseTime.Add(2 * time.Minute),
-			expectedFee: 0,
-		},
-		{
-			name:        "after 2 min charges fee",
-			confirmedAt: baseTime,
-			cancelledAt: baseTime.Add(3 * time.Minute),
-			expectedFee: 5_000,
-		},
-		{
-			name:        "after 5 min charges fee",
-			confirmedAt: baseTime,
-			cancelledAt: baseTime.Add(5 * time.Minute),
-			expectedFee: 5_000,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
-			_ = t.Context()
-
-			// Act
-			fee := pricing.CalculateCancellationFee(tt.confirmedAt, tt.cancelledAt)
-
-			// Assert
-			assert.Equal(t, tt.expectedFee, fee)
-		})
-	}
-}
-
 func TestCalculateTotal_ShouldSumAllFees(t *testing.T) {
 	tests := []struct {
 		name           string
-		record         *BillingRecord
+		bookingFee     int64
+		parkingFee     int64
+		overnightFee   int64
 		expectedTotal  int64
 		totalGEBooking bool
 	}{
 		{
-			name: "all fees present",
-			record: &BillingRecord{
-				BookingFee:      5_000,
-				ParkingFee:      10_000,
-				OvernightFee:    20_000,
-				CancellationFee: 0,
-				PenaltyAmount:   200_000,
-			},
-			expectedTotal:  235_000,
+			name:           "all fees present",
+			bookingFee:     5_000,
+			parkingFee:     10_000,
+			overnightFee:   20_000,
+			expectedTotal:  35_000,
 			totalGEBooking: true,
 		},
 		{
-			name: "booking only",
-			record: &BillingRecord{
-				BookingFee:      5_000,
-				ParkingFee:      0,
-				OvernightFee:    0,
-				CancellationFee: 0,
-				PenaltyAmount:   0,
-			},
+			name:           "booking only",
+			bookingFee:     5_000,
+			parkingFee:     0,
+			overnightFee:   0,
 			expectedTotal:  5_000,
 			totalGEBooking: true,
 		},
@@ -214,13 +159,12 @@ func TestCalculateTotal_ShouldSumAllFees(t *testing.T) {
 			_ = t.Context()
 
 			// Act
-			total := pricing.CalculateTotal(tt.record.BookingFee, tt.record.ParkingFee,
-				tt.record.OvernightFee, tt.record.CancellationFee, tt.record.PenaltyAmount)
+			total := pricing.CalculateTotal(tt.bookingFee, tt.parkingFee, tt.overnightFee)
 
 			// Assert
 			assert.Equal(t, tt.expectedTotal, total)
 			if tt.totalGEBooking {
-				assert.GreaterOrEqual(t, total, tt.record.BookingFee,
+				assert.GreaterOrEqual(t, total, tt.bookingFee,
 					"total must be >= booking_fee")
 			}
 		})

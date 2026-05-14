@@ -62,16 +62,7 @@ func (a *billingAdapter) GenerateInvoice(ctx context.Context, reservationID stri
 	})
 }
 
-// ApplyPenalty records a penalty against a reservation's billing record.
-func (a *billingAdapter) ApplyPenalty(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
-	_, err := a.uc.ApplyPenalty(ctx, &billingmodel.ApplyPenaltyRequest{
-		ReservationID: reservationID,
-		PenaltyType:   penaltyType,
-		Amount:        amount,
-		Description:   description,
-	})
-	return err
-}
+
 
 // ---------------------------------------------------------------------------
 // paymentAdapter — adapts payment.Usecase → reservation.PaymentClient

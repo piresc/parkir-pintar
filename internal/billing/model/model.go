@@ -30,16 +30,6 @@ type BillingRecord struct {
 	UpdatedAt       time.Time `json:"updated_at,omitzero" db:"updated_at"`
 }
 
-// Penalty represents a penalty applied to a reservation.
-type Penalty struct {
-	ID            string    `json:"id" db:"id"`
-	ReservationID string    `json:"reservation_id" db:"reservation_id"`
-	PenaltyType   string    `json:"penalty_type" db:"penalty_type"`
-	Amount        int64     `json:"amount" db:"amount"`
-	Description   string    `json:"description" db:"description"`
-	CreatedAt     time.Time `json:"created_at,omitzero" db:"created_at"`
-}
-
 // Request types for billing service operations.
 
 // StartBillingRequest is the payload for starting billing on a reservation.
@@ -60,14 +50,6 @@ type CalculateFeeRequest struct {
 type GenerateInvoiceRequest struct {
 	ReservationID  string `json:"reservation_id"`
 	IdempotencyKey string `json:"idempotency_key"`
-}
-
-// ApplyPenaltyRequest is the payload for applying a penalty to a reservation.
-type ApplyPenaltyRequest struct {
-	ReservationID string `json:"reservation_id"`
-	PenaltyType   string `json:"penalty_type"`
-	Amount        int64  `json:"amount"`
-	Description   string `json:"description"`
 }
 
 // ApplyOvernightFeeRequest is the payload for applying an overnight fee.

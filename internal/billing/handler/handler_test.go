@@ -47,14 +47,6 @@ func (m *mockUsecase) GenerateInvoice(ctx context.Context, req *model.GenerateIn
 	return args.Get(0).(*model.BillingRecord), args.Error(1)
 }
 
-func (m *mockUsecase) ApplyPenalty(ctx context.Context, req *model.ApplyPenaltyRequest) (*model.BillingRecord, error) {
-	args := m.Called(ctx, req)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.BillingRecord), args.Error(1)
-}
-
 func (m *mockUsecase) ApplyOvernightFee(ctx context.Context, req *model.ApplyOvernightFeeRequest) (*model.BillingRecord, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
@@ -320,105 +312,6 @@ func TestGenerateInvoice(t *testing.T) {
 			}
 
 			resp, err := h.GenerateInvoice(t.Context(), tt.req)
-
-			if tt.wantCode == codes.OK {
-				assert.NoError(t, err)
-				assert.NotNil(t, resp)
-				assert.Equal(t, tt.mockResult.ID, resp.GetId())
-			} else {
-				assert.Nil(t, resp)
-				st, ok := status.FromError(err)
-				assert.True(t, ok)
-				assert.Equal(t, tt.wantCode, st.Code())
-			}
-
-			uc.AssertExpectations(t)
-		})
-	}
-}
-
-func TestApplyPenalty(t *testing.T) {
-	tests := []struct {
-		name       string
-		req        *billingv1.ApplyPenaltyRequest
-		mockResult *model.BillingRecord
-		mockErr    error
-		wantCode   codes.Code
-	}{
-		{
-			name: "happy path",
-			req: &billingv1.ApplyPenaltyRequest{
-				ReservationId: "res-123",
-				PenaltyType:   "late_checkout",
-				Amount:        10000,
-				Description:   "late checkout penalty",
-			},
-			mockResult: &model.BillingRecord{
-				ID:            "bill-123",
-				ReservationID: "res-123",
-				PenaltyAmount: 10000,
-			},
-			wantCode: codes.OK,
-		},
-		{
-			name: "missing reservation_id",
-			req: &billingv1.ApplyPenaltyRequest{
-				ReservationId: "",
-				PenaltyType:   "late_checkout",
-				Amount:        10000,
-			},
-			wantCode: codes.InvalidArgument,
-		},
-		{
-			name: "missing penalty_type",
-			req: &billingv1.ApplyPenaltyRequest{
-				ReservationId: "res-123",
-				PenaltyType:   "",
-				Amount:        10000,
-			},
-			wantCode: codes.InvalidArgument,
-		},
-		{
-			name: "invalid amount zero",
-			req: &billingv1.ApplyPenaltyRequest{
-				ReservationId: "res-123",
-				PenaltyType:   "late_checkout",
-				Amount:        0,
-			},
-			wantCode: codes.InvalidArgument,
-		},
-		{
-			name: "invalid amount negative",
-			req: &billingv1.ApplyPenaltyRequest{
-				ReservationId: "res-123",
-				PenaltyType:   "late_checkout",
-				Amount:        -100,
-			},
-			wantCode: codes.InvalidArgument,
-		},
-		{
-			name: "usecase returns error",
-			req: &billingv1.ApplyPenaltyRequest{
-				ReservationId: "res-123",
-				PenaltyType:   "late_checkout",
-				Amount:        10000,
-			},
-			mockResult: nil,
-			mockErr:    repository.ErrNotFound,
-			wantCode:   codes.NotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			uc := &mockUsecase{}
-			h := NewHandler(uc)
-
-			if tt.req.GetReservationId() != "" && tt.req.GetPenaltyType() != "" && tt.req.GetAmount() > 0 {
-				uc.On("ApplyPenalty", mock.Anything, mock.Anything).Return(tt.mockResult, tt.mockErr)
-			}
-
-			resp, err := h.ApplyPenalty(t.Context(), tt.req)
 
 			if tt.wantCode == codes.OK {
 				assert.NoError(t, err)

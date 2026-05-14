@@ -81,22 +81,6 @@ func TestGetByIdempotencyKey_NotFound(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestAddPenaltyAmount_NotFound(t *testing.T) {
-	db, mock := setupBillingTestDB(t)
-	defer db.Close()
-
-	mock.ExpectQuery(regexp.QuoteMeta(
-		`UPDATE billing_records SET penalty_amount = penalty_amount + $1, total_amount = booking_fee + parking_fee + overnight_fee + cancellation_fee + (penalty_amount + $1), updated_at = NOW() WHERE reservation_id = $2 RETURNING *`,
-	)).WithArgs(int64(10000), "res-nonexistent").WillReturnError(sql.ErrNoRows)
-
-	repo := NewRepository(db)
-	result, err := repo.AddPenaltyAmount(context.Background(), "res-nonexistent", 10000)
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
 func TestCreateBillingRecord(t *testing.T) {
 	db, mock := setupBillingTestDB(t)
 	defer db.Close()

@@ -17,16 +17,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
-// TestPaidCancel_ShouldApplyFee_WhenCancelledAfter2Minutes verifies that
-// cancelling a reservation after the 2-minute free window results in
-// CANCELLED status and a cancellation penalty of 5000 IDR.
+// TestPaidCancel_ShouldCancelWithoutFee_WhenCancelledAfter2Minutes verifies that
+// cancelling a reservation after the 2-minute window results in CANCELLED status.
+// No cancellation fee is charged — the user only forfeits the booking fee already paid.
 //
-// Validates: Requirements 11.1, 11.2, 11.3, 11.4
-func TestPaidCancel_ShouldApplyFee_WhenCancelledAfter2Minutes(t *testing.T) {
+// Validates: Requirements 11.1, 11.2, 11.3
+func TestPaidCancel_ShouldCancelWithoutFee_WhenCancelledAfter2Minutes(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
@@ -72,7 +71,4 @@ func TestPaidCancel_ShouldApplyFee_WhenCancelledAfter2Minutes(t *testing.T) {
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
 	require.NoError(t, err)
 	assert.Equal(t, "available", spotStatus)
-
-	// Assert — Cancellation penalty of 5000 IDR exists
-	testhelpers.AssertPenaltyExists(t, env.db, reservation.ID, "cancellation", pricing.CancelFee)
 }

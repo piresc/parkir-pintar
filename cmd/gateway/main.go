@@ -193,13 +193,19 @@ func main() {
 		analyticsHandler.RegisterRoutes(engine, mw, jwtSecret)
 	}
 
-	// 14. Start server
+	// 14. Register billing REST routes (DB-backed, with JWT auth)
+	if pgClient != nil {
+		billingHandler := gatewayhandler.NewBillingHandler(pgClient.GetDB())
+		billingHandler.RegisterRoutes(engine, mw, jwtSecret)
+	}
+
+	// 15. Start server
 	srv := server.NewGracefulServer(engine, log, cfg.Server.Port, time.Duration(cfg.Server.ShutdownTimeout)*time.Second)
 	if err := srv.Start(); err != nil {
 		log.Error("server error", slog.Any("error", err))
 	}
 
-	// 15. Run shutdown manager
+	// 16. Run shutdown manager
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {

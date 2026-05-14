@@ -465,8 +465,6 @@ func TestCancelReservation_ShouldChargeFee_WhenCancelledAfter2Min(t *testing.T) 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-cancel-paid").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-6", "available").Return(nil)
-	billing.On("ApplyPenalty", mock.Anything, "res-cancel-paid", "cancellation", pricing.CancelFee, "cancellation fee").Return(nil)
-
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	req := &model.CancelReservationRequest{ReservationID: "res-cancel-paid"}
 
@@ -476,9 +474,7 @@ func TestCancelReservation_ShouldChargeFee_WhenCancelledAfter2Min(t *testing.T) 
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, model.StatusCancelled, result.Status)
-	billing.AssertCalled(t, "ApplyPenalty", mock.Anything, "res-cancel-paid", "cancellation", pricing.CancelFee, "cancellation fee")
 	repo.AssertExpectations(t)
-	billing.AssertExpectations(t)
 }
 
 // TestCancelReservation_ShouldReturnError_WhenInvalidState verifies

@@ -88,28 +88,12 @@ func TestCalculateSessionFee_SameDayNoOvernight(t *testing.T) {
 	assert.False(t, result.IsOvernight)
 }
 
-func TestCalculateCancellationFee_WithinFreeWindow(t *testing.T) {
-	confirmed := time.Date(2026, 1, 15, 10, 0, 0, 0, wib)
-	cancelled := time.Date(2026, 1, 15, 10, 1, 30, 0, wib) // 1.5 min
-
-	fee := CalculateCancellationFee(confirmed, cancelled)
-	assert.Equal(t, int64(0), fee)
-}
-
-func TestCalculateCancellationFee_AfterFreeWindow(t *testing.T) {
-	confirmed := time.Date(2026, 1, 15, 10, 0, 0, 0, wib)
-	cancelled := time.Date(2026, 1, 15, 10, 3, 0, 0, wib) // 3 min
-
-	fee := CalculateCancellationFee(confirmed, cancelled)
-	assert.Equal(t, int64(5_000), fee)
-}
-
 func TestCalculateTotal(t *testing.T) {
-	total := CalculateTotal(5_000, 15_000, 20_000, 0, 0)
+	total := CalculateTotal(5_000, 15_000, 20_000)
 	assert.Equal(t, int64(40_000), total)
 }
 
-func TestCalculateTotal_WithPenalty(t *testing.T) {
-	total := CalculateTotal(5_000, 10_000, 0, 5_000, 200_000)
-	assert.Equal(t, int64(220_000), total)
+func TestCalculateTotal_AllZero(t *testing.T) {
+	total := CalculateTotal(0, 0, 0)
+	assert.Equal(t, int64(0), total)
 }

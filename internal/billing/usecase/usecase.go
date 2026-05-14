@@ -23,7 +23,6 @@ type Usecase interface {
 	StartBilling(ctx context.Context, req *model.StartBillingRequest) (*model.BillingRecord, error)
 	CalculateFee(ctx context.Context, req *model.CalculateFeeRequest) (*model.BillingRecord, error)
 	GenerateInvoice(ctx context.Context, req *model.GenerateInvoiceRequest) (*model.BillingRecord, error)
-	ApplyPenalty(ctx context.Context, req *model.ApplyPenaltyRequest) (*model.BillingRecord, error)
 	ApplyOvernightFee(ctx context.Context, req *model.ApplyOvernightFeeRequest) (*model.BillingRecord, error)
 }
 
@@ -62,7 +61,7 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
-	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
+	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
 	if err := uc.repo.CreateBillingRecord(ctx, record); err != nil {
 		return nil, fmt.Errorf("start billing: %w", err)
@@ -86,7 +85,7 @@ func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.Calculate
 	record.DurationMinutes = feeResult.DurationMinutes
 	record.BilledHours = feeResult.BilledHours
 	record.IsOvernight = feeResult.IsOvernight
-	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
+	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 	record.Status = model.BillingStatusCalculated
 	record.UpdatedAt = time.Now()
 
@@ -121,32 +120,6 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 	return record, nil
 }
 
-// ApplyPenalty inserts a penalty record and atomically updates the billing
-// record's penalty_amount and total_amount using a single SQL UPDATE to prevent
-// lost updates under concurrent requests.
-func (uc *billingUsecase) ApplyPenalty(ctx context.Context, req *model.ApplyPenaltyRequest) (*model.BillingRecord, error) {
-	now := time.Now()
-	penalty := &model.Penalty{
-		ID:            uuid.New().String(),
-		ReservationID: req.ReservationID,
-		PenaltyType:   req.PenaltyType,
-		Amount:        req.Amount,
-		Description:   req.Description,
-		CreatedAt:     now,
-	}
-
-	if err := uc.repo.CreatePenalty(ctx, penalty); err != nil {
-		return nil, fmt.Errorf("apply penalty create: %w", err)
-	}
-
-	record, err := uc.repo.AddPenaltyAmount(ctx, req.ReservationID, req.Amount)
-	if err != nil {
-		return nil, fmt.Errorf("apply penalty update: %w", err)
-	}
-
-	return record, nil
-}
-
 // ApplyOvernightFee updates the overnight fee and total on the billing record.
 func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.ApplyOvernightFeeRequest) (*model.BillingRecord, error) {
 	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
@@ -161,7 +134,7 @@ func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.Appl
 
 	record.OvernightFee = overnightFee
 	record.IsOvernight = true
-	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
+	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 	record.UpdatedAt = time.Now()
 
 	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {

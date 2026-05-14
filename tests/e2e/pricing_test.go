@@ -10,7 +10,6 @@ package e2e_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -45,45 +44,4 @@ func TestPricing_ShouldHaveCorrectOvernightFlatFee(t *testing.T) {
 	// Assert
 	assert.Equal(t, int64(20000), pricing.OvernightPerNight,
 		"OvernightPerNight should be 20000 IDR")
-}
-
-// TestPricing_ShouldHaveCorrectWrongSpotPenalty verifies that the wrong-spot
-// penalty constant equals 200,000 IDR as defined in PRD Section 9.
-//
-// Validates: Requirement 3.4
-func TestPricing_ShouldHaveCorrectWrongSpotPenalty(t *testing.T) {
-	// Assert
-	assert.Equal(t, int64(200000), pricing.WrongSpotPenalty,
-		"WrongSpotPenalty should be 200000 IDR")
-}
-
-// TestPricing_ShouldHaveCorrectCancelFreeWindow verifies that the cancellation
-// free window constant equals 2 minutes as defined in PRD Section 9.
-//
-// Validates: Requirement 3.5
-func TestPricing_ShouldHaveCorrectCancelFreeWindow(t *testing.T) {
-	// Assert
-	assert.Equal(t, 2*time.Minute, pricing.CancelFreeWindow,
-		"CancelFreeWindow should be 2 minutes")
-}
-
-// TestPricing_ShouldHaveCorrectCancelFee verifies that the cancellation fee
-// constant equals 5,000 IDR as defined in PRD Section 9.
-//
-// Validates: Requirement 3.6
-func TestPricing_ShouldHaveCorrectCancelFee(t *testing.T) {
-	// Assert
-	assert.Equal(t, int64(5000), pricing.CancelFee,
-		"CancelFee should be 5000 IDR")
-}
-
-// TestPricing_ShouldHaveZeroNoShowFee verifies that no additional no-show fee
-// is charged. Per PRD, the booking fee (5,000 IDR, already charged at
-// confirmation) is the only cost the driver forfeits on a no-show.
-//
-// Validates: Requirement 3.7
-func TestPricing_ShouldHaveZeroNoShowFee(t *testing.T) {
-	// Assert
-	assert.Equal(t, int64(0), pricing.NoShowFee,
-		"NoShowFee should be 0 IDR — booking fee is the only no-show cost")
 }

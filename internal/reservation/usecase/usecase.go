@@ -42,7 +42,6 @@ type BillingClient interface {
 	StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error)
 	CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error)
 	GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error)
-	ApplyPenalty(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error
 }
 
 // PaymentClient defines the interface for payment service operations.
@@ -384,16 +383,6 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); err != nil {
 		return nil, err
-	}
-
-	// Apply cancellation fee only if reservation was confirmed (not waiting_payment)
-	if reservation.ConfirmedAt != nil {
-		cancellationFee := pricing.CalculateCancellationFee(*reservation.ConfirmedAt, *reservation.CancelledAt)
-		if cancellationFee > 0 {
-			if err := uc.billingClient.ApplyPenalty(ctx, reservation.ID, "cancellation", cancellationFee, "cancellation fee"); err != nil {
-				slog.Error("failed to apply cancellation fee", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
-			}
-		}
 	}
 
 	// Publish events (best-effort)

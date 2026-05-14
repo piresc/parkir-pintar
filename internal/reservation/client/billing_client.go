@@ -103,26 +103,6 @@ func (c *BillingClient) generateInvoiceInner(ctx context.Context, reservationID 
 	return protoToBillingRecord(resp), nil
 }
 
-func (c *BillingClient) ApplyPenalty(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
-	err := c.cb.Execute(func() error {
-		return c.applyPenaltyInner(ctx, reservationID, penaltyType, amount, description)
-	})
-	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
-		return apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
-	}
-	return err
-}
-
-func (c *BillingClient) applyPenaltyInner(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
-	_, err := c.client.ApplyPenalty(ctx, &billingv1.ApplyPenaltyRequest{
-		ReservationId: reservationID,
-		PenaltyType:   penaltyType,
-		Amount:        amount,
-		Description:   description,
-	})
-	return err
-}
-
 func protoToBillingRecord(r *billingv1.BillingResponse) *billingmodel.BillingRecord {
 	if r == nil {
 		return nil

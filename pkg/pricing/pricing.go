@@ -16,11 +16,6 @@ const (
 	BookingFee        int64 = 5_000
 	HourlyRate        int64 = 5_000
 	OvernightPerNight int64 = 20_000
-	WrongSpotPenalty  int64 = 200_000
-	CancelFee         int64 = 5_000
-	NoShowFee         int64 = 0
-
-	CancelFreeWindow = 2 * time.Minute
 )
 
 // wib is the WIB timezone (UTC+7) used for midnight detection.
@@ -87,18 +82,7 @@ func countMidnightsCrossed(start, end time.Time) int {
 	return days
 }
 
-// CalculateCancellationFee determines the cancellation fee based on elapsed
-// time since confirmation.
-//
-// Returns 0 if cancelled within CancelFreeWindow (2 minutes), else CancelFee.
-func CalculateCancellationFee(confirmedAt, cancelledAt time.Time) int64 {
-	if cancelledAt.Sub(confirmedAt) <= CancelFreeWindow {
-		return 0
-	}
-	return CancelFee
-}
-
 // CalculateTotal computes the total billing amount from individual components.
-func CalculateTotal(bookingFee, parkingFee, overnightFee, cancellationFee, penaltyAmount int64) int64 {
-	return bookingFee + parkingFee + overnightFee + cancellationFee + penaltyAmount
+func CalculateTotal(bookingFee, parkingFee, overnightFee int64) int64 {
+	return bookingFee + parkingFee + overnightFee
 }

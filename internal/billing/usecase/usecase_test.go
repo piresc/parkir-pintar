@@ -59,19 +59,6 @@ func (m *MockRepository) UpdateBillingRecord(ctx context.Context, record *model.
 	return args.Error(0)
 }
 
-func (m *MockRepository) CreatePenalty(ctx context.Context, penalty *model.Penalty) error {
-	args := m.Called(ctx, penalty)
-	return args.Error(0)
-}
-
-func (m *MockRepository) AddPenaltyAmount(ctx context.Context, reservationID string, amount int64) (*model.BillingRecord, error) {
-	args := m.Called(ctx, reservationID, amount)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.BillingRecord), args.Error(1)
-}
-
 // --- Test Cases ---
 
 // TestStartBilling_ShouldCreateRecord_WhenNewReservation verifies that
@@ -176,7 +163,7 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 	assert.Equal(t, 2, result.BilledHours)
 	assert.False(t, result.IsOvernight)
 	assert.Equal(t, model.BillingStatusCalculated, result.Status)
-	// total = booking_fee + parking_fee + overnight_fee + cancellation_fee + penalty_amount
+	// total = booking_fee + parking_fee + overnight_fee
 	expectedTotal := pricing.BookingFee + int64(10_000)
 	assert.Equal(t, expectedTotal, result.TotalAmount)
 	repo.AssertExpectations(t)
@@ -292,62 +279,22 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
-// TestApplyPenalty_ShouldUpdateTotal_WhenPenaltyApplied verifies
-// that ApplyPenalty inserts a penalty record and atomically updates the billing record total correctly.
-func TestApplyPenalty_ShouldUpdateTotal_WhenPenaltyApplied(t *testing.T) {
-	// Arrange
-	repo := new(MockRepository)
-
-	updatedRecord := &model.BillingRecord{
-		ID:            "billing-5",
-		ReservationID: "res-5",
-		BookingFee:    pricing.BookingFee,
-		ParkingFee:    10_000,
-		PenaltyAmount: pricing.WrongSpotPenalty,
-		TotalAmount:   pricing.BookingFee + int64(10_000) + pricing.WrongSpotPenalty,
-		Status:        model.BillingStatusCalculated,
-	}
-	repo.On("CreatePenalty", mock.Anything, mock.AnythingOfType("*model.Penalty")).Return(nil)
-	repo.On("AddPenaltyAmount", mock.Anything, "res-5", pricing.WrongSpotPenalty).Return(updatedRecord, nil)
-
-	uc := NewUsecase(repo)
-	req := &model.ApplyPenaltyRequest{
-		ReservationID: "res-5",
-		PenaltyType:   "wrong_spot",
-		Amount:        pricing.WrongSpotPenalty,
-		Description:   "parked in wrong spot",
-	}
-
-	// Act
-	result, err := uc.ApplyPenalty(t.Context(), req)
-
-	// Assert
-	require.NoError(t, err)
-	assert.Equal(t, pricing.WrongSpotPenalty, result.PenaltyAmount)
-	// total = booking_fee + parking_fee + penalty_amount = 5000 + 10000 + 200000 = 215000
-	expectedTotal := pricing.BookingFee + int64(10_000) + pricing.WrongSpotPenalty
-	assert.Equal(t, expectedTotal, result.TotalAmount)
-	repo.AssertExpectations(t)
-}
-
 // TestBillingTotalInvariant_ShouldEqualSumOfFees verifies
 // that total_amount always equals the sum of all fee fields.
 func TestBillingTotalInvariant_ShouldEqualSumOfFees(t *testing.T) {
 	// Arrange
 	record := &model.BillingRecord{
-		BookingFee:      pricing.BookingFee,
-		ParkingFee:      15_000,
-		OvernightFee:    pricing.OvernightPerNight,
-		CancellationFee: 0,
-		PenaltyAmount:   pricing.WrongSpotPenalty,
+		BookingFee:   pricing.BookingFee,
+		ParkingFee:   15_000,
+		OvernightFee: pricing.OvernightPerNight,
 	}
 
 	// Act
-	total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee, record.CancellationFee, record.PenaltyAmount)
+	total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
 	// Assert
-	expectedTotal := pricing.BookingFee + int64(15_000) + pricing.OvernightPerNight + pricing.WrongSpotPenalty
+	expectedTotal := pricing.BookingFee + int64(15_000) + pricing.OvernightPerNight
 	assert.Equal(t, expectedTotal, total)
-	assert.Equal(t, record.BookingFee+record.ParkingFee+record.OvernightFee+record.CancellationFee+record.PenaltyAmount, total)
+	assert.Equal(t, record.BookingFee+record.ParkingFee+record.OvernightFee, total)
 	assert.GreaterOrEqual(t, total, pricing.BookingFee)
 }

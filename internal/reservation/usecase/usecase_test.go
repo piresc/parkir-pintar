@@ -80,8 +80,6 @@ func (m *MockRepository) UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, sp
 	return args.Error(0)
 }
 
-
-
 func (m *MockRepository) FindExpiredReservations(ctx context.Context) ([]*model.Reservation, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {

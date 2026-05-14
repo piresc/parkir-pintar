@@ -62,8 +62,6 @@ func (a *billingAdapter) GenerateInvoice(ctx context.Context, reservationID stri
 	})
 }
 
-
-
 // ---------------------------------------------------------------------------
 // paymentAdapter — adapts payment.Usecase → reservation.PaymentClient
 // ---------------------------------------------------------------------------

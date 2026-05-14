@@ -19,6 +19,7 @@ import (
 type Repository interface {
 	FindByIdempotencyKey(ctx context.Context, key string) (*model.Reservation, error)
 	FindAvailableSpot(ctx context.Context, vehicleType string) (*model.ParkingSpot, error)
+	GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
 	UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, spotID string, status string) error
@@ -72,6 +73,19 @@ func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 			return nil, fmt.Errorf("%w: vehicle_type=%s", model.ErrNotFound, vehicleType)
 		}
 		return nil, fmt.Errorf("find available spot: %w", err)
+	}
+	return &spot, nil
+}
+
+// GetSpotByID retrieves a parking spot by ID (read-only, no lock).
+func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
+	var spot model.ParkingSpot
+	err := r.db.GetContext(ctx, &spot, "SELECT * FROM parking_spots WHERE id = $1", spotID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: spot_id=%s", model.ErrNotFound, spotID)
+		}
+		return nil, fmt.Errorf("get spot by id: %w", err)
 	}
 	return &spot, nil
 }

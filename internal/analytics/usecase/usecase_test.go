@@ -46,6 +46,11 @@ func (m *MockRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 	return args.Get(0).([]model.DailyOccupancy), args.Error(1)
 }
 
+func (m *MockRepository) RecordEvent(ctx context.Context, event model.ReservationEvent) error {
+	args := m.Called(ctx, event)
+	return args.Error(0)
+}
+
 // --- Test Cases ---
 
 // TestGetPeakHours_ShouldReturnAboveAverageHours_WhenDataExists verifies that

@@ -16,9 +16,11 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/gateway"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/pkg/apperror"
+	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
@@ -103,22 +105,25 @@ type Usecase interface {
 
 // reservationUsecase is the concrete implementation of Usecase.
 type reservationUsecase struct {
-	repo          repository.Repository
-	locker        Locker
-	billingClient BillingClient
-	paymentClient PaymentClient
-	taskEnqueuer  TaskEnqueuer
-	expiryTimeout time.Duration
+	repo           repository.Repository
+	locker         Locker
+	billingClient  BillingClient
+	paymentClient  PaymentClient
+	taskEnqueuer   TaskEnqueuer
+	eventPublisher gateway.EventPublisher
+	expiryTimeout  time.Duration
 }
 
 // NewUsecase creates a new reservation Usecase with all required dependencies.
-// taskEnqueuer is optional (nil-safe); when nil, no async tasks are enqueued.
+// taskEnqueuer and eventPublisher are optional (nil-safe); when nil, no async
+// tasks are enqueued and no events are published respectively.
 func NewUsecase(
 	repo repository.Repository,
 	locker Locker,
 	billingClient BillingClient,
 	paymentClient PaymentClient,
 	taskEnqueuer TaskEnqueuer,
+	eventPublisher gateway.EventPublisher,
 	expiryTimeoutMinutes int,
 ) Usecase {
 	timeout := time.Duration(expiryTimeoutMinutes) * time.Minute
@@ -126,12 +131,13 @@ func NewUsecase(
 		timeout = 60 * time.Minute
 	}
 	return &reservationUsecase{
-		repo:          repo,
-		locker:        locker,
-		billingClient: billingClient,
-		paymentClient: paymentClient,
-		taskEnqueuer:  taskEnqueuer,
-		expiryTimeout: timeout,
+		repo:           repo,
+		locker:         locker,
+		billingClient:  billingClient,
+		paymentClient:  paymentClient,
+		taskEnqueuer:   taskEnqueuer,
+		eventPublisher: eventPublisher,
+		expiryTimeout:  timeout,
 	}
 }
 
@@ -251,6 +257,10 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		}
 	}
 
+	// Step 8: Publish events (best-effort)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusReserved)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCreated, reservation, "created")
+
 	return reservation, nil
 }
 
@@ -314,6 +324,9 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 			slog.Any("error", err))
 		return nil, fmt.Errorf("confirm reservation: %w", err)
 	}
+
+	// Publish analytics event (best-effort)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsConfirmed, reservation, "confirmed")
 
 	return reservation, nil
 }
@@ -383,6 +396,10 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		}
 	}
 
+	// Publish events (best-effort)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCancelled, reservation, "cancelled")
+
 	return reservation, nil
 }
 
@@ -424,6 +441,10 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, 0, billingIdempotencyKey); err != nil {
 		slog.Error("failed to activate billing on check-in", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 	}
+
+	// Publish events (best-effort)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusOccupied)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCheckedIn, reservation, "checked-in")
 
 	return reservation, nil
 }
@@ -532,6 +553,10 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		return nil, fmt.Errorf("complete checkout release spot: %w", err)
 	}
 
+	// Publish events (best-effort)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCompleted, reservation, "completed")
+
 	return &model.CheckOutResponse{
 		Reservation:   reservation,
 		TotalAmount:   billingRecord.TotalAmount,
@@ -547,8 +572,11 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 // ExpireReservation transitions a confirmed reservation to expired and releases
 // the spot. Uses SELECT FOR UPDATE to prevent TOCTOU races.
 func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.ExpireReservationRequest) error {
+	var reservation *model.Reservation
+
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
-		reservation, err := uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
+		var err error
+		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
@@ -576,6 +604,10 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 	// (5,000 IDR, already charged at confirmation) is the only cost the
 	// driver forfeits when a reservation expires without check-in.
 
+	// Publish events (best-effort)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsExpired, reservation, "expired")
+
 	return nil
 }
 
@@ -583,8 +615,11 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 // the spot. Called by the payment timeout worker for reservations that exceeded
 // the payment window. Uses SELECT FOR UPDATE to prevent TOCTOU races.
 func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.FailReservationRequest) error {
+	var reservation *model.Reservation
+
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
-		reservation, err := uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
+		var err error
+		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
@@ -608,10 +643,64 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		return err
 	}
 
+	// Publish events (best-effort)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsFailed, reservation, "failed")
+
 	return nil
 }
 
 // ListByDriver retrieves reservations for a driver with optional status filter.
 func (uc *reservationUsecase) ListByDriver(ctx context.Context, driverID string, status string) ([]*model.Reservation, error) {
 	return uc.repo.ListByDriverID(ctx, driverID, status)
+}
+
+// publishSpotUpdated publishes a spot status change event (best-effort).
+func (uc *reservationUsecase) publishSpotUpdated(ctx context.Context, spotID, status string) {
+	if uc.eventPublisher == nil {
+		return
+	}
+	spot, err := uc.repo.GetSpotByID(ctx, spotID)
+	if err != nil {
+		slog.Error("failed to get spot for event publishing",
+			slog.String("spot_id", spotID),
+			slog.Any("error", err))
+		return
+	}
+	event := gateway.SpotUpdatedEvent{
+		SpotID:      spot.ID,
+		FloorNumber: spot.FloorNumber,
+		SpotNumber:  spot.SpotNumber,
+		VehicleType: spot.VehicleType,
+		SpotCode:    spot.SpotCode,
+		Status:      status,
+		UpdatedAt:   time.Now(),
+	}
+	if err := uc.eventPublisher.PublishSpotUpdated(ctx, event); err != nil {
+		slog.Error("failed to publish spot updated event",
+			slog.String("spot_id", spotID),
+			slog.String("status", status),
+			slog.Any("error", err))
+	}
+}
+
+// publishAnalyticsEvent publishes a reservation analytics event (best-effort).
+func (uc *reservationUsecase) publishAnalyticsEvent(ctx context.Context, subject string, reservation *model.Reservation, status string) {
+	if uc.eventPublisher == nil {
+		return
+	}
+	event := gateway.ReservationEvent{
+		ReservationID: reservation.ID,
+		DriverID:      reservation.DriverID,
+		SpotID:        reservation.SpotID,
+		VehicleType:   reservation.VehicleType,
+		Status:        status,
+		Timestamp:     time.Now(),
+	}
+	if err := uc.eventPublisher.PublishReservationEvent(ctx, subject, event); err != nil {
+		slog.Error("failed to publish reservation analytics event",
+			slog.String("reservation_id", reservation.ID),
+			slog.String("subject", subject),
+			slog.Any("error", err))
+	}
 }

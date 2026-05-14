@@ -12,6 +12,7 @@ import (
 
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
+	"parkir-pintar/internal/payment/usecase"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
@@ -51,6 +52,8 @@ func (m *mockUsecase) GetPaymentStatus(ctx context.Context, req *model.GetPaymen
 	}
 	return args.Get(0).(*model.Payment), args.Error(1)
 }
+
+func (m *mockUsecase) SetEventPublisher(_ usecase.EventPublisher) {}
 
 func TestProcessPayment(t *testing.T) {
 	tests := []struct {

@@ -37,3 +37,13 @@ type DailyOccupancy struct {
 	TotalSpots    int       `json:"total_spots" db:"total_spots"`
 	OccupiedSpots int       `json:"occupied_spots" db:"occupied_spots"`
 }
+
+// ReservationEvent represents a reservation lifecycle event received from NATS.
+type ReservationEvent struct {
+	ReservationID string    `json:"reservation_id" db:"reservation_id"`
+	DriverID      string    `json:"driver_id" db:"driver_id"`
+	SpotID        string    `json:"spot_id" db:"spot_id"`
+	VehicleType   string    `json:"vehicle_type" db:"vehicle_type"`
+	Status        string    `json:"status" db:"status"`
+	Timestamp     time.Time `json:"timestamp" db:"timestamp"`
+}

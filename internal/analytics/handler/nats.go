@@ -1,0 +1,58 @@
+// Package handler provides NATS message consumers for the analytics service.
+package handler
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+
+	"github.com/nats-io/nats.go/jetstream"
+
+	"parkir-pintar/internal/analytics/model"
+	"parkir-pintar/internal/analytics/usecase"
+	pkgnats "parkir-pintar/pkg/nats"
+)
+
+// NATSHandler handles NATS messages for the analytics service.
+type NATSHandler struct {
+	uc     usecase.Usecase
+	client *pkgnats.Client
+}
+
+// NewNATSHandler creates a new NATSHandler with the given usecase and NATS client.
+func NewNATSHandler(uc usecase.Usecase, client *pkgnats.Client) *NATSHandler {
+	return &NATSHandler{uc: uc, client: client}
+}
+
+// InitConsumers starts consuming reservation events for analytics processing.
+func (h *NATSHandler) InitConsumers() (jetstream.ConsumeContext, error) {
+	return h.client.Consume(pkgnats.ConsumerAnalytics, h.handleReservationEvent)
+}
+
+func (h *NATSHandler) handleReservationEvent(msg jetstream.Msg) {
+	var event model.ReservationEvent
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
+		slog.Error("failed to unmarshal reservation event",
+			slog.String("subject", msg.Subject()),
+			slog.String("error", err.Error()))
+		_ = msg.Nak()
+		return
+	}
+
+	ctx := context.Background()
+
+	if err := h.uc.RecordEvent(ctx, event); err != nil {
+		slog.Error("failed to record reservation event",
+			slog.String("reservation_id", event.ReservationID),
+			slog.String("status", event.Status),
+			slog.String("error", err.Error()))
+		_ = msg.Nak()
+		return
+	}
+
+	_ = msg.Ack()
+	slog.Info("recorded analytics event",
+		slog.String("reservation_id", event.ReservationID),
+		slog.String("status", event.Status),
+		slog.String("spot_id", event.SpotID))
+}

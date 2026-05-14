@@ -48,7 +48,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 		Status:      "reserved",
 	}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -101,7 +101,7 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-a", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -156,7 +156,7 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-boundary", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "motorcycle",

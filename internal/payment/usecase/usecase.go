@@ -34,12 +34,20 @@ type Usecase interface {
 	ProcessQRIS(ctx context.Context, req *model.ProcessQRISRequest) (*model.Payment, error)
 	RefundPayment(ctx context.Context, req *model.RefundPaymentRequest) (*model.Payment, error)
 	GetPaymentStatus(ctx context.Context, req *model.GetPaymentStatusRequest) (*model.Payment, error)
+	SetEventPublisher(pub EventPublisher)
+}
+
+// EventPublisher defines the interface for publishing payment result events.
+type EventPublisher interface {
+	PublishPaymentSuccess(ctx context.Context, event gateway.PaymentResultEvent) error
+	PublishPaymentFailed(ctx context.Context, event gateway.PaymentResultEvent) error
 }
 
 // paymentUsecase is the concrete implementation of Usecase.
 type paymentUsecase struct {
-	repo repository.Repository
-	gw   gateway.PaymentGateway
+	repo           repository.Repository
+	gw             gateway.PaymentGateway
+	eventPublisher EventPublisher
 }
 
 // NewUsecase creates a new payment Usecase with all required dependencies.
@@ -48,6 +56,11 @@ func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway) Usecase {
 		repo: repo,
 		gw:   gw,
 	}
+}
+
+// SetEventPublisher sets an optional event publisher for payment result events.
+func (uc *paymentUsecase) SetEventPublisher(pub EventPublisher) {
+	uc.eventPublisher = pub
 }
 
 // ProcessPayment processes a payment with idempotency check and circuit breaker

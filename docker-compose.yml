@@ -25,6 +25,25 @@ services:
       retries: 5
       start_period: 30s
 
+  nats:
+    image: nats:2.10-alpine
+    container_name: assessment-nats
+    command: ["--jetstream", "--store_dir=/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats_data:/data
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   redis:
     image: redis:7.0-alpine
     container_name: assessment-redis
@@ -109,10 +128,14 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       TRACING_ENABLED: "false"
+      NATS_ENABLED: "true"
+      NATS_URL: nats://nats:4222
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     networks:
       - backend
@@ -153,6 +176,8 @@ services:
       PAYMENT_TIMEOUT_MINUTES: "10"
       RESERVATION_EXPIRY_MINUTES: "60"
       ASYNQ_CONCURRENCY: "10"
+      NATS_ENABLED: "true"
+      NATS_URL: nats://nats:4222
     depends_on:
       postgres:
         condition: service_healthy
@@ -161,6 +186,8 @@ services:
       billing:
         condition: service_healthy
       payment:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     networks:
       - backend
@@ -227,8 +254,12 @@ services:
       DB_SCHEMA: payment
       DB_SSL_MODE: disable
       TRACING_ENABLED: "false"
+      NATS_ENABLED: "true"
+      NATS_URL: nats://nats:4222
     depends_on:
       postgres:
+        condition: service_healthy
+      nats:
         condition: service_healthy
     networks:
       - backend
@@ -243,6 +274,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  nats_data:
 
 networks:
   backend:

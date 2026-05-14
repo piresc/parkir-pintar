@@ -20,6 +20,9 @@ type Repository interface {
 
 	// GetDailyOccupancy returns average spot occupancy per day for the last N days.
 	GetDailyOccupancy(ctx context.Context, days int) ([]model.DailyOccupancy, error)
+
+	// RecordEvent persists a reservation event for analytics reporting.
+	RecordEvent(ctx context.Context, event model.ReservationEvent) error
 }
 
 // sqlxRepository is the PostgreSQL-backed implementation of Repository.
@@ -90,4 +93,25 @@ func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 		return nil, fmt.Errorf("get daily occupancy: %w", err)
 	}
 	return occupancy, nil
+}
+
+// RecordEvent inserts a reservation event into the reservation_events table
+// for later analytics aggregation (peak hours, occupancy trends).
+func (r *sqlxRepository) RecordEvent(ctx context.Context, event model.ReservationEvent) error {
+	query := `
+		INSERT INTO reservation_events (reservation_id, driver_id, spot_id, vehicle_type, status, timestamp)
+		VALUES ($1, $2, $3, $4, $5, $6)`
+
+	_, err := r.db.ExecContext(ctx, query,
+		event.ReservationID,
+		event.DriverID,
+		event.SpotID,
+		event.VehicleType,
+		event.Status,
+		event.Timestamp,
+	)
+	if err != nil {
+		return fmt.Errorf("record event: %w", err)
+	}
+	return nil
 }

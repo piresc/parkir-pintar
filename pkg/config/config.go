@@ -23,6 +23,7 @@ type Config struct {
 	GRPC        GRPCConfig
 	Reservation ReservationConfig
 	Asynq       AsynqConfig
+	NATS        NATSConfig
 }
 
 // ReservationConfig holds reservation service settings.
@@ -34,6 +35,12 @@ type ReservationConfig struct {
 // AsynqConfig holds Redis-based task queue settings.
 type AsynqConfig struct {
 	Concurrency int // number of concurrent workers (default 10)
+}
+
+// NATSConfig holds NATS JetStream connection settings.
+type NATSConfig struct {
+	URL     string // NATS server URL (default: nats://localhost:4222)
+	Enabled bool   // Enable NATS messaging (default: false)
 }
 
 // GRPCServerConfig holds gRPC server settings.
@@ -217,6 +224,10 @@ func Load(envPath string) (*Config, error) {
 	// Asynq
 	cfg.Asynq.Concurrency = getEnvAsInt("ASYNQ_CONCURRENCY", 10)
 
+	// NATS
+	cfg.NATS.URL = getEnv("NATS_URL", "nats://localhost:4222")
+	cfg.NATS.Enabled = getEnvAsBool("NATS_ENABLED", false)
+
 	if err := validate(cfg); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
@@ -264,6 +275,7 @@ func getEnvAsInt(key string, defaultValue int) int {
 	return value
 }
 
+//nolint:unparam // defaultValue is always false today but kept for API consistency with other getEnvAs* helpers.
 func getEnvAsBool(key string, defaultValue bool) bool {
 	valueStr := os.Getenv(key)
 	if valueStr == "" {

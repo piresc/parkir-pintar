@@ -53,6 +53,14 @@ func (m *MockRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 	return args.Get(0).(*model.ParkingSpot), args.Error(1)
 }
 
+func (m *MockRepository) GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
+	args := m.Called(ctx, spotID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ParkingSpot), args.Error(1)
+}
+
 func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
 	args := m.Called(ctx, spotID)
 	if args.Get(0) == nil {
@@ -204,7 +212,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, 60)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 
 	// --- Phase 1: Create Reservation ---
 

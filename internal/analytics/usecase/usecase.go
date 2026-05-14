@@ -36,6 +36,9 @@ type Usecase interface {
 
 	// GetUsagePatterns summarizes weekly utilization patterns.
 	GetUsagePatterns(ctx context.Context) (*model.UsagePattern, error)
+
+	// RecordEvent records a reservation event for analytics reporting.
+	RecordEvent(ctx context.Context, event model.ReservationEvent) error
 }
 
 // analyticsUsecase is the concrete implementation of Usecase.
@@ -222,6 +225,18 @@ func (uc *analyticsUsecase) GetUsagePatterns(ctx context.Context) (*model.UsageP
 		PeakHours:      peakHours,
 		IdleHours:      idleHours,
 	}, nil
+}
+
+// RecordEvent delegates event persistence to the repository layer.
+func (uc *analyticsUsecase) RecordEvent(ctx context.Context, event model.ReservationEvent) error {
+	if err := uc.repo.RecordEvent(ctx, event); err != nil {
+		slog.Error("failed to record reservation event",
+			slog.String("reservation_id", event.ReservationID),
+			slog.String("status", event.Status),
+			slog.Any("error", err))
+		return apperror.Internal("failed to record reservation event")
+	}
+	return nil
 }
 
 // linearRegression performs simple linear regression on daily occupancy data.

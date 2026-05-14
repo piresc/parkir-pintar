@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	reservationgateway "parkir-pintar/internal/reservation/gateway"
 	reservationhandler "parkir-pintar/internal/reservation/handler"
 	"parkir-pintar/internal/reservation/model"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
@@ -21,6 +22,7 @@ import (
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
+	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/redislock"
 	"parkir-pintar/pkg/server"
@@ -135,11 +137,37 @@ func main() {
 	asynqClient := taskqueue.NewClient(redisAddr)
 	asynqServer := taskqueue.NewServer(redisAddr, cfg.Asynq.Concurrency)
 
+	// NATS JetStream (event-driven messaging)
+	var natsClient *pkgnats.Client
+	var eventPublisher reservationgateway.EventPublisher
+	if cfg.NATS.Enabled {
+		var natsErr error
+		natsClient, natsErr = pkgnats.NewClient(cfg.NATS.URL)
+		if natsErr != nil {
+			log.Error("nats connect failed", slog.Any("error", natsErr))
+			os.Exit(1)
+		}
+
+		natsCtx := context.Background()
+		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+			log.Error("nats create streams failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+		if err := pkgnats.CreateConsumersForService(natsCtx, natsClient, "reservation"); err != nil {
+			log.Error("nats create consumers failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+
+		publisher := pkgnats.NewPublisher(natsClient)
+		eventPublisher = reservationgateway.NewNATSEventPublisher(publisher)
+	}
+
 	uc := usecase.NewUsecase(
 		repo, usecase.NewLockerAdapter(redislockLocker),
 		client.NewBillingClient(billingGRPC),
 		client.NewPaymentClient(paymentGRPC),
 		asynqClient,
+		eventPublisher,
 		cfg.Reservation.ExpiryTimeoutMinutes,
 	)
 	handler := reservationhandler.NewHandler(uc)
@@ -171,6 +199,17 @@ func main() {
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 	if providers != nil {
 		shutdownMgr.Register(func(ctx context.Context) error { return providers.Shutdown(ctx) })
+	}
+
+	// Start NATS consumer for payment results.
+	if cfg.NATS.Enabled && natsClient != nil {
+		natsHandler := reservationhandler.NewNATSHandler(uc, natsClient)
+		if err := natsHandler.Start(); err != nil {
+			log.Error("nats consumer start failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+		shutdownMgr.Register(func(_ context.Context) error { natsHandler.Stop(); return nil })
+		shutdownMgr.Register(func(ctx context.Context) error { natsClient.Close(ctx); return nil })
 	}
 
 	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,

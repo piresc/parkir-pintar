@@ -9,6 +9,7 @@ import (
 
 	searchhandler "parkir-pintar/internal/search/handler"
 	searchrepo "parkir-pintar/internal/search/repository"
+	searchsync "parkir-pintar/internal/search/sync"
 	searchuc "parkir-pintar/internal/search/usecase"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
@@ -16,6 +17,7 @@ import (
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
+	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
@@ -78,6 +80,37 @@ func main() {
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return redisClient.Close() })
+
+	// NATS JetStream consumer (spot updates from reservation service)
+	if cfg.NATS.Enabled {
+		natsClient, natsErr := pkgnats.NewClient(cfg.NATS.URL)
+		if natsErr != nil {
+			log.Error("nats connect failed", slog.Any("error", natsErr))
+			os.Exit(1)
+		}
+
+		natsCtx := context.Background()
+		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+			log.Error("nats create streams failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+		if err := pkgnats.CreateConsumersForService(natsCtx, natsClient, "search"); err != nil {
+			log.Error("nats create consumers failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+
+		readModelRepo := searchrepo.NewReadModelRepository(tracedPG.GetDB())
+		spotSync := searchsync.NewSpotSync(readModelRepo)
+		natsHandler := searchhandler.NewNATSHandler(spotSync, tracedRedis, natsClient)
+		cc, err := natsHandler.InitConsumers()
+		if err != nil {
+			log.Error("nats consumer init failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+
+		shutdownMgr.Register(func(_ context.Context) error { cc.Stop(); return nil })
+		shutdownMgr.Register(func(ctx context.Context) error { natsClient.Close(ctx); return nil })
+	}
 
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })

@@ -17,6 +17,7 @@ import (
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/logger"
 	"parkir-pintar/pkg/metrics"
+	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/server"
 	"parkir-pintar/pkg/tracing"
 	paymentv1 "parkir-pintar/proto/payment/v1"
@@ -73,6 +74,27 @@ func main() {
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
+
+	// NATS setup (publish-only for payment results)
+	if cfg.NATS.Enabled {
+		natsClient, natsErr := pkgnats.NewClient(cfg.NATS.URL)
+		if natsErr != nil {
+			log.Error("nats connect failed", slog.Any("error", natsErr))
+			os.Exit(1)
+		}
+
+		natsCtx := context.Background()
+		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+			log.Error("nats create streams failed", slog.Any("error", err))
+			os.Exit(1)
+		}
+
+		publisher := pkgnats.NewPublisher(natsClient)
+		paymentPublisher := paymentgateway.NewPaymentEventPublisher(publisher)
+		uc.SetEventPublisher(paymentPublisher)
+
+		shutdownMgr.Register(func(ctx context.Context) error { natsClient.Close(ctx); return nil })
+	}
 
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })

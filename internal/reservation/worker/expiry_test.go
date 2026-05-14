@@ -44,6 +44,9 @@ func (f *fakeRepo) FindByIdempotencyKey(context.Context, string) (*model.Reserva
 func (f *fakeRepo) FindAvailableSpot(context.Context, string) (*model.ParkingSpot, error) {
 	return nil, nil
 }
+func (f *fakeRepo) GetSpotByID(context.Context, string) (*model.ParkingSpot, error) {
+	return nil, nil
+}
 func (f *fakeRepo) GetSpotForUpdate(context.Context, string) (*model.ParkingSpot, error) {
 	return nil, nil
 }

@@ -108,10 +108,11 @@ services:
     container_name: monitoring-postgres-exporter
     restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${DB_USERNAME}:${DB_PASSWORD}@staging-postgres:5432/${DB_DATABASE}?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${DB_USERNAME}:***@staging-postgres:5432/${DB_DATABASE}?sslmode=disable"
     networks:
       - monitoring
       - coolify
+      - staging_backend
     depends_on:
       - prometheus
 
@@ -125,6 +126,7 @@ services:
     networks:
       - monitoring
       - coolify
+      - staging_backend
     depends_on:
       - prometheus
 
@@ -136,6 +138,7 @@ services:
     networks:
       - monitoring
       - coolify
+      - staging_backend
     depends_on:
       - prometheus
 
@@ -150,4 +153,6 @@ networks:
   monitoring:
     driver: bridge
   coolify:
+    external: true
+  staging_backend:
     external: true

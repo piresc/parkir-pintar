@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ParkirPintar - System Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'JetBrains Mono', monospace;
+  background-color: #020617;
+  background-image: radial-gradient(circle, #1e293b 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: #e2e8f0;
+  min-height: 100vh;
+  padding: 2rem;
+}
+.container { max-width: 1400px; margin: 0 auto; }
+h1 { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 0.5rem; background: linear-gradient(135deg, #22d3ee, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.subtitle { text-align: center; color: #64748b; font-size: 0.85rem; margin-bottom: 2rem; }
+.diagram-container { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 1rem; margin-bottom: 2rem; overflow-x: auto; }
+svg text { font-family: 'JetBrains Mono', monospace; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 1.5rem; }
+.card h3 { font-size: 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+.card ul { list-style: none; padding-left: 0; }
+.card li { font-size: 0.75rem; color: #94a3b8; padding: 0.3rem 0; border-bottom: 1px solid #1e293b; }
+.card li:last-child { border-bottom: none; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+.badge-green { background: #064e3b; color: #6ee7b7; }
+.badge-cyan { background: #164e63; color: #67e8f9; }
+.badge-violet { background: #4c1d95; color: #c4b5fd; }
+.badge-orange { background: #7c2d12; color: #fdba74; }
+.badge-amber { background: #78350f; color: #fcd34d; }
+.badge-slate { background: #1e293b; color: #94a3b8; }
+.badge-rose { background: #4c0519; color: #fda4af; }
+.legend { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin-bottom: 2rem; padding: 1rem; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; }
+.legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.7rem; color: #94a3b8; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+.state-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+.state { padding: 4px 10px; border-radius: 4px; font-size: 0.65rem; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+.state-arrow { color: #10b981; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>ParkirPintar System Architecture</h1>
+<p class="subtitle">Smart Parking Management System &mdash; Microservices + Event-Driven + CQRS</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#22d3ee"></div>Frontend/Client</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Backend Services</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Database</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>Message Bus</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Monitoring/Cloud</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#64748b"></div>External/Infra</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f43f5e"></div>Security</div>
+</div>
+
+<div class="diagram-container">
+<svg viewBox="0 0 1400 950" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <defs>
+    <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981"/></marker>
+    <marker id="arrow-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#22d3ee"/></marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f97316"/></marker>
+    <marker id="arrow-violet" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#8b5cf6"/></marker>
+    <marker id="arrow-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/></marker>
+    <marker id="arrow-slate" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#64748b"/></marker>
+  </defs>
+
+  <!-- EXTERNAL CLIENTS -->
+  <rect x="50" y="30" width="180" height="60" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="140" y="55" text-anchor="middle" fill="#94a3b8" font-size="10">Mobile / Browser</text>
+  <text x="140" y="72" text-anchor="middle" fill="#64748b" font-size="8">Clients</text>
+
+  <!-- TRAEFIK -->
+  <rect x="50" y="130" width="180" height="60" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="140" y="155" text-anchor="middle" fill="#94a3b8" font-size="10">Traefik / Coolify</text>
+  <text x="140" y="172" text-anchor="middle" fill="#64748b" font-size="8">Reverse Proxy + TLS</text>
+
+  <!-- Arrow: Clients -> Traefik -->
+  <line x1="140" y1="90" x2="140" y2="130" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-slate)"/>
+  <text x="155" y="115" fill="#64748b" font-size="7">HTTPS</text>
+
+  <!-- GATEWAY -->
+  <rect x="50" y="240" width="180" height="70" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="140" y="265" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">Gateway</text>
+  <text x="140" y="282" text-anchor="middle" fill="#10b981" font-size="8">HTTP :8082 | Gin</text>
+  <text x="140" y="296" text-anchor="middle" fill="#6ee7b7" font-size="7">REST API Gateway</text>
+
+  <!-- Arrow: Traefik -> Gateway -->
+  <line x1="140" y1="190" x2="140" y2="240" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow-slate)"/>
+  <text x="155" y="220" fill="#64748b" font-size="7">HTTP/REST</text>
+
+  <!-- BACKEND SERVICES -->
+  <!-- Reservation -->
+  <rect x="320" y="240" width="200" height="70" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="420" y="265" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">Reservation</text>
+  <text x="420" y="282" text-anchor="middle" fill="#10b981" font-size="8">gRPC :9091</text>
+  <text x="420" y="296" text-anchor="middle" fill="#6ee7b7" font-size="7">Core Domain | Lifecycle</text>
+
+  <!-- Search -->
+  <rect x="570" y="240" width="200" height="70" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="670" y="265" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">Search</text>
+  <text x="670" y="282" text-anchor="middle" fill="#10b981" font-size="8">gRPC :9092</text>
+  <text x="670" y="296" text-anchor="middle" fill="#6ee7b7" font-size="7">CQRS Read Model | Availability</text>
+
+  <!-- Billing -->
+  <rect x="820" y="240" width="200" height="70" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="920" y="265" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">Billing</text>
+  <text x="920" y="282" text-anchor="middle" fill="#10b981" font-size="8">gRPC :9093</text>
+  <text x="920" y="296" text-anchor="middle" fill="#6ee7b7" font-size="7">Fee Calculation | Invoicing</text>
+
+  <!-- Payment -->
+  <rect x="1070" y="240" width="200" height="70" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="1170" y="265" text-anchor="middle" fill="#6ee7b7" font-size="11" font-weight="600">Payment</text>
+  <text x="1170" y="282" text-anchor="middle" fill="#10b981" font-size="8">gRPC :9094</text>
+  <text x="1170" y="296" text-anchor="middle" fill="#6ee7b7" font-size="7">QRIS / Card / E-Wallet</text>
+
+  <!-- Gateway -> Services (gRPC) -->
+  <line x1="230" y1="275" x2="320" y2="275" stroke="#10b981" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <line x1="230" y1="275" x2="570" y2="275" stroke="#10b981" stroke-width="1.2" stroke-dasharray="4 2" marker-end="url(#arrow-green)"/>
+  <line x1="230" y1="275" x2="820" y2="275" stroke="#10b981" stroke-width="1.2" stroke-dasharray="4 2" marker-end="url(#arrow-green)"/>
+  <line x1="230" y1="275" x2="1070" y2="275" stroke="#10b981" stroke-width="1.2" stroke-dasharray="4 2" marker-end="url(#arrow-green)"/>
+  <text x="270" y="268" fill="#10b981" font-size="7">gRPC</text>
+
+  <!-- Reservation -> Billing, Payment (sync) -->
+  <path d="M 520 285 Q 720 330 820 285" fill="none" stroke="#10b981" stroke-width="1.2" stroke-dasharray="3 2" marker-end="url(#arrow-green)"/>
+  <path d="M 520 290 Q 820 345 1070 285" fill="none" stroke="#10b981" stroke-width="1.2" stroke-dasharray="3 2" marker-end="url(#arrow-green)"/>
+  <text x="680" y="330" fill="#10b981" font-size="7">gRPC sync</text>
+
+  <!-- NATS -->
+  <rect x="450" y="400" width="300" height="65" rx="8" fill="#7c2d12" stroke="#f97316" stroke-width="1.5"/>
+  <text x="600" y="425" text-anchor="middle" fill="#fdba74" font-size="11" font-weight="600">NATS 2.10 JetStream</text>
+  <text x="600" y="442" text-anchor="middle" fill="#f97316" font-size="8">:4222 | Event Bus</text>
+  <text x="600" y="456" text-anchor="middle" fill="#fdba74" font-size="7">reservation.search.* | reservation.analytics.* | payment.reservation.*</text>
+
+  <!-- Reservation -> NATS (publish) -->
+  <line x1="420" y1="310" x2="500" y2="400" stroke="#f97316" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+  <text x="430" y="360" fill="#f97316" font-size="7">publish</text>
+
+  <!-- Payment -> NATS (publish) -->
+  <line x1="1170" y1="310" x2="700" y2="400" stroke="#f97316" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+  <text x="950" y="360" fill="#f97316" font-size="7">publish</text>
+
+  <!-- NATS -> Search (subscribe) -->
+  <line x1="650" y1="400" x2="670" y2="310" stroke="#f97316" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+  <text x="680" y="365" fill="#f97316" font-size="7">subscribe</text>
+
+  <!-- NATS -> Reservation (subscribe) -->
+  <line x1="530" y1="400" x2="440" y2="310" stroke="#f97316" stroke-width="1.2" stroke-dasharray="3 2" marker-end="url(#arrow-orange)"/>
+  <text x="460" y="380" fill="#f97316" font-size="7">subscribe</text>
+
+  <!-- PostgreSQL -->
+  <rect x="100" y="530" width="280" height="70" rx="8" fill="#4c1d95" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="240" y="555" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">PostgreSQL 14</text>
+  <text x="240" y="572" text-anchor="middle" fill="#8b5cf6" font-size="8">:5432</text>
+  <text x="240" y="588" text-anchor="middle" fill="#c4b5fd" font-size="7">Schemas: reservation | billing | payment | search</text>
+
+  <!-- Redis -->
+  <rect x="450" y="530" width="250" height="70" rx="8" fill="#4c1d95" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="575" y="555" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">Redis 7.0</text>
+  <text x="575" y="572" text-anchor="middle" fill="#8b5cf6" font-size="8">:6379</text>
+  <text x="575" y="588" text-anchor="middle" fill="#c4b5fd" font-size="7">Cache | Locks | Rate Limit | Asynq</text>
+
+  <!-- Services -> PostgreSQL -->
+  <line x1="140" y1="310" x2="180" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+  <line x1="420" y1="310" x2="280" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+  <line x1="670" y1="310" x2="300" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+  <line x1="920" y1="310" x2="340" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+  <line x1="1170" y1="310" x2="360" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+
+  <!-- Services -> Redis -->
+  <line x1="140" y1="310" x2="490" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+  <line x1="420" y1="310" x2="540" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+  <line x1="670" y1="310" x2="590" y2="530" stroke="#8b5cf6" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arrow-violet)"/>
+
+  <!-- MONITORING -->
+  <rect x="800" y="530" width="520" height="70" rx="8" fill="#78350f" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="1060" y="550" text-anchor="middle" fill="#fcd34d" font-size="11" font-weight="600">Observability Stack</text>
+  <text x="860" y="572" fill="#f59e0b" font-size="8">Grafana :3000</text>
+  <text x="970" y="572" fill="#f59e0b" font-size="8">Prometheus :9090</text>
+  <text x="1100" y="572" fill="#f59e0b" font-size="8">Tempo :3200</text>
+  <text x="1210" y="572" fill="#f59e0b" font-size="8">Loki :3100</text>
+  <text x="1060" y="590" text-anchor="middle" fill="#fcd34d" font-size="8">Alloy :4319 (OTLP Collector)</text>
+
+  <!-- Services -> Alloy -->
+  <path d="M 700 310 L 1060 530" fill="none" stroke="#f59e0b" stroke-width="1" stroke-dasharray="2 2" marker-end="url(#arrow-amber)"/>
+  <text x="900" y="430" fill="#f59e0b" font-size="7">OTLP traces/metrics/logs</text>
+
+  <!-- CI/CD -->
+  <rect x="50" y="680" width="400" height="60" rx="8" fill="#1e293b" stroke="#64748b" stroke-width="1.5"/>
+  <text x="250" y="700" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">CI/CD Pipeline</text>
+  <text x="250" y="720" text-anchor="middle" fill="#64748b" font-size="8">GitHub Actions → GHCR → Watchtower auto-pull</text>
+  <text x="250" y="735" text-anchor="middle" fill="#64748b" font-size="7">Continuous Deployment to VPS</text>
+
+  <!-- State Flow -->
+  <rect x="500" y="680" width="820" height="60" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="910" y="700" text-anchor="middle" fill="#6ee7b7" font-size="10" font-weight="600">Reservation State Machine</text>
+  <text x="910" y="720" text-anchor="middle" fill="#10b981" font-size="9">waiting_payment → confirmed → checked_in → checked_out → completed</text>
+  <text x="910" y="735" text-anchor="middle" fill="#64748b" font-size="7">Lifecycle managed by Reservation service with event sourcing via NATS</text>
+
+  <!-- Section Labels -->
+  <rect x="30" y="220" width="8" height="100" rx="4" fill="#10b981"/>
+  <text x="20" y="275" text-anchor="middle" fill="#10b981" font-size="8" transform="rotate(-90 20 275)">SERVICES</text>
+
+  <rect x="30" y="510" width="8" height="100" rx="4" fill="#8b5cf6"/>
+  <text x="20" y="565" text-anchor="middle" fill="#8b5cf6" font-size="8" transform="rotate(-90 20 565)">INFRA</text>
+
+  <rect x="30" y="660" width="8" height="80" rx="4" fill="#64748b"/>
+  <text x="20" y="700" text-anchor="middle" fill="#64748b" font-size="8" transform="rotate(-90 20 700)">CI/CD</text>
+
+  <!-- Pricing annotation -->
+  <rect x="50" y="780" width="300" height="80" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="200" y="800" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Pricing Model (IDR)</text>
+  <text x="70" y="818" fill="#64748b" font-size="7">Booking fee: Rp 5.000</text>
+  <text x="70" y="832" fill="#64748b" font-size="7">Hourly rate: Rp 5.000/hr</text>
+  <text x="70" y="846" fill="#64748b" font-size="7">Overnight: Rp 20.000/night | QRIS-only (stub)</text>
+
+  <!-- Tech Stack annotation -->
+  <rect x="400" y="780" width="300" height="80" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="550" y="800" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Tech Stack</text>
+  <text x="420" y="818" fill="#64748b" font-size="7">Language: Go 1.22+ | Framework: Gin + gRPC</text>
+  <text x="420" y="832" fill="#64748b" font-size="7">Patterns: CQRS, Event Sourcing, DDD</text>
+  <text x="420" y="846" fill="#64748b" font-size="7">Deploy: Docker Compose + Coolify on VPS</text>
+
+  <!-- Architecture Pattern annotation -->
+  <rect x="750" y="780" width="300" height="80" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="900" y="800" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Architecture Patterns</text>
+  <text x="770" y="818" fill="#64748b" font-size="7">Microservices with gRPC inter-service</text>
+  <text x="770" y="832" fill="#64748b" font-size="7">Event-driven async via NATS JetStream</text>
+  <text x="770" y="846" fill="#64748b" font-size="7">OpenTelemetry distributed tracing</text>
+
+</svg>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <h3><span class="badge badge-green">SERVICES</span> Microservices Architecture</h3>
+    <ul>
+      <li><strong style="color:#6ee7b7">Gateway</strong> — HTTP :8082 | Gin framework | REST API gateway, auth middleware, rate limiting</li>
+      <li><strong style="color:#6ee7b7">Reservation</strong> — gRPC :9091 | Core domain aggregate, lifecycle state machine, orchestrates billing &amp; payment</li>
+      <li><strong style="color:#6ee7b7">Search</strong> — gRPC :9092 | CQRS read model, spot availability queries, eventually consistent via NATS</li>
+      <li><strong style="color:#6ee7b7">Billing</strong> — gRPC :9093 | Fee calculation engine, invoice generation, pricing rules</li>
+      <li><strong style="color:#6ee7b7">Payment</strong> — gRPC :9094 | QRIS/card/e-wallet processing, stub payment gateway</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="badge badge-orange">EVENTS</span> Event-Driven Architecture</h3>
+    <ul>
+      <li><strong style="color:#fdba74">reservation.search.spot-updated</strong> — Notifies Search service when spot availability changes</li>
+      <li><strong style="color:#fdba74">reservation.analytics.*</strong> — Analytics events for reporting and dashboards</li>
+      <li><strong style="color:#fdba74">payment.reservation.paid</strong> — Payment confirmation triggers reservation state transition</li>
+      <li><strong style="color:#fdba74">payment.reservation.failed</strong> — Payment failure triggers cancellation flow</li>
+    </ul>
+    <div class="state-flow">
+      <span class="state">waiting_payment</span><span class="state-arrow">→</span>
+      <span class="state">confirmed</span><span class="state-arrow">→</span>
+      <span class="state">checked_in</span><span class="state-arrow">→</span>
+      <span class="state">checked_out</span><span class="state-arrow">→</span>
+      <span class="state">completed</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="badge badge-amber">OBSERVABILITY</span> Monitoring Stack</h3>
+    <ul>
+      <li><strong style="color:#fcd34d">Grafana :3000</strong> — Dashboards, alerting, visualization</li>
+      <li><strong style="color:#fcd34d">Prometheus :9090</strong> — Metrics collection, PromQL queries</li>
+      <li><strong style="color:#fcd34d">Tempo :3200</strong> — Distributed tracing backend</li>
+      <li><strong style="color:#fcd34d">Loki :3100</strong> — Log aggregation, LogQL queries</li>
+      <li><strong style="color:#fcd34d">Alloy :4319</strong> — OTLP collector, routes traces/metrics/logs to backends</li>
+      <li><strong style="color:#94a3b8">Pipeline:</strong> Services → OTLP → Alloy → Tempo + Prometheus + Loki → Grafana</li>
+    </ul>
+  </div>
+</div>
+
+<p style="text-align:center; color:#475569; font-size:0.7rem; margin-top:2rem;">ParkirPintar &copy; 2025 — Technical Architecture Document — Generated for Assessment</p>
+</div>
+</body>
+</html>

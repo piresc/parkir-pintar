@@ -16,8 +16,8 @@ type Client struct {
 }
 
 // NewClient creates a new Asynq client connected to the given Redis address.
-func NewClient(redisAddr string) *Client {
-	redisOpt := asynq.RedisClientOpt{Addr: redisAddr}
+func NewClient(redisAddr, redisPassword string) *Client {
+	redisOpt := asynq.RedisClientOpt{Addr: redisAddr, Password: redisPassword}
 	return &Client{
 		client:    asynq.NewClient(redisOpt),
 		inspector: asynq.NewInspector(redisOpt),

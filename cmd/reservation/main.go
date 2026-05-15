@@ -134,8 +134,8 @@ func main() {
 	}
 	// Start Asynq task queue (delayed tasks: reservation expiry, payment hold timeout).
 	redisAddr := fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port)
-	asynqClient := taskqueue.NewClient(redisAddr)
-	asynqServer := taskqueue.NewServer(redisAddr, cfg.Asynq.Concurrency)
+	asynqClient := taskqueue.NewClient(redisAddr, cfg.Redis.Password)
+	asynqServer := taskqueue.NewServer(redisAddr, cfg.Redis.Password, cfg.Asynq.Concurrency)
 
 	// NATS JetStream (event-driven messaging)
 	var natsClient *pkgnats.Client

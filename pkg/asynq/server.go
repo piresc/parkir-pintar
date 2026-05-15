@@ -11,9 +11,9 @@ type Server struct {
 }
 
 // NewServer creates a new Asynq server connected to the given Redis address.
-func NewServer(redisAddr string, concurrency int) *Server {
+func NewServer(redisAddr, redisPassword string, concurrency int) *Server {
 	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisAddr},
+		asynq.RedisClientOpt{Addr: redisAddr, Password: redisPassword},
 		asynq.Config{
 			Concurrency: concurrency,
 		},

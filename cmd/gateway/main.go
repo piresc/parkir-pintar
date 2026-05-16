@@ -220,7 +220,7 @@ func main() {
 	}
 
 	// 16. Run shutdown manager
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
 	defer cancel()
 	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {
 		log.Error("shutdown error", slog.Any("error", err))

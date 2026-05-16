@@ -28,8 +28,9 @@ type Config struct {
 
 // ReservationConfig holds reservation service settings.
 type ReservationConfig struct {
-	PaymentTimeoutMinutes int // default 10 — time allowed to complete payment before reservation fails
-	ExpiryTimeoutMinutes  int // default 60 — time allowed to check in after confirmation before expiry
+	PaymentTimeoutMinutes int           // default 10 — time allowed to complete payment before reservation fails
+	ExpiryTimeoutMinutes  int           // default 60 — time allowed to check in after confirmation before expiry
+	WorkerPollInterval    time.Duration // default 30s — polling interval for legacy fallback workers
 }
 
 // AsynqConfig holds Redis-based task queue settings.
@@ -45,10 +46,18 @@ type NATSConfig struct {
 
 // GRPCServerConfig holds gRPC server settings.
 type GRPCServerConfig struct {
-	Port        int
-	TLSCertPath string
-	TLSKeyPath  string
-	MaxConnAge  time.Duration
+	Port            int
+	TLSCertPath     string
+	TLSKeyPath      string
+	MaxConnAge      time.Duration
+	ShutdownTimeout time.Duration
+	RequestTimeout  time.Duration
+}
+
+// GRPCRateLimitConfig holds gRPC rate limiting settings.
+type GRPCRateLimitConfig struct {
+	RequestsPerSecond int
+	BurstSize         int
 }
 
 // GRPCClientConfig holds gRPC client settings.
@@ -60,8 +69,9 @@ type GRPCClientConfig struct {
 
 // GRPCConfig holds gRPC server and client configuration.
 type GRPCConfig struct {
-	Server GRPCServerConfig
-	Client GRPCClientConfig
+	Server    GRPCServerConfig
+	Client    GRPCClientConfig
+	RateLimit GRPCRateLimitConfig
 }
 
 // AppConfig holds application-level settings.
@@ -209,9 +219,13 @@ func Load(envPath string) (*Config, error) {
 	cfg.GRPC.Server.TLSCertPath = getEnv("GRPC_TLS_CERT_PATH", "")
 	cfg.GRPC.Server.TLSKeyPath = getEnv("GRPC_TLS_KEY_PATH", "")
 	cfg.GRPC.Server.MaxConnAge = getEnvAsDuration("GRPC_MAX_CONN_AGE", 0)
+	cfg.GRPC.Server.ShutdownTimeout = getEnvAsDuration("GRPC_SHUTDOWN_TIMEOUT", 30*time.Second)
+	cfg.GRPC.Server.RequestTimeout = getEnvAsDuration("GRPC_REQUEST_TIMEOUT", 30*time.Second)
 	cfg.GRPC.Client.DialTimeout = getEnvAsDuration("GRPC_DIAL_TIMEOUT", 5*time.Second)
 	cfg.GRPC.Client.KeepAliveTime = getEnvAsDuration("GRPC_KEEPALIVE_TIME", 30*time.Second)
 	cfg.GRPC.Client.KeepAliveTimeout = getEnvAsDuration("GRPC_KEEPALIVE_TIMEOUT", 10*time.Second)
+	cfg.GRPC.RateLimit.RequestsPerSecond = getEnvAsInt("GRPC_RATE_LIMIT_RPS", 100)
+	cfg.GRPC.RateLimit.BurstSize = getEnvAsInt("GRPC_RATE_LIMIT_BURST", 200)
 
 	// Logger
 	cfg.Logger.Level = getEnv("LOG_LEVEL", "info")
@@ -220,6 +234,7 @@ func Load(envPath string) (*Config, error) {
 	// Reservation
 	cfg.Reservation.PaymentTimeoutMinutes = getEnvAsInt("PAYMENT_TIMEOUT_MINUTES", 10)
 	cfg.Reservation.ExpiryTimeoutMinutes = getEnvAsInt("RESERVATION_EXPIRY_MINUTES", 60)
+	cfg.Reservation.WorkerPollInterval = getEnvAsDuration("WORKER_POLL_INTERVAL", 30*time.Second)
 
 	// Asynq
 	cfg.Asynq.Concurrency = getEnvAsInt("ASYNQ_CONCURRENCY", 10)

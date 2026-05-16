@@ -115,7 +115,7 @@ func main() {
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
-	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, 30*time.Second,
+	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, cfg.GRPC.Server.RequestTimeout,
 		grpc.ChainUnaryInterceptor(
 			metricsInst.GRPCUnaryInterceptor(),
 			interceptors.RecoveryUnaryInterceptor(),
@@ -123,8 +123,8 @@ func main() {
 			interceptors.LoggingUnaryInterceptor(),
 			interceptors.TracingUnaryInterceptor(),
 			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
-				RequestsPerSecond: 100,
-				BurstSize:         200,
+				RequestsPerSecond: cfg.GRPC.RateLimit.RequestsPerSecond,
+				BurstSize:         cfg.GRPC.RateLimit.BurstSize,
 				CleanupInterval:   5 * time.Minute,
 			}),
 		),
@@ -134,7 +134,7 @@ func main() {
 		log.Error("gRPC server error", slog.Any("error", err))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
 	defer cancel()
 	if err := shutdownMgr.Shutdown(ctx); err != nil {
 		log.Error("shutdown error", slog.Any("error", err))

@@ -108,13 +108,17 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if i < 2 {
 			select {
 			case <-time.After(backoffs[i]):
-			case <-ctx.Done():
-				payment.Status = model.PaymentStatusFailed
-				payment.UpdatedAt = time.Now()
-				if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
-					slog.Error("failed to update payment status", slog.Any("error", updateErr))
-				}
-				return payment, ctx.Err()
+		case <-ctx.Done():
+			payment.Status = model.PaymentStatusFailed
+			payment.UpdatedAt = time.Now()
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cleanupCancel()
+			if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil {
+				slog.Error("failed to update payment status on context cancel",
+					slog.String("payment_id", payment.ID),
+					slog.Any("error", updateErr))
+			}
+			return payment, ctx.Err()
 			}
 		}
 	}
@@ -174,8 +178,27 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("cannot refund payment in status %q", payment.Status)
 	}
 
-	if err := uc.gw.Refund(ctx, payment.TransactionRef); err != nil {
-		return nil, fmt.Errorf("refund payment gateway: %w", err)
+	var refundErr error
+	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
+	for i := range 3 {
+		refundErr = uc.gw.Refund(ctx, payment.TransactionRef)
+		if refundErr == nil {
+			break
+		}
+		slog.Warn("payment gateway refund failed, retrying",
+			slog.String("payment_id", payment.ID),
+			slog.Int("attempt", i+1),
+			slog.Any("error", refundErr))
+		if i < 2 {
+			select {
+			case <-time.After(backoffs[i]):
+			case <-ctx.Done():
+				return nil, fmt.Errorf("refund payment cancelled: %w", ctx.Err())
+			}
+		}
+	}
+	if refundErr != nil {
+		return nil, fmt.Errorf("refund payment gateway (all retries exhausted): %w", refundErr)
 	}
 
 	payment.Status = model.PaymentStatusRefunded

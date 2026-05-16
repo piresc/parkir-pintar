@@ -201,6 +201,28 @@ services:
       retries: 5
       start_period: 15s
 
+  frontend:
+    image: ghcr.io/piresc/parkir-pintar-frontend:latest
+    container_name: parkir-pintar-frontend
+    networks:
+      - app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.parkir-fe.entrypoints=http
+      - traefik.http.routers.parkir-fe.rule=Host(`parkir-pintar.piresc.dev`)
+      - traefik.http.routers.parkir-fe-https.entrypoints=https
+      - traefik.http.routers.parkir-fe-https.rule=Host(`parkir-pintar.piresc.dev`)
+      - traefik.http.routers.parkir-fe-https.tls=true
+      - traefik.http.routers.parkir-fe-https.tls.certresolver=letsencrypt
+      - traefik.http.services.parkir-fe.loadbalancer.server.port=80
+
 networks:
   app:
     driver: bridge

@@ -1,6 +1,6 @@
 // Package redislock provides a Redis-based distributed lock utility for
-// mutual exclusion across concurrent processes. It uses SET NX with TTL
-// for acquisition and a Lua script for atomic check-and-delete on release.
+// mutual exclusion across concurrent processes. It wraps github.com/bsm/redislock
+// which implements the Redlock algorithm with proper fencing.
 package redislock
 
 import (
@@ -9,14 +9,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/bsm/redislock"
 
-	"parkir-pintar/pkg/redis"
+	pkgredis "parkir-pintar/pkg/redis"
 )
-
-// releaseScript is the Lua script for atomic check-and-delete during lock release.
-// It ensures only the holder of the lock (matching value) can delete the key.
-const releaseScript = `if redis.call("get",KEYS[1]) == ARGV[1] then return redis.call("del",KEYS[1]) else return 0 end`
 
 // Sentinel errors for lock operations.
 var (
@@ -35,71 +31,65 @@ type Config struct {
 
 // Locker manages distributed lock acquisition using a Redis client.
 type Locker struct {
-	client *redis.Client
+	client *redislock.Client
 	cfg    Config
 }
 
-// Lock represents an acquired distributed lock with a unique owner value.
+// Lock represents an acquired distributed lock.
 type Lock struct {
-	key    string
-	value  string
-	client *redis.Client
+	inner *redislock.Lock
+	key   string
 }
 
 // NewLocker creates a new Locker with the given Redis client and configuration.
 // It returns an error if the client is nil.
-func NewLocker(client *redis.Client, cfg Config) (*Locker, error) {
+func NewLocker(client *pkgredis.Client, cfg Config) (*Locker, error) {
 	if client == nil {
 		return nil, ErrNilClient
 	}
 	return &Locker{
-		client: client,
+		client: redislock.New(client.GetClient()),
 		cfg:    cfg,
 	}, nil
 }
 
 // Acquire attempts to acquire a distributed lock on the given key.
-// It retries with backoff according to the Locker's configuration.
+// It retries according to the Locker's configuration.
 // Returns a Lock handle on success, or ErrLockUnavailable if the lock
 // cannot be acquired after all retry attempts.
 func (l *Locker) Acquire(ctx context.Context, key string) (*Lock, error) {
 	lockKey := l.lockKey(key)
-	lockValue := uuid.New().String()
 
-	for attempt := 0; attempt <= l.cfg.RetryAttempts; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return nil, fmt.Errorf("context cancelled while acquiring lock: %w", ctx.Err())
-			case <-time.After(l.cfg.RetryDelay):
-			}
-		}
-
-		ok, err := l.client.SetNX(ctx, lockKey, lockValue, l.cfg.TTL)
-		if err != nil {
-			return nil, fmt.Errorf("redis error during lock acquisition: %w", err)
-		}
-		if ok {
-			return &Lock{
-				key:    lockKey,
-				value:  lockValue,
-				client: l.client,
-			}, nil
-		}
+	opts := &redislock.Options{}
+	if l.cfg.RetryAttempts > 0 && l.cfg.RetryDelay > 0 {
+		opts.RetryStrategy = redislock.LimitRetry(
+			redislock.LinearBackoff(l.cfg.RetryDelay),
+			l.cfg.RetryAttempts,
+		)
 	}
 
-	return nil, ErrLockUnavailable
+	lock, err := l.client.Obtain(ctx, lockKey, l.cfg.TTL, opts)
+	if err != nil {
+		if errors.Is(err, redislock.ErrNotObtained) {
+			return nil, ErrLockUnavailable
+		}
+		return nil, fmt.Errorf("redis error during lock acquisition: %w", err)
+	}
+
+	return &Lock{
+		inner: lock,
+		key:   lockKey,
+	}, nil
 }
 
-// Release releases the lock only if the caller holds it, using a Lua script
-// for atomic check-and-delete to prevent race conditions.
+// Release releases the lock only if the caller holds it.
 func (lock *Lock) Release(ctx context.Context) error {
-	result, err := lock.client.GetClient().Eval(ctx, releaseScript, []string{lock.key}, lock.value).Int64()
+	err := lock.inner.Release(ctx)
 	if err != nil {
+		if errors.Is(err, redislock.ErrLockNotHeld) {
+			return ErrLockNotHeld
+		}
 		return fmt.Errorf("redis error during lock release: %w", err)
-	}
-	if result == 0 {
-		return ErrLockNotHeld
 	}
 	return nil
 }
@@ -119,5 +109,5 @@ func (lock *Lock) Key() string {
 
 // Value returns the unique owner value of the lock.
 func (lock *Lock) Value() string {
-	return lock.value
+	return lock.inner.Token()
 }

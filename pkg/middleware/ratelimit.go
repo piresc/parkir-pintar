@@ -8,6 +8,7 @@ import (
 	"parkir-pintar/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 // RateLimitConfig holds configuration for the rate limiter.
@@ -29,72 +30,51 @@ func DefaultRateLimitConfig() RateLimitConfig {
 	}
 }
 
-// tokenBucket implements a simple token bucket rate limiter.
-type tokenBucket struct {
-	tokens     float64
-	maxTokens  float64
-	refillRate float64 // tokens per second
-	lastRefill time.Time
+// rateLimitEntry holds a per-client rate limiter and its last access time.
+type rateLimitEntry struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
 }
 
-func newTokenBucket(maxTokens float64, refillRate float64) *tokenBucket {
-	return &tokenBucket{
-		tokens:     maxTokens,
-		maxTokens:  maxTokens,
-		refillRate: refillRate,
-		lastRefill: time.Now(),
-	}
-}
-
-// allow checks if a request is allowed and consumes a token if so.
-func (tb *tokenBucket) allow() bool {
-	now := time.Now()
-	elapsed := now.Sub(tb.lastRefill).Seconds()
-	tb.tokens += elapsed * tb.refillRate
-	if tb.tokens > tb.maxTokens {
-		tb.tokens = tb.maxTokens
-	}
-	tb.lastRefill = now
-
-	if tb.tokens >= 1 {
-		tb.tokens--
-		return true
-	}
-	return false
-}
-
-// rateLimitStore is a thread-safe in-memory store of per-key token buckets.
+// rateLimitStore is a thread-safe in-memory store of per-key rate limiters.
+// Powered by golang.org/x/time/rate.
 type rateLimitStore struct {
-	mu      sync.Mutex
-	buckets map[string]*tokenBucket
-	cfg     RateLimitConfig
-	stopCh  chan struct{}
+	mu       sync.Mutex
+	limiters map[string]*rateLimitEntry
+	cfg      RateLimitConfig
+	stopCh   chan struct{}
 }
 
 func newRateLimitStore(cfg RateLimitConfig) *rateLimitStore {
 	store := &rateLimitStore{
-		buckets: make(map[string]*tokenBucket),
-		cfg:     cfg,
-		stopCh:  make(chan struct{}),
+		limiters: make(map[string]*rateLimitEntry),
+		cfg:      cfg,
+		stopCh:   make(chan struct{}),
 	}
 
 	// Background cleanup of stale entries
-	go store.cleanup(cfg.CleanupInterval)
+	if cfg.CleanupInterval > 0 {
+		go store.cleanup(cfg.CleanupInterval)
+	}
 
 	return store
 }
 
 func (s *rateLimitStore) allow(key string) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	bucket, exists := s.buckets[key]
+	entry, exists := s.limiters[key]
 	if !exists {
-		bucket = newTokenBucket(float64(s.cfg.BurstSize), float64(s.cfg.RequestsPerSecond))
-		s.buckets[key] = bucket
+		entry = &rateLimitEntry{
+			limiter:  rate.NewLimiter(rate.Limit(s.cfg.RequestsPerSecond), s.cfg.BurstSize),
+			lastSeen: time.Now(),
+		}
+		s.limiters[key] = entry
+	} else {
+		entry.lastSeen = time.Now()
 	}
+	s.mu.Unlock()
 
-	return bucket.allow()
+	return entry.limiter.Allow()
 }
 
 func (s *rateLimitStore) cleanup(interval time.Duration) {
@@ -106,10 +86,10 @@ func (s *rateLimitStore) cleanup(interval time.Duration) {
 		case <-ticker.C:
 			s.mu.Lock()
 			now := time.Now()
-			for key, bucket := range s.buckets {
-				// Remove buckets that haven't been used for 2x the cleanup interval
-				if now.Sub(bucket.lastRefill) > 2*interval {
-					delete(s.buckets, key)
+			for key, entry := range s.limiters {
+				// Remove limiters that haven't been used for 2x the cleanup interval
+				if now.Sub(entry.lastSeen) > 2*interval {
+					delete(s.limiters, key)
 				}
 			}
 			s.mu.Unlock()
@@ -125,7 +105,8 @@ func (s *rateLimitStore) Stop() {
 }
 
 // RateLimiter returns middleware that enforces per-IP rate limiting using a
-// token bucket algorithm. Requests exceeding the limit receive HTTP 429.
+// token bucket algorithm (golang.org/x/time/rate). Requests exceeding the
+// limit receive HTTP 429.
 //
 // The key is derived from the client IP (c.ClientIP()), which respects
 // X-Forwarded-For and X-Real-IP headers when behind a reverse proxy.

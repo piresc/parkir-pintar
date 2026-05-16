@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -21,53 +22,24 @@ type RateLimitConfig struct {
 	CleanupInterval time.Duration
 }
 
-// grpcTokenBucket implements a simple token bucket rate limiter.
-type grpcTokenBucket struct {
-	tokens     float64
-	maxTokens  float64
-	refillRate float64 // tokens per second
-	lastRefill time.Time
+// rateLimitStore is a thread-safe in-memory store of per-client rate limiters.
+type rateLimitStore struct {
+	mu       sync.Mutex
+	limiters map[string]*rateLimitEntry
+	cfg      RateLimitConfig
+	stopCh   chan struct{}
 }
 
-func newGRPCTokenBucket(maxTokens float64, refillRate float64) *grpcTokenBucket {
-	return &grpcTokenBucket{
-		tokens:     maxTokens,
-		maxTokens:  maxTokens,
-		refillRate: refillRate,
-		lastRefill: time.Now(),
-	}
+type rateLimitEntry struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
 }
 
-// allow checks if a request is allowed and consumes a token if so.
-func (tb *grpcTokenBucket) allow() bool {
-	now := time.Now()
-	elapsed := now.Sub(tb.lastRefill).Seconds()
-	tb.tokens += elapsed * tb.refillRate
-	if tb.tokens > tb.maxTokens {
-		tb.tokens = tb.maxTokens
-	}
-	tb.lastRefill = now
-
-	if tb.tokens >= 1 {
-		tb.tokens--
-		return true
-	}
-	return false
-}
-
-// grpcRateLimitStore is a thread-safe in-memory store of per-key token buckets.
-type grpcRateLimitStore struct {
-	mu      sync.Mutex
-	buckets map[string]*grpcTokenBucket
-	cfg     RateLimitConfig
-	stopCh  chan struct{}
-}
-
-func newGRPCRateLimitStore(cfg RateLimitConfig) *grpcRateLimitStore {
-	store := &grpcRateLimitStore{
-		buckets: make(map[string]*grpcTokenBucket),
-		cfg:     cfg,
-		stopCh:  make(chan struct{}),
+func newRateLimitStore(cfg RateLimitConfig) *rateLimitStore {
+	store := &rateLimitStore{
+		limiters: make(map[string]*rateLimitEntry),
+		cfg:      cfg,
+		stopCh:   make(chan struct{}),
 	}
 
 	if cfg.CleanupInterval > 0 {
@@ -77,20 +49,29 @@ func newGRPCRateLimitStore(cfg RateLimitConfig) *grpcRateLimitStore {
 	return store
 }
 
-func (s *grpcRateLimitStore) allow(key string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	bucket, exists := s.buckets[key]
-	if !exists {
-		bucket = newGRPCTokenBucket(float64(s.cfg.BurstSize), float64(s.cfg.RequestsPerSecond))
-		s.buckets[key] = bucket
+func (s *rateLimitStore) allow(ctx context.Context) bool {
+	key := "unknown"
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		key = p.Addr.String()
 	}
 
-	return bucket.allow()
+	s.mu.Lock()
+	entry, exists := s.limiters[key]
+	if !exists {
+		entry = &rateLimitEntry{
+			limiter:  rate.NewLimiter(rate.Limit(s.cfg.RequestsPerSecond), s.cfg.BurstSize),
+			lastSeen: time.Now(),
+		}
+		s.limiters[key] = entry
+	} else {
+		entry.lastSeen = time.Now()
+	}
+	s.mu.Unlock()
+
+	return entry.limiter.Allow()
 }
 
-func (s *grpcRateLimitStore) cleanup(interval time.Duration) {
+func (s *rateLimitStore) cleanup(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -99,9 +80,9 @@ func (s *grpcRateLimitStore) cleanup(interval time.Duration) {
 		case <-ticker.C:
 			s.mu.Lock()
 			now := time.Now()
-			for key, bucket := range s.buckets {
-				if now.Sub(bucket.lastRefill) > 2*interval {
-					delete(s.buckets, key)
+			for key, entry := range s.limiters {
+				if now.Sub(entry.lastSeen) > 2*interval {
+					delete(s.limiters, key)
 				}
 			}
 			s.mu.Unlock()
@@ -112,17 +93,16 @@ func (s *grpcRateLimitStore) cleanup(interval time.Duration) {
 }
 
 // Stop terminates the background cleanup goroutine.
-func (s *grpcRateLimitStore) Stop() {
+func (s *rateLimitStore) Stop() {
 	close(s.stopCh)
 }
 
 // RateLimitUnaryInterceptor returns a grpc.UnaryServerInterceptor that
-// enforces per-client rate limiting using a token bucket algorithm. The client
-// is identified by its peer address from the gRPC transport. Requests
-// exceeding the limit receive a gRPC ResourceExhausted status code with the
-// message "rate limit exceeded".
+// enforces per-client rate limiting using golang.org/x/time/rate (token bucket).
+// The client is identified by its peer address from the gRPC transport.
+// Requests exceeding the limit receive a gRPC ResourceExhausted status code.
 func (i *Interceptors) RateLimitUnaryInterceptor(cfg RateLimitConfig) grpc.UnaryServerInterceptor {
-	store := newGRPCRateLimitStore(cfg)
+	store := newRateLimitStore(cfg)
 
 	return func(
 		ctx context.Context,
@@ -130,12 +110,7 @@ func (i *Interceptors) RateLimitUnaryInterceptor(cfg RateLimitConfig) grpc.Unary
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
-		key := "unknown"
-		if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
-			key = p.Addr.String()
-		}
-
-		if !store.allow(key) {
+		if !store.allow(ctx) {
 			return nil, status.Errorf(codes.ResourceExhausted, "rate limit exceeded")
 		}
 

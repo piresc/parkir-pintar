@@ -355,7 +355,7 @@ func TestLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 	var entry map[string]interface{}
 	require.NoError(t, json.Unmarshal(lines[0], &entry))
 	assert.Equal(t, "INFO", entry["level"])
-	assert.Equal(t, "/test.Service/GetUser", entry["grpc.method"])
+	assert.Equal(t, "GetUser", entry["grpc.method"])
 	assert.Equal(t, "OK", entry["grpc.code"])
 
 	durationVal, ok := entry["duration_ms"].(float64)
@@ -387,8 +387,8 @@ func TestLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) {
 
 	var entry map[string]interface{}
 	require.NoError(t, json.Unmarshal(lines[0], &entry))
-	assert.Equal(t, "ERROR", entry["level"])
-	assert.Equal(t, "/test.Service/DeleteUser", entry["grpc.method"])
+	assert.Equal(t, "WARN", entry["level"])
+	assert.Equal(t, "DeleteUser", entry["grpc.method"])
 	assert.Equal(t, "PermissionDenied", entry["grpc.code"])
 }
 
@@ -418,7 +418,7 @@ func TestLoggingStreamInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 	var entry map[string]interface{}
 	require.NoError(t, json.Unmarshal(lines[0], &entry))
 	assert.Equal(t, "INFO", entry["level"])
-	assert.Equal(t, "/test.Service/StreamData", entry["grpc.method"])
+	assert.Equal(t, "StreamData", entry["grpc.method"])
 	assert.Equal(t, "OK", entry["grpc.code"])
 }
 

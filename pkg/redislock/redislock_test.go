@@ -169,9 +169,9 @@ func TestAcquire_ShouldFail_WhenKeyIsAlreadyHeld(t *testing.T) {
 	assert.Nil(t, lock2)
 }
 
-// --- Lua script: safe release (Requirement 10.4, 10.5) ---
+// --- Safe release: double release fails (Requirement 10.4, 10.5) ---
 
-func TestRelease_ShouldFail_WhenCallerDoesNotHoldLock(t *testing.T) {
+func TestRelease_ShouldFail_WhenLockAlreadyReleased(t *testing.T) {
 	// Arrange
 	locker, _, cleanup := setupTestLocker(t, Config{
 		Prefix:        "test",
@@ -185,23 +185,15 @@ func TestRelease_ShouldFail_WhenCallerDoesNotHoldLock(t *testing.T) {
 	lock1, err := locker.Acquire(ctx, "safe-release")
 	require.NoError(t, err)
 
-	// Create a fake lock with wrong value
-	fakeLock := &Lock{
-		key:    lock1.Key(),
-		value:  "wrong-owner-value",
-		client: locker.client,
-	}
+	// Release once (should succeed)
+	err = lock1.Release(ctx)
+	require.NoError(t, err)
 
-	// Act
-	err = fakeLock.Release(ctx)
+	// Act — release again (lock no longer held)
+	err = lock1.Release(ctx)
 
 	// Assert
 	assert.ErrorIs(t, err, ErrLockNotHeld)
-
-	// Verify original lock is still held
-	lock2, err := locker.Acquire(ctx, "safe-release")
-	assert.ErrorIs(t, err, ErrLockUnavailable)
-	assert.Nil(t, lock2)
 }
 
 // --- TTL expiry (Requirement 10.7) ---

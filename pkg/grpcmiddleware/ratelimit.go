@@ -2,6 +2,7 @@ package grpcmiddleware
 
 import (
 	"context"
+	"net"
 
 	"parkir-pintar/pkg/ratelimit"
 
@@ -29,7 +30,12 @@ func (i *Interceptors) RateLimitUnaryInterceptor(cfg RateLimitConfig) grpc.Unary
 	) (interface{}, error) {
 		key := "unknown"
 		if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
-			key = p.Addr.String()
+			host, _, err := net.SplitHostPort(p.Addr.String())
+			if err != nil {
+				key = p.Addr.String()
+			} else {
+				key = host
+			}
 		}
 
 		if !store.Allow(key) {

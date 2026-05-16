@@ -1,14 +1,13 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
+	"parkir-pintar/pkg/auth"
 	"parkir-pintar/pkg/response"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 // Context keys for authenticated user data.
@@ -38,31 +37,19 @@ func (m *Middleware) JWTAuth(secret string) gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-			}
-			return []byte(secret), nil
-		}, jwt.WithValidMethods([]string{"HS256"}))
-		if err != nil || !token.Valid {
+		claims, err := auth.ValidateToken(tokenString, secret)
+		if err != nil {
 			c.Abort()
 			response.Error(c, http.StatusUnauthorized, "invalid or expired token")
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			c.Abort()
-			response.Error(c, http.StatusUnauthorized, "invalid token claims")
-			return
+		// Extract user_id and role from validated claims
+		if claims.UserID != "" {
+			c.Set(KeyUserID, claims.UserID)
 		}
-
-		// Extract user_id and role from claims
-		if userID, exists := claims["user_id"]; exists {
-			c.Set(KeyUserID, userID)
-		}
-		if role, exists := claims["role"]; exists {
-			c.Set(KeyRole, role)
+		if claims.Role != "" {
+			c.Set(KeyRole, claims.Role)
 		}
 
 		c.Next()

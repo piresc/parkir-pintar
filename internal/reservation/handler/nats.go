@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
-	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/events"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
@@ -20,16 +20,8 @@ type ReservationConfirmer interface {
 	FailReservation(ctx context.Context, req *model.FailReservationRequest) error
 }
 
-// PaymentResultEvent represents the event published by the payment service
-// after processing a reservation payment.
-type PaymentResultEvent struct {
-	PaymentID     string    `json:"payment_id"`
-	ReservationID string    `json:"reservation_id"`
-	Amount        int64     `json:"amount"`
-	Status        string    `json:"status"` // success, failed
-	Reason        string    `json:"reason,omitempty"`
-	Timestamp     time.Time `json:"timestamp"`
-}
+// PaymentResultEvent is the canonical event from pkg/events.
+type PaymentResultEvent = events.PaymentResultEvent
 
 // NATSHandler consumes payment result messages from NATS JetStream and
 // delegates to the reservation usecase.

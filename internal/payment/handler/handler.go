@@ -11,7 +11,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -19,7 +18,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"parkir-pintar/internal/payment/model"
-	"parkir-pintar/internal/payment/repository"
 	"parkir-pintar/internal/payment/usecase"
 	"parkir-pintar/pkg/apperror"
 	paymentv1 "parkir-pintar/proto/payment/v1"
@@ -149,27 +147,5 @@ func paymentToProto(p *model.Payment) *paymentv1.PaymentResponse {
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if errors.Is(err, repository.ErrNotFound) {
-		return status.Error(codes.NotFound, err.Error())
-	}
-
-	var appErr *apperror.AppError
-	if errors.As(err, &appErr) {
-		switch appErr.HTTPStatus {
-		case 404:
-			return status.Error(codes.NotFound, appErr.Message)
-		case 409:
-			return status.Error(codes.AlreadyExists, appErr.Message)
-		case 400:
-			return status.Error(codes.InvalidArgument, appErr.Message)
-		default:
-			return status.Error(codes.Internal, appErr.Message)
-		}
-	}
-
-	return status.Error(codes.Internal, err.Error())
+	return apperror.MapToGRPCError(err)
 }

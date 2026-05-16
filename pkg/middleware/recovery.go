@@ -9,6 +9,7 @@ import (
 	"parkir-pintar/pkg/response"
 
 	"github.com/gin-gonic/gin"
+	traceapi "go.opentelemetry.io/otel/trace"
 )
 
 // RecoveryHandler returns middleware that catches panics, logs the stack trace
@@ -36,8 +37,11 @@ func (m *Middleware) RecoveryHandler() gin.HandlerFunc {
 					// middleware may have started one before the panic.
 					// We record the error via a new segment since we don't
 					// have direct access to the HTTPTransaction here.
-					_, end := m.tracer.StartSegment(c.Request.Context(), "panic.recovery")
-					_ = err
+					ctx, end := m.tracer.StartSegment(c.Request.Context(), "panic.recovery")
+					// Record the panic error on the tracing span.
+					if span := traceapi.SpanFromContext(ctx); span.IsRecording() {
+						span.RecordError(err)
+					}
 					end()
 				}
 

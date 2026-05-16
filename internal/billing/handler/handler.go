@@ -5,14 +5,12 @@ package handler
 
 import (
 	"context"
-	"errors"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/internal/billing/usecase"
 	"parkir-pintar/pkg/apperror"
 	billingv1 "parkir-pintar/proto/billing/v1"
@@ -145,29 +143,5 @@ func billingRecordToProto(r *model.BillingRecord) *billingv1.BillingResponse {
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	// Check billing repository sentinel errors.
-	if errors.Is(err, repository.ErrNotFound) {
-		return status.Error(codes.NotFound, err.Error())
-	}
-
-	// Check apperror types.
-	var appErr *apperror.AppError
-	if errors.As(err, &appErr) {
-		switch appErr.HTTPStatus {
-		case 404:
-			return status.Error(codes.NotFound, appErr.Message)
-		case 409:
-			return status.Error(codes.AlreadyExists, appErr.Message)
-		case 400:
-			return status.Error(codes.InvalidArgument, appErr.Message)
-		default:
-			return status.Error(codes.Internal, appErr.Message)
-		}
-	}
-
-	return status.Error(codes.Internal, err.Error())
+	return apperror.MapToGRPCError(err)
 }

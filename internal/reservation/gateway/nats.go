@@ -6,29 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"parkir-pintar/pkg/events"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-// SpotUpdatedEvent is published when a spot's status changes.
-type SpotUpdatedEvent struct {
-	SpotID      string    `json:"spot_id"`
-	FloorNumber int       `json:"floor_number"`
-	SpotNumber  int       `json:"spot_number"`
-	VehicleType string    `json:"vehicle_type"`
-	SpotCode    string    `json:"spot_code"`
-	Status      string    `json:"status"` // available, reserved, occupied
-	UpdatedAt   time.Time `json:"updated_at"`
-}
-
-// ReservationEvent is published for analytics on lifecycle transitions.
-type ReservationEvent struct {
-	ReservationID string    `json:"reservation_id"`
-	DriverID      string    `json:"driver_id"`
-	SpotID        string    `json:"spot_id"`
-	VehicleType   string    `json:"vehicle_type"`
-	Status        string    `json:"status"`
-	Timestamp     time.Time `json:"timestamp"`
-}
+// Type aliases for backward compatibility within this package.
+type SpotUpdatedEvent = events.SpotUpdatedEvent
+type ReservationEvent = events.ReservationEvent
 
 // EventPublisher defines the interface for publishing domain events.
 type EventPublisher interface {

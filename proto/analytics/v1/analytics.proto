@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package analytics.v1;
+
+option go_package = "parkir-pintar/proto/analytics/v1;analyticsv1";
+
+// AnalyticsService provides parking analytics and reporting.
+service AnalyticsService {
+  // GetPeakHours returns peak hour statistics from historical reservation data.
+  rpc GetPeakHours(GetPeakHoursRequest) returns (GetPeakHoursResponse);
+  // GetUsagePatterns returns daily occupancy/usage patterns summarized over the last 30 days.
+  rpc GetUsagePatterns(GetUsagePatternsRequest) returns (GetUsagePatternsResponse);
+}
+
+message GetPeakHoursRequest {}
+
+message GetPeakHoursResponse {
+  repeated PeakHourStats stats = 1;
+}
+
+message PeakHourStats {
+  int32 hour = 1;
+  int32 day_of_week = 2;
+  double avg_occupancy = 3;
+  int32 avg_reservations = 4;
+  double peak_score = 5;
+}
+
+message GetUsagePatternsRequest {}
+
+message GetUsagePatternsResponse {
+  string period = 1;
+  double avg_utilization = 2;
+  repeated int32 peak_hours = 3;
+  repeated int32 idle_hours = 4;
+}

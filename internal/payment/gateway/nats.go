@@ -6,18 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"parkir-pintar/pkg/events"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-// PaymentResultEvent is published when a payment completes or fails.
-type PaymentResultEvent struct {
-	PaymentID     string    `json:"payment_id"`
-	ReservationID string    `json:"reservation_id"`
-	Amount        int64     `json:"amount"`
-	Status        string    `json:"status"`           // success, failed
-	Reason        string    `json:"reason,omitempty"` // failure reason
-	Timestamp     time.Time `json:"timestamp"`
-}
+// PaymentResultEvent is the canonical event from pkg/events.
+type PaymentResultEvent = events.PaymentResultEvent
 
 // PaymentEventPublisher publishes payment result events via NATS.
 type PaymentEventPublisher struct {

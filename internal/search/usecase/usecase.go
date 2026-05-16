@@ -65,10 +65,11 @@ func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvai
 	cached, err := uc.redis.Get(ctx, cacheKey)
 	if err == nil && cached != "" {
 		var floors []model.FloorAvailability
-		if jsonErr := json.Unmarshal([]byte(cached), &floors); jsonErr == nil {
+		jsonErr := json.Unmarshal([]byte(cached), &floors)
+		if jsonErr == nil {
 			return floors, nil
 		}
-		slog.Warn("search: failed to unmarshal cached availability", slog.Any("error", err))
+		slog.Warn("search: failed to unmarshal cached availability", slog.Any("error", jsonErr))
 	}
 
 	// Cache miss or Redis error — fall back to DB (coalesced via singleflight)
@@ -107,10 +108,11 @@ func (uc *searchUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMap
 	cached, err := uc.redis.Get(ctx, cacheKey)
 	if err == nil && cached != "" {
 		var spots []model.SpotDetails
-		if jsonErr := json.Unmarshal([]byte(cached), &spots); jsonErr == nil {
+		jsonErr := json.Unmarshal([]byte(cached), &spots)
+		if jsonErr == nil {
 			return spots, nil
 		}
-		slog.Warn("search: failed to unmarshal cached floor map", slog.Any("error", err))
+		slog.Warn("search: failed to unmarshal cached floor map", slog.Any("error", jsonErr))
 	}
 
 	// Cache miss or Redis error — fall back to DB (coalesced via singleflight)

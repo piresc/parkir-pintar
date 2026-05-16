@@ -5,24 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
 	"parkir-pintar/internal/search/sync"
+	"parkir-pintar/pkg/events"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-// SpotUpdatedEvent matches the event published by reservation service.
-type SpotUpdatedEvent struct {
-	SpotID      string    `json:"spot_id"`
-	FloorNumber int       `json:"floor_number"`
-	SpotNumber  int       `json:"spot_number"`
-	VehicleType string    `json:"vehicle_type"`
-	SpotCode    string    `json:"spot_code"`
-	Status      string    `json:"status"`
-	UpdatedAt   time.Time `json:"updated_at"`
-}
+// SpotUpdatedEvent is the canonical event from pkg/events.
+type SpotUpdatedEvent = events.SpotUpdatedEvent
 
 // RedisCache defines the cache invalidation interface used by NATSHandler.
 type RedisCache interface {

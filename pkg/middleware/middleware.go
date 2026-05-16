@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"parkir-pintar/pkg/config"
+	"parkir-pintar/pkg/ratelimit"
 	"parkir-pintar/pkg/tracing"
 )
 
@@ -25,7 +26,7 @@ type Middleware struct {
 	tracer tracing.Tracer
 
 	mu           sync.Mutex
-	rateStore    *rateLimitStore
+	rateStore    *ratelimit.Store
 	rateStoreCfg RateLimitConfig
 }
 

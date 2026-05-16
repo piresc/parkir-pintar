@@ -12,8 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	analyticsrepo "parkir-pintar/internal/analytics/repository"
-	analyticsusecase "parkir-pintar/internal/analytics/usecase"
 	gatewayhandler "parkir-pintar/internal/gateway/handler"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
@@ -27,6 +25,8 @@ import (
 	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 
+	analyticsv1 "parkir-pintar/proto/analytics/v1"
+	billingv1 "parkir-pintar/proto/billing/v1"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 	searchv1 "parkir-pintar/proto/search/v1"
@@ -90,7 +90,9 @@ func main() {
 
 	reservationTarget := getEnv("GRPC_RESERVATION_TARGET", "localhost:9091")
 	searchTarget := getEnv("GRPC_SEARCH_TARGET", "localhost:9092")
+	billingTarget := getEnv("GRPC_BILLING_TARGET", "localhost:9093")
 	paymentTarget := getEnv("GRPC_PAYMENT_TARGET", "localhost:9094")
+	analyticsTarget := getEnv("GRPC_ANALYTICS_TARGET", "localhost:9095")
 
 	clientCfg := grpcclient.ClientConfig{
 		DialTimeout:      cfg.GRPC.Client.DialTimeout,
@@ -121,16 +123,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	clientCfg.Target = billingTarget
+	billingConn, err := grpcclient.Dial(ctx, clientCfg)
+	if err != nil {
+		log.Error("failed to connect to billing service", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	clientCfg.Target = analyticsTarget
+	analyticsConn, err := grpcclient.Dial(ctx, clientCfg)
+	if err != nil {
+		log.Error("failed to connect to analytics service", slog.Any("error", err))
+		os.Exit(1)
+	}
+
 	// 7. Create gRPC service clients
 	reservationClient := reservationv1.NewReservationServiceClient(reservationConn)
 	searchClient := searchv1.NewSearchServiceClient(searchConn)
 	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
+	billingClient := billingv1.NewBillingServiceClient(billingConn)
+	analyticsClient := analyticsv1.NewAnalyticsServiceClient(analyticsConn)
 
 	// 8. Setup shutdown manager
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return reservationConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return searchConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
+	shutdownMgr.Register(func(_ context.Context) error { return analyticsConn.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 	if met != nil {
 		shutdownMgr.Register(func(ctx context.Context) error { return met.Shutdown(ctx) })
@@ -185,19 +205,13 @@ func main() {
 	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
-	// 13. Register analytics REST routes (DB-backed, with JWT auth)
-	if pgClient != nil {
-		analyticsRepo := analyticsrepo.NewRepository(pgClient.GetDB())
-		analyticsUC := analyticsusecase.NewUsecase(analyticsRepo)
-		analyticsHandler := gatewayhandler.NewAnalyticsHandler(analyticsUC)
-		analyticsHandler.RegisterRoutes(engine, mw, jwtSecret)
-	}
+	// 13. Register analytics REST routes (gRPC-backed, with JWT auth)
+	analyticsHandler := gatewayhandler.NewAnalyticsHandler(analyticsClient)
+	analyticsHandler.RegisterRoutes(engine, mw, jwtSecret)
 
-	// 14. Register billing REST routes (DB-backed, with JWT auth)
-	if pgClient != nil {
-		billingHandler := gatewayhandler.NewBillingHandler(pgClient.GetDB())
-		billingHandler.RegisterRoutes(engine, mw, jwtSecret)
-	}
+	// 14. Register billing REST routes (gRPC-backed, with JWT auth)
+	billingHandler := gatewayhandler.NewBillingHandler(billingClient)
+	billingHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 15. Start server
 	srv := server.NewGracefulServer(engine, log, cfg.Server.Port, time.Duration(cfg.Server.ShutdownTimeout)*time.Second)

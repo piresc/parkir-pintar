@@ -1,0 +1,12 @@
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: .
+    opt:
+      - module=parkir-pintar
+  - local: protoc-gen-go-grpc
+    out: .
+    opt:
+      - module=parkir-pintar
+inputs:
+  - directory: proto

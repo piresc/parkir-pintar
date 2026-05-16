@@ -11,14 +11,12 @@ package handler
 
 import (
 	"context"
-	"errors"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/search/model"
-	"parkir-pintar/internal/search/repository"
 	"parkir-pintar/internal/search/usecase"
 	"parkir-pintar/pkg/apperror"
 	searchv1 "parkir-pintar/proto/search/v1"
@@ -144,27 +142,5 @@ func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetai
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if errors.Is(err, repository.ErrNotFound) {
-		return status.Error(codes.NotFound, err.Error())
-	}
-
-	var appErr *apperror.AppError
-	if errors.As(err, &appErr) {
-		switch appErr.HTTPStatus {
-		case 404:
-			return status.Error(codes.NotFound, appErr.Message)
-		case 409:
-			return status.Error(codes.AlreadyExists, appErr.Message)
-		case 400:
-			return status.Error(codes.InvalidArgument, appErr.Message)
-		default:
-			return status.Error(codes.Internal, appErr.Message)
-		}
-	}
-
-	return status.Error(codes.Internal, err.Error())
+	return apperror.MapToGRPCError(err)
 }

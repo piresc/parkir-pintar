@@ -23,6 +23,8 @@ Thumbs.db
 # .env.example and config/.env.example are kept as templates.
 .env
 config/.env
+deploy/staging/.env
+deploy/monitoring/.env
 !config/.env.example
 !.env.example
 

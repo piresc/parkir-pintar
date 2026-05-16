@@ -163,7 +163,10 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	}
 
 	// Check if driver already has an active reservation
-	active, _ := uc.repo.ListByDriverID(ctx, req.DriverID, "") //nolint:errcheck // best-effort duplicate check
+	active, err := uc.repo.ListByDriverID(ctx, req.DriverID, "")
+	if err != nil {
+		return nil, fmt.Errorf("check active reservations: %w", err)
+	}
 	for _, r := range active {
 		if r.Status == model.StatusWaitingPayment || r.Status == model.StatusConfirmed || r.Status == model.StatusCheckedIn {
 			return nil, apperror.New("CONFLICT", "driver already has an active reservation", 409)
@@ -195,7 +198,9 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		return nil, fmt.Errorf("acquire lock: %w", err)
 	}
 	defer func() {
-		if unlockErr := lock.Release(ctx); unlockErr != nil {
+		releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if unlockErr := lock.Release(releaseCtx); unlockErr != nil {
 			slog.Error("failed to release spot lock", slog.String("lock_key", lockKey), slog.Any("error", unlockErr))
 		}
 	}()
@@ -487,6 +492,9 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 	}
 
 	// Phase 2: Calculate fee and generate invoice (outside the row lock)
+	if reservation.CheckedInAt == nil || reservation.CheckedOutAt == nil {
+		return nil, apperror.New("INTERNAL", "reservation missing check-in/check-out timestamps", 500)
+	}
 	_, err := uc.billingClient.CalculateFee(ctx, reservation.ID, *reservation.CheckedInAt, *reservation.CheckedOutAt)
 	if err != nil {
 		return nil, fmt.Errorf("check-out calculate fee: %w", err)

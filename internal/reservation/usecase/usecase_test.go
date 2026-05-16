@@ -800,7 +800,7 @@ func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) 
 	repo.On("GetSpotForUpdate", ctx, "spot-moto-001").Return(motorcycleSpot, nil)
 	lck := new(MockLock)
 	locker.On("Acquire", ctx, "spot:spot-moto-001").Return(lck, nil)
-	lck.On("Release", ctx).Return(nil)
+	lck.On("Release", mock.Anything).Return(nil)
 
 	_, err := uc.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       "driver-001",

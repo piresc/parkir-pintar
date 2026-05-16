@@ -40,12 +40,17 @@ var ErrCircuitOpen = gobreaker.ErrOpenState
 
 // Config holds the circuit breaker configuration.
 type Config struct {
+	// Name identifies this circuit breaker in logs and metrics.
+	Name string
 	// FailureThreshold is the number of consecutive failures before opening.
 	FailureThreshold int
 	// OpenTimeout is how long the circuit stays open before transitioning to half-open.
 	OpenTimeout time.Duration
 	// HalfOpenMaxProbes is the number of probe calls allowed in half-open state.
 	HalfOpenMaxProbes int
+	// Interval is the cyclic period of the closed state for clearing failure counts.
+	// If 0 at creation, defaults to 60s.
+	Interval time.Duration
 }
 
 // CircuitBreaker wraps sony/gobreaker with a simplified API.
@@ -65,11 +70,15 @@ func New(cfg Config) *CircuitBreaker {
 	if cfg.HalfOpenMaxProbes <= 0 {
 		cfg.HalfOpenMaxProbes = 1
 	}
+	if cfg.Interval <= 0 {
+		cfg.Interval = 60 * time.Second
+	}
 
 	settings := gobreaker.Settings{
-		MaxRequests: uint32(cfg.HalfOpenMaxProbes),
-		Interval:    0, // don't reset counts periodically
+		Name:        cfg.Name,
+		Interval:    cfg.Interval,
 		Timeout:     cfg.OpenTimeout,
+		MaxRequests: uint32(cfg.HalfOpenMaxProbes),
 		ReadyToTrip: func(counts gobreaker.Counts) bool {
 			return int(counts.ConsecutiveFailures) >= cfg.FailureThreshold
 		},

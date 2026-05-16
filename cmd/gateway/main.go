@@ -175,7 +175,7 @@ func main() {
 	engine.Use(mw.TracingHandler())
 
 	// Register pprof debug endpoints (only if ENABLE_PPROF=true)
-	gatewayhandler.RegisterPprof(engine)
+	gatewayhandler.RegisterPprof(engine, mw, cfg.JWT.Secret)
 
 	// 10. Serve Swagger UI
 	engine.StaticFile("/swagger/doc.yaml", "./docs/swagger.yaml")

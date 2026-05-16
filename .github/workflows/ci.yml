@@ -237,3 +237,19 @@ jobs:
             VERSION=${{ github.sha }}
             GIT_COMMIT=${{ github.sha }}
             BUILD_TIME=${{ github.event.head_commit.timestamp }}
+
+  # -------------------------------------------------------------------------
+  # Deploy to staging via Coolify webhook (after image push)
+  # -------------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-push-staging
+    if: github.event_name == 'push'
+    steps:
+      - name: Trigger Coolify redeploy
+        run: |
+          curl -sSf -X GET \
+            "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            --max-time 30

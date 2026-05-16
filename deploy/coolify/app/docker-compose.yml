@@ -1,0 +1,213 @@
+# ParkirPintar — Application Stack
+# Managed by Coolify. Deploys via webhook after CI pushes to GHCR.
+# Connects to shared infra-backend and observability networks.
+
+services:
+  gateway:
+    image: ghcr.io/piresc/parkir-pintar:latest
+    container_name: parkir-gateway
+    command: ["/app/gateway"]
+    ports:
+      - "8082:8080"
+    environment:
+      APP_NAME: parkir-pintar-gateway
+      APP_ENV: staging
+      SERVER_PORT: "8080"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: reservation
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
+      GRPC_RESERVATION_TARGET: reservation:9090
+      GRPC_SEARCH_TARGET: search:9090
+      GRPC_PAYMENT_TARGET: payment:9090
+    depends_on:
+      reservation:
+        condition: service_healthy
+      search:
+        condition: service_healthy
+    networks:
+      - app
+      - infra-backend
+      - observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  search:
+    image: ghcr.io/piresc/parkir-pintar:latest
+    container_name: parkir-search
+    command: ["/app/search"]
+    environment:
+      APP_NAME: parkir-pintar-search
+      APP_ENV: staging
+      GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: search
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+    networks:
+      - app
+      - infra-backend
+      - observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/search || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  reservation:
+    image: ghcr.io/piresc/parkir-pintar:latest
+    container_name: parkir-reservation
+    command: ["/app/reservation"]
+    environment:
+      APP_NAME: parkir-pintar-reservation
+      APP_ENV: staging
+      GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: reservation
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
+      GRPC_BILLING_TARGET: billing:9090
+      GRPC_PAYMENT_TARGET: payment:9090
+      PAYMENT_TIMEOUT_MINUTES: "10"
+      RESERVATION_EXPIRY_MINUTES: "60"
+      ASYNQ_CONCURRENCY: "10"
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+    depends_on:
+      billing:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+    networks:
+      - app
+      - infra-backend
+      - observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/reservation || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  billing:
+    image: ghcr.io/piresc/parkir-pintar:latest
+    container_name: parkir-billing
+    command: ["/app/billing"]
+    environment:
+      APP_NAME: parkir-pintar-billing
+      APP_ENV: staging
+      GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: billing
+      DB_SSL_MODE: disable
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
+    networks:
+      - app
+      - infra-backend
+      - observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/billing || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  payment:
+    image: ghcr.io/piresc/parkir-pintar:latest
+    container_name: parkir-payment
+    command: ["/app/payment"]
+    environment:
+      APP_NAME: parkir-pintar-payment
+      APP_ENV: staging
+      GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: payment
+      DB_SSL_MODE: disable
+      TRACING_ENABLED: "true"
+      TRACING_EXPORTER: "otlp-grpc"
+      TRACING_OTLP_ENDPOINT: "alloy:4319"
+      TRACING_SAMPLE_RATE: "1.0"
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
+    depends_on:
+      billing:
+        condition: service_healthy
+    networks:
+      - app
+      - infra-backend
+      - observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/payment || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+networks:
+  app:
+    driver: bridge
+    name: parkir-app
+  infra-backend:
+    external: true
+    name: infra-backend
+  observability:
+    external: true
+    name: observability

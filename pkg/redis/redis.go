@@ -22,11 +22,21 @@ type Client struct {
 // It configures address, password, DB, and pool size, then verifies
 // connectivity with a 5-second timeout ping.
 func NewClient(cfg config.RedisConfig) (*Client, error) {
+	poolSize := cfg.PoolSize
+	if poolSize <= 0 {
+		poolSize = 10
+	}
+
 	client := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		Password: cfg.Password,
-		DB:       cfg.DB,
-		PoolSize: cfg.PoolSize,
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Password:     cfg.Password,
+		DB:           cfg.DB,
+		PoolSize:     poolSize,
+		MinIdleConns: 3,
+		MaxRetries:   3,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	})
 
 	// Verify connection with 5s timeout

@@ -278,6 +278,10 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 			return fmt.Errorf("confirm reservation get: %w", err)
 		}
 
+		if req.CallerID != "" && reservation.DriverID != req.CallerID {
+			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+		}
+
 		if reservation.Status != model.StatusWaitingPayment {
 			return apperror.BadRequest("reservation is not pending payment")
 		}
@@ -368,6 +372,10 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 			return fmt.Errorf("cancel reservation get: %w", err)
 		}
 
+		if req.CallerID != "" && reservation.DriverID != req.CallerID {
+			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+		}
+
 		if err := model.ValidateTransition(reservation.Status, model.StatusCancelled); err != nil {
 			return apperror.BadRequest(err.Error())
 		}
@@ -406,6 +414,10 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("check-in get: %w", err)
+		}
+
+		if req.CallerID != "" && reservation.DriverID != req.CallerID {
+			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
 		if err := model.ValidateTransition(reservation.Status, model.StatusCheckedIn); err != nil {
@@ -454,6 +466,10 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("check-out get: %w", err)
+		}
+
+		if req.CallerID != "" && reservation.DriverID != req.CallerID {
+			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
 		if err := model.ValidateTransition(reservation.Status, model.StatusCheckedOut); err != nil {
@@ -507,6 +523,10 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("complete checkout get: %w", err)
+		}
+
+		if req.CallerID != "" && reservation.DriverID != req.CallerID {
+			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
 		if reservation.Status != model.StatusCheckedOut {

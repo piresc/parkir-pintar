@@ -45,9 +45,12 @@ func (m *Middleware) JWTAuth(secret string) gin.HandlerFunc {
 		}
 
 		// Extract user_id and role from validated claims
-		if claims.UserID != "" {
-			c.Set(KeyUserID, claims.UserID)
+		if claims.UserID == "" {
+			c.Abort()
+			response.Error(c, http.StatusUnauthorized, "token missing user identity")
+			return
 		}
+		c.Set(KeyUserID, claims.UserID)
 		if claims.Role != "" {
 			c.Set(KeyRole, claims.Role)
 		}

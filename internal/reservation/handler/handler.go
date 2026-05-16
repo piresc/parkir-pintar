@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -31,6 +32,19 @@ func NewHandler(uc usecase.Usecase) *Handler {
 // RegisterService registers this handler with the given gRPC server.
 func (h *Handler) RegisterService(s *grpc.Server) {
 	reservationv1.RegisterReservationServiceServer(s, h)
+}
+
+// getUserIDFromContext extracts the user ID from incoming gRPC metadata.
+func getUserIDFromContext(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	values := md.Get("x-user-id")
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 // CreateReservation validates required fields and delegates to the usecase.
@@ -81,6 +95,7 @@ func (h *Handler) CancelReservation(ctx context.Context, req *reservationv1.Canc
 
 	result, err := h.uc.CancelReservation(ctx, &model.CancelReservationRequest{
 		ReservationID: req.GetReservationId(),
+		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -97,6 +112,7 @@ func (h *Handler) CheckIn(ctx context.Context, req *reservationv1.CheckInRequest
 
 	result, err := h.uc.CheckIn(ctx, &model.CheckInRequest{
 		ReservationID: req.GetReservationId(),
+		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -113,6 +129,7 @@ func (h *Handler) CheckOut(ctx context.Context, req *reservationv1.CheckOutReque
 
 	result, err := h.uc.CheckOut(ctx, &model.CheckOutRequest{
 		ReservationID: req.GetReservationId(),
+		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -138,6 +155,7 @@ func (h *Handler) ConfirmReservation(ctx context.Context, req *reservationv1.Con
 
 	result, err := h.uc.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
 		ReservationID: req.GetReservationId(),
+		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -154,6 +172,7 @@ func (h *Handler) CompleteCheckout(ctx context.Context, req *reservationv1.Compl
 
 	result, err := h.uc.CompleteCheckout(ctx, &model.CompleteCheckoutRequest{
 		ReservationID: req.GetReservationId(),
+		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
 		return nil, mapError(err)

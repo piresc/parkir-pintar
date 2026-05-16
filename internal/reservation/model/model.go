@@ -102,26 +102,31 @@ type CreateReservationRequest struct {
 // CancelReservationRequest is the payload for cancelling a reservation.
 type CancelReservationRequest struct {
 	ReservationID string `json:"reservation_id"`
+	CallerID      string `json:"caller_id,omitempty"`
 }
 
 // CheckInRequest is the payload for checking in to a reservation.
 type CheckInRequest struct {
 	ReservationID string `json:"reservation_id"`
+	CallerID      string `json:"caller_id,omitempty"`
 }
 
 // CheckOutRequest is the payload for checking out of a reservation.
 type CheckOutRequest struct {
 	ReservationID string `json:"reservation_id"`
+	CallerID      string `json:"caller_id,omitempty"`
 }
 
 // ConfirmReservationRequest is the payload for confirming a reservation after payment.
 type ConfirmReservationRequest struct {
 	ReservationID string `json:"reservation_id"`
+	CallerID      string `json:"caller_id,omitempty"`
 }
 
 // CompleteCheckoutRequest is the payload for completing checkout payment.
 type CompleteCheckoutRequest struct {
 	ReservationID string `json:"reservation_id"`
+	CallerID      string `json:"caller_id,omitempty"`
 }
 
 // CheckOutResponse contains the checkout result with billing details.

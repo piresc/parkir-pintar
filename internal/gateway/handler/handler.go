@@ -67,13 +67,29 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 	api.GET("/payments/:id/status", h.GetPaymentStatus)
 }
 
+// getUserID extracts the authenticated user's ID from the Gin context.
+// The JWT middleware guarantees this is always set for authenticated routes.
+func getUserID(c *gin.Context) string {
+	return c.GetString(middleware.KeyUserID)
+}
+
 // contextWithAuth extracts the Authorization header from the Gin context
 // and attaches it as gRPC metadata so downstream services can authenticate.
 func contextWithAuth(c *gin.Context) context.Context {
-	authHeader := c.GetHeader("Authorization")
 	ctx := c.Request.Context()
+	authHeader := c.GetHeader("Authorization")
+	userID := getUserID(c)
+
+	pairs := []string{}
 	if authHeader != "" {
-		md := metadata.Pairs("authorization", authHeader)
+		pairs = append(pairs, "authorization", authHeader)
+	}
+	if userID != "" {
+		pairs = append(pairs, "x-user-id", userID)
+	}
+
+	if len(pairs) > 0 {
+		md := metadata.Pairs(pairs...)
 		ctx = metadata.NewOutgoingContext(ctx, md)
 	}
 	return ctx
@@ -90,6 +106,12 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	// Enforce ownership: driver_id must match authenticated user
+	if uid := getUserID(c); uid != "" && req.DriverID != uid {
+		response.Error(c, http.StatusForbidden, "cannot create reservation for another driver")
 		return
 	}
 
@@ -127,14 +149,11 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// ListByDriver transcodes GET /api/v1/reservations?driver_id=xxx&status=yyy to ReservationService.ListByDriver.
+// ListByDriver transcodes GET /api/v1/reservations to ReservationService.ListByDriver.
+// Uses the authenticated user's ID — ignores client-supplied driver_id.
 func (h *Handler) ListByDriver(c *gin.Context) {
-	driverID := c.Query("driver_id")
-	if driverID == "" {
-		response.Error(c, http.StatusBadRequest, "driver_id query parameter is required")
-		return
-	}
-
+	// Use authenticated user's ID — ignore client-supplied driver_id
+	driverID := getUserID(c)
 	statusFilter := c.Query("status")
 
 	resp, err := h.reservation.ListByDriver(contextWithAuth(c), &reservationv1.ListByDriverRequest{

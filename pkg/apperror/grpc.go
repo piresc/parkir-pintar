@@ -44,12 +44,14 @@ func MapToGRPCError(err error) error {
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		switch appErr.HTTPStatus {
+		case 400:
+			return status.Error(codes.InvalidArgument, appErr.Message)
+		case 403:
+			return status.Error(codes.PermissionDenied, appErr.Message)
 		case 404:
 			return status.Error(codes.NotFound, appErr.Message)
 		case 409:
 			return status.Error(codes.AlreadyExists, appErr.Message)
-		case 400:
-			return status.Error(codes.InvalidArgument, appErr.Message)
 		default:
 			return status.Error(codes.Internal, appErr.Message)
 		}

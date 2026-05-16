@@ -42,16 +42,23 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
 
-	// Configure connection pool
+	// Configure connection pool with safe defaults
 	if cfg.MaxConns > 0 {
 		db.SetMaxOpenConns(cfg.MaxConns)
+	} else {
+		db.SetMaxOpenConns(25)
 	}
 	if cfg.IdleConns > 0 {
 		db.SetMaxIdleConns(cfg.IdleConns)
+	} else {
+		db.SetMaxIdleConns(5)
 	}
 	if cfg.MaxLifetime > 0 {
 		db.SetConnMaxLifetime(time.Duration(cfg.MaxLifetime) * time.Minute)
+	} else {
+		db.SetConnMaxLifetime(30 * time.Minute)
 	}
+	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	// Verify connection with 10s timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -60,14 +67,6 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	if err := db.PingContext(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
-	}
-
-	if cfg.Schema != "" && cfg.Schema != "public" {
-		_, err := db.ExecContext(ctx, fmt.Sprintf("SET search_path TO %s, public", cfg.Schema))
-		if err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to set search_path to %s: %w", cfg.Schema, err)
-		}
 	}
 
 	return &PostgresClient{db: db}, nil

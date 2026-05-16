@@ -29,8 +29,6 @@ func (l *slogInterceptorLogger) Log(ctx context.Context, level logging.Level, ms
 	}
 }
 
-
-
 // LoggingUnaryInterceptor returns a grpc.UnaryServerInterceptor that logs the
 // full method name, gRPC status code, and duration for each unary RPC.
 // Successful calls (codes.OK) are logged at INFO level; all other status codes

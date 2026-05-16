@@ -108,17 +108,17 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if i < 2 {
 			select {
 			case <-time.After(backoffs[i]):
-		case <-ctx.Done():
-			payment.Status = model.PaymentStatusFailed
-			payment.UpdatedAt = time.Now()
-			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cleanupCancel()
-			if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil {
-				slog.Error("failed to update payment status on context cancel",
-					slog.String("payment_id", payment.ID),
-					slog.Any("error", updateErr))
-			}
-			return payment, ctx.Err()
+			case <-ctx.Done():
+				payment.Status = model.PaymentStatusFailed
+				payment.UpdatedAt = time.Now()
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cleanupCancel()
+				if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil {
+					slog.Error("failed to update payment status on context cancel",
+						slog.String("payment_id", payment.ID),
+						slog.Any("error", updateErr))
+				}
+				return payment, ctx.Err()
 			}
 		}
 	}

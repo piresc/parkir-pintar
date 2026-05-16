@@ -622,3 +622,4 @@ graph LR
 ## License
 
 MIT
+# Deployment: Coolify (webhook via CI)

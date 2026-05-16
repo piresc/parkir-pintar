@@ -34,10 +34,10 @@ func NewReservationExpiryHandler(expirer ReservationExpirer) *ReservationExpiryH
 func (h *ReservationExpiryHandler) ProcessTask(ctx context.Context, t *asynq.Task) error {
 	var payload ReservationExpiryPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return fmt.Errorf("unmarshal reservation expiry payload: %w", err)
+		return fmt.Errorf("unmarshal reservation expiry payload: %w: %w", err, asynq.SkipRetry)
 	}
 	if payload.ReservationID == "" {
-		return fmt.Errorf("reservation_id is required")
+		return fmt.Errorf("reservation_id is required: %w", asynq.SkipRetry)
 	}
 	return h.expirer.ExpireReservation(ctx, payload.ReservationID)
 }
@@ -56,13 +56,13 @@ func NewPaymentHoldTimeoutHandler(failer ReservationFailer) *PaymentHoldTimeoutH
 func (h *PaymentHoldTimeoutHandler) ProcessTask(ctx context.Context, t *asynq.Task) error {
 	var payload PaymentHoldTimeoutPayload
 	if err := json.Unmarshal(t.Payload(), &payload); err != nil {
-		return fmt.Errorf("unmarshal payment hold timeout payload: %w", err)
+		return fmt.Errorf("unmarshal payment hold timeout payload: %w: %w", err, asynq.SkipRetry)
 	}
 	if payload.ReservationID == "" {
-		return fmt.Errorf("reservation_id is required")
+		return fmt.Errorf("reservation_id is required: %w", asynq.SkipRetry)
 	}
 	if payload.PaymentID == "" {
-		return fmt.Errorf("payment_id is required")
+		return fmt.Errorf("payment_id is required: %w", asynq.SkipRetry)
 	}
 	return h.failer.FailReservation(ctx, payload.ReservationID, payload.PaymentID)
 }

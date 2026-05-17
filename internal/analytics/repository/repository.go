@@ -86,7 +86,7 @@ func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 			END AS avg_occupancy
 		FROM daily d
 		CROSS JOIN capacity c
-		ORDER BY d.date DESC`
+		ORDER BY d.date ASC`
 
 	var occupancy []model.DailyOccupancy
 	if err := r.db.SelectContext(ctx, &occupancy, query, days); err != nil {

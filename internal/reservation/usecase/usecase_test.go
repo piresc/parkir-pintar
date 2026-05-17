@@ -70,6 +70,22 @@ func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*
 	return args.Get(0).(*model.ParkingSpot), args.Error(1)
 }
 
+func (m *MockRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error) {
+	args := m.Called(ctx, tx, vehicleType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ParkingSpot), args.Error(1)
+}
+
+func (m *MockRepository) GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error) {
+	args := m.Called(ctx, tx, spotID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ParkingSpot), args.Error(1)
+}
+
 func (m *MockRepository) CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error {
 	args := m.Called(ctx, tx, reservation)
 	return args.Error(0)
@@ -258,7 +274,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	lock := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-42").Return(lock, nil)
 	lock.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-42").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-42").Return(&model.ParkingSpot{
 		ID:     "spot-42",
 		Status: "available",
 	}, nil)
@@ -305,7 +321,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-99").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-99").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-99").Return(&model.ParkingSpot{
 		ID:          "spot-99",
 		VehicleType: "motorcycle",
 		Status:      "available",
@@ -697,7 +713,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-42").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-42").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-42").Return(&model.ParkingSpot{
 		ID:     "spot-42",
 		Status: "available",
 	}, nil)
@@ -749,7 +765,7 @@ func TestCreateReservation_ShouldReturnError_WhenNonUniqueConstraintError(t *tes
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-50").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-50").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-50").Return(&model.ParkingSpot{
 		ID:     "spot-50",
 		Status: "available",
 	}, nil)
@@ -797,7 +813,7 @@ func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) 
 
 	repo.On("FindByIdempotencyKey", ctx, "idem-mismatch-001").Return(nil, model.ErrNotFound)
 	repo.On("ListByDriverID", ctx, "driver-001", "").Return([]*model.Reservation{}, nil)
-	repo.On("GetSpotForUpdate", ctx, "spot-moto-001").Return(motorcycleSpot, nil)
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-moto-001").Return(motorcycleSpot, nil)
 	lck := new(MockLock)
 	locker.On("Acquire", ctx, "spot:spot-moto-001").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)

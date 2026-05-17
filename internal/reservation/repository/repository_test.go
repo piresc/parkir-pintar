@@ -79,7 +79,7 @@ func TestFindAvailableSpot_Found(t *testing.T) {
 	)
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT * FROM parking_spots WHERE vehicle_type = $1 AND status = 'available' ORDER BY floor_number, spot_number LIMIT 1 FOR UPDATE SKIP LOCKED`,
+		`SELECT * FROM parking_spots WHERE vehicle_type = $1 AND status = 'available' ORDER BY floor_number, spot_number LIMIT 1`,
 	)).WithArgs("car").WillReturnRows(rows)
 
 	repo := NewRepository(db)
@@ -96,7 +96,7 @@ func TestFindAvailableSpot_NoSpots(t *testing.T) {
 	defer db.Close()
 
 	mock.ExpectQuery(regexp.QuoteMeta(
-		`SELECT * FROM parking_spots WHERE vehicle_type = $1 AND status = 'available' ORDER BY floor_number, spot_number LIMIT 1 FOR UPDATE SKIP LOCKED`,
+		`SELECT * FROM parking_spots WHERE vehicle_type = $1 AND status = 'available' ORDER BY floor_number, spot_number LIMIT 1`,
 	)).WithArgs("motorcycle").WillReturnError(sql.ErrNoRows)
 
 	repo := NewRepository(db)

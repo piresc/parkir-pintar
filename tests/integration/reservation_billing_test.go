@@ -69,6 +69,22 @@ func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*
 	return args.Get(0).(*model.ParkingSpot), args.Error(1)
 }
 
+func (m *MockRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error) {
+	args := m.Called(ctx, tx, vehicleType)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ParkingSpot), args.Error(1)
+}
+
+func (m *MockRepository) GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error) {
+	args := m.Called(ctx, tx, spotID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.ParkingSpot), args.Error(1)
+}
+
 func (m *MockRepository) CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error {
 	args := m.Called(ctx, tx, reservation)
 	return args.Error(0)
@@ -221,7 +237,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	lock := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-integ-1").Return(lock, nil)
 	lock.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-integ-1").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-integ-1").Return(&model.ParkingSpot{
 		ID:     "spot-integ-1",
 		Status: "available",
 	}, nil)
@@ -250,6 +266,14 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 
 	// --- Phase 1b: Confirm reservation ---
 	confirmedAt := time.Now().Add(-2 * time.Hour)
+	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
+		ID:          reservation.ID,
+		DriverID:    "driver-integ-1",
+		SpotID:      "spot-integ-1",
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
+	}, nil).Once()
+	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
 		DriverID:    "driver-integ-1",

@@ -50,6 +50,12 @@ func (f *fakeRepo) GetSpotByID(context.Context, string) (*model.ParkingSpot, err
 func (f *fakeRepo) GetSpotForUpdate(context.Context, string) (*model.ParkingSpot, error) {
 	return nil, nil
 }
+func (f *fakeRepo) FindAvailableSpotTx(_ context.Context, _ *sqlx.Tx, _ string) (*model.ParkingSpot, error) {
+	return nil, nil
+}
+func (f *fakeRepo) GetSpotForUpdateTx(_ context.Context, _ *sqlx.Tx, _ string) (*model.ParkingSpot, error) {
+	return nil, nil
+}
 func (f *fakeRepo) CreateReservationTx(_ context.Context, _ *sqlx.Tx, _ *model.Reservation) error {
 	return nil
 }

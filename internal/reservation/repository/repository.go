@@ -19,8 +19,10 @@ import (
 type Repository interface {
 	FindByIdempotencyKey(ctx context.Context, key string) (*model.Reservation, error)
 	FindAvailableSpot(ctx context.Context, vehicleType string) (*model.ParkingSpot, error)
+	FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error)
 	GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error)
+	GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error)
 	CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
 	UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, spotID string, status string) error
 	UpdateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
@@ -56,10 +58,30 @@ func (r *sqlxRepository) FindByIdempotencyKey(ctx context.Context, key string) (
 }
 
 // FindAvailableSpot retrieves the first available parking spot matching the vehicle type.
-// Uses FOR UPDATE SKIP LOCKED to avoid lock contention during concurrent reservations.
+// This is a read-only hint; the actual lock is acquired via FindAvailableSpotTx within a transaction.
 func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType string) (*model.ParkingSpot, error) {
 	var spot model.ParkingSpot
 	err := r.db.GetContext(ctx, &spot,
+		`SELECT * FROM parking_spots
+		 WHERE vehicle_type = $1 AND status = 'available'
+		 ORDER BY floor_number, spot_number
+		 LIMIT 1`,
+		vehicleType,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: vehicle_type=%s", model.ErrNotFound, vehicleType)
+		}
+		return nil, fmt.Errorf("find available spot: %w", err)
+	}
+	return &spot, nil
+}
+
+// FindAvailableSpotTx retrieves the first available spot within a transaction,
+// holding the row lock until the transaction commits.
+func (r *sqlxRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error) {
+	var spot model.ParkingSpot
+	err := tx.GetContext(ctx, &spot,
 		`SELECT * FROM parking_spots
 		 WHERE vehicle_type = $1 AND status = 'available'
 		 ORDER BY floor_number, spot_number
@@ -71,7 +93,7 @@ func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("%w: vehicle_type=%s", model.ErrNotFound, vehicleType)
 		}
-		return nil, fmt.Errorf("find available spot: %w", err)
+		return nil, fmt.Errorf("find available spot tx: %w", err)
 	}
 	return &spot, nil
 }
@@ -98,6 +120,19 @@ func (r *sqlxRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*
 			return nil, fmt.Errorf("%w: spot_id=%s", model.ErrNotFound, spotID)
 		}
 		return nil, fmt.Errorf("get spot for update: %w", err)
+	}
+	return &spot, nil
+}
+
+// GetSpotForUpdateTx retrieves a spot by ID with FOR UPDATE within a transaction.
+func (r *sqlxRepository) GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error) {
+	var spot model.ParkingSpot
+	err := tx.GetContext(ctx, &spot, "SELECT * FROM parking_spots WHERE id = $1 FOR UPDATE", spotID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("%w: spot_id=%s", model.ErrNotFound, spotID)
+		}
+		return nil, fmt.Errorf("get spot for update tx: %w", err)
 	}
 	return &spot, nil
 }

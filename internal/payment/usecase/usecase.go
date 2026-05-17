@@ -130,6 +130,18 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
 			slog.Error("failed to update payment status to failed", slog.Any("error", updateErr))
 		}
+		// Publish payment failed event (best-effort)
+		if uc.eventPublisher != nil {
+			pubErr := uc.eventPublisher.PublishPaymentFailed(ctx, gateway.PaymentResultEvent{
+				PaymentID: payment.ID,
+				Status:    string(model.PaymentStatusFailed),
+			})
+			if pubErr != nil {
+				slog.Error("failed to publish payment failed event",
+					slog.String("payment_id", payment.ID),
+					slog.Any("error", pubErr))
+			}
+		}
 		return payment, nil
 	}
 
@@ -142,6 +154,19 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 
 	if err := uc.repo.UpdatePayment(ctx, payment); err != nil {
 		return nil, fmt.Errorf("process payment update success: %w", err)
+	}
+
+	// Publish payment success event (best-effort)
+	if uc.eventPublisher != nil {
+		pubErr := uc.eventPublisher.PublishPaymentSuccess(ctx, gateway.PaymentResultEvent{
+			PaymentID: payment.ID,
+			Status:    string(model.PaymentStatusSuccess),
+		})
+		if pubErr != nil {
+			slog.Error("failed to publish payment success event",
+				slog.String("payment_id", payment.ID),
+				slog.Any("error", pubErr))
+		}
 	}
 
 	return payment, nil

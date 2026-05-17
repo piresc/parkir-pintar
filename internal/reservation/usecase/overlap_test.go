@@ -41,8 +41,8 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-race").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
-	// Race condition: another request reserved the spot between FindAvailableSpot and GetSpotForUpdate
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-race").Return(&model.ParkingSpot{
+	// Race condition: another request reserved the spot between FindAvailableSpot and GetSpotForUpdateTx
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-race").Return(&model.ParkingSpot{
 		ID:          "spot-race",
 		VehicleType: "car",
 		Status:      "reserved",
@@ -92,7 +92,7 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-a").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-a").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-a").Return(&model.ParkingSpot{
 		ID:          "spot-a",
 		VehicleType: "car",
 		Status:      "available",
@@ -147,7 +147,7 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-boundary").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-boundary").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-boundary").Return(&model.ParkingSpot{
 		ID:          "spot-boundary",
 		VehicleType: "motorcycle",
 		Status:      "available",

@@ -113,7 +113,7 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			lck := new(MockLock)
 			locker.On("Acquire", mock.Anything, mock.Anything).Return(lck, nil)
 			lck.On("Release", mock.Anything).Return(nil)
-			repo.On("GetSpotForUpdate", mock.Anything, "spot-1").Return(&model.ParkingSpot{
+			repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1").Return(&model.ParkingSpot{
 				ID:     "spot-1",
 				Status: "available",
 			}, nil)
@@ -177,7 +177,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		lck := new(MockLock)
 		locker.On("Acquire", mock.Anything, "spot:"+spotID).Return(lck, nil)
 		lck.On("Release", mock.Anything).Return(nil)
-		repo.On("GetSpotForUpdate", mock.Anything, spotID).Return(&model.ParkingSpot{
+		repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), spotID).Return(&model.ParkingSpot{
 			ID:     spotID,
 			Status: "available",
 		}, nil)
@@ -248,7 +248,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		lck1 := new(MockLock)
 		locker1.On("Acquire", mock.Anything, "spot:"+spotID).Return(lck1, nil)
 		lck1.On("Release", mock.Anything).Return(nil)
-		repo1.On("GetSpotForUpdate", mock.Anything, spotID).Return(&model.ParkingSpot{
+		repo1.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), spotID).Return(&model.ParkingSpot{
 			ID:     spotID,
 			Status: "available",
 		}, nil)

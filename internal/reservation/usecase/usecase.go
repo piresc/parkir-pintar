@@ -205,16 +205,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		}
 	}()
 
-	// Step 4: Double-check spot availability and vehicle-type compatibility under lock
-	spot, err := uc.repo.GetSpotForUpdate(ctx, spotID)
-	if err != nil || spot.Status != spotStatusAvailable {
-		return nil, apperror.New("CONFLICT", "spot no longer available", 409)
-	}
-	if req.AssignmentMode == model.AssignmentUserSelected && spot.VehicleType != req.VehicleType {
-		return nil, apperror.BadRequest("spot vehicle type does not match requested vehicle type")
-	}
-
-	// Step 5: Create reservation in transaction with status=waiting_payment
+	// Step 4+5: Verify spot AND create reservation in single transaction
 	now := time.Now()
 	reservation := &model.Reservation{
 		ID:             uuid.New().String(),
@@ -229,6 +220,15 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	}
 
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
+		// Double-check spot availability under DB row lock (within transaction)
+		spot, err := uc.repo.GetSpotForUpdateTx(ctx, tx, spotID)
+		if err != nil || spot.Status != spotStatusAvailable {
+			return apperror.New("CONFLICT", "spot no longer available", 409)
+		}
+		if req.AssignmentMode == model.AssignmentUserSelected && spot.VehicleType != req.VehicleType {
+			return apperror.BadRequest("spot vehicle type does not match requested vehicle type")
+		}
+
 		if err := uc.repo.CreateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
@@ -317,14 +317,24 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	}
 
 	// Payment succeeded — confirm the reservation
-	confirmedAt := time.Now()
-	expiresAt := confirmedAt.Add(1 * time.Hour)
-	reservation.Status = model.StatusConfirmed
-	reservation.ConfirmedAt = &confirmedAt
-	reservation.ExpiresAt = &expiresAt
-	reservation.UpdatedAt = confirmedAt
-
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
+		// Re-fetch with lock to prevent TOCTOU race
+		current, err := uc.repo.GetByIDForUpdate(ctx, tx, reservation.ID)
+		if err != nil {
+			return fmt.Errorf("confirm reservation re-fetch: %w", err)
+		}
+		// Verify status hasn't changed since our first check
+		if current.Status != model.StatusWaitingPayment {
+			return apperror.New("CONFLICT", "reservation status changed concurrently", 409)
+		}
+
+		confirmedAt := time.Now()
+		expiresAt := confirmedAt.Add(1 * time.Hour)
+		reservation.Status = model.StatusConfirmed
+		reservation.ConfirmedAt = &confirmedAt
+		reservation.ExpiresAt = &expiresAt
+		reservation.UpdatedAt = confirmedAt
+
 		return uc.repo.UpdateReservationTx(ctx, tx, reservation)
 	}); err != nil {
 		slog.Error("failed to confirm reservation after payment",

@@ -35,7 +35,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	lck1 := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-alpha").Return(lck1, nil).Once()
 	lck1.On("Release", mock.Anything).Return(nil).Once()
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-alpha").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-alpha").Return(&model.ParkingSpot{
 		ID:     "spot-alpha",
 		Status: "available",
 	}, nil).Once()
@@ -54,7 +54,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	lck2 := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-beta").Return(lck2, nil).Once()
 	lck2.On("Release", mock.Anything).Return(nil).Once()
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-beta").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-beta").Return(&model.ParkingSpot{
 		ID:     "spot-beta",
 		Status: "available",
 	}, nil).Once()

@@ -81,7 +81,7 @@ func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*
 
 // UpdateBillingRecord updates an existing billing record's mutable fields.
 func (r *sqlxRepository) UpdateBillingRecord(ctx context.Context, record *model.BillingRecord) error {
-	_, err := r.db.NamedExecContext(ctx,
+	result, err := r.db.NamedExecContext(ctx,
 		`UPDATE billing_records SET booking_fee = :booking_fee, parking_fee = :parking_fee,
 		 overnight_fee = :overnight_fee, cancellation_fee = :cancellation_fee,
 		 penalty_amount = :penalty_amount, total_amount = :total_amount,
@@ -92,6 +92,13 @@ func (r *sqlxRepository) UpdateBillingRecord(ctx context.Context, record *model.
 	)
 	if err != nil {
 		return fmt.Errorf("update billing record: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update billing record rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("update billing record: %w: id=%s", ErrNotFound, record.ID)
 	}
 	return nil
 }

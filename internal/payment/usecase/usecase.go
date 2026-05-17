@@ -118,7 +118,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 						slog.String("payment_id", payment.ID),
 						slog.Any("error", updateErr))
 				}
-				return payment, ctx.Err()
+				return nil, fmt.Errorf("payment processing cancelled: %w", ctx.Err())
 			}
 		}
 	}

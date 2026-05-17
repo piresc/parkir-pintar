@@ -52,7 +52,7 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	lock := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-expire-1").Return(lock, nil)
 	lock.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-expire-1").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-expire-1").Return(&model.ParkingSpot{
 		ID:     "spot-expire-1",
 		Status: "available",
 	}, nil)
@@ -73,6 +73,14 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 
 	// --- Phase 1b: Confirm reservation ---
 	confirmedAt := time.Now().Add(-2 * time.Hour)
+	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
+		ID:          reservation.ID,
+		DriverID:    "driver-expire-1",
+		SpotID:      "spot-expire-1",
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
+	}, nil).Once()
+	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",

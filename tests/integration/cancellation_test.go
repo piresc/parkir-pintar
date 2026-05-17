@@ -53,7 +53,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	lock := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-cancel-1").Return(lock, nil)
 	lock.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-cancel-1").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1").Return(&model.ParkingSpot{
 		ID:     "spot-cancel-1",
 		Status: "available",
 	}, nil)
@@ -81,12 +81,13 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		Status:      model.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
+	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      model.StatusConfirmed,
-		ConfirmedAt: &confirmedAt,
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
 		return r.Status == model.StatusConfirmed

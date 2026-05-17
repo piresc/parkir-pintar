@@ -51,7 +51,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	lock := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-overnight").Return(lock, nil)
 	lock.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-overnight").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-overnight").Return(&model.ParkingSpot{
 		ID:          "spot-overnight",
 		VehicleType: "car",
 		Status:      "available",
@@ -73,6 +73,14 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 
 	// --- Phase 1b: Confirm reservation ---
 	confirmedAt := time.Now().Add(-10 * time.Hour)
+	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
+		ID:          reservation.ID,
+		DriverID:    "driver-overnight",
+		SpotID:      "spot-overnight",
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
+	}, nil).Once()
+	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
 		DriverID:    "driver-overnight",

@@ -52,7 +52,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	lock := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-extended").Return(lock, nil)
 	lock.On("Release", mock.Anything).Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-extended").Return(&model.ParkingSpot{
+	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended").Return(&model.ParkingSpot{
 		ID:          "spot-extended",
 		VehicleType: "car",
 		Status:      "available",
@@ -74,6 +74,14 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 
 	// --- Phase 1b: Confirm reservation ---
 	confirmedAt := time.Now().Add(-4 * time.Hour)
+	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
+		ID:          reservation.ID,
+		DriverID:    "driver-extended",
+		SpotID:      "spot-extended",
+		Status:      model.StatusWaitingPayment,
+		ConfirmedAt: nil,
+	}, nil).Once()
+	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), reservation.ID).Return(&model.Reservation{
 		ID:          reservation.ID,
 		DriverID:    "driver-extended",

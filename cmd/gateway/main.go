@@ -210,7 +210,7 @@ func main() {
 	analyticsHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 14. Register billing REST routes (gRPC-backed, with JWT auth)
-	billingHandler := gatewayhandler.NewBillingHandler(billingClient)
+	billingHandler := gatewayhandler.NewBillingHandler(billingClient, reservationClient)
 	billingHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 15. Start server

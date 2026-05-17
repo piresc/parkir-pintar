@@ -79,7 +79,8 @@ func (h *Handler) GetReservation(ctx context.Context, req *reservationv1.GetRese
 		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
 	}
 
-	result, err := h.uc.GetReservation(ctx, req.GetReservationId())
+	callerID := getUserIDFromContext(ctx)
+	result, err := h.uc.GetReservation(ctx, req.GetReservationId(), callerID)
 	if err != nil {
 		return nil, mapError(err)
 	}

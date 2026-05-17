@@ -11,16 +11,18 @@ import (
 	"parkir-pintar/pkg/response"
 
 	billingv1 "parkir-pintar/proto/billing/v1"
+	reservationv1 "parkir-pintar/proto/reservation/v1"
 )
 
 // BillingHandler provides the reservation billing breakdown endpoint via gRPC.
 type BillingHandler struct {
-	billing billingv1.BillingServiceClient
+	billing     billingv1.BillingServiceClient
+	reservation reservationv1.ReservationServiceClient
 }
 
-// NewBillingHandler creates a new BillingHandler with the given billing gRPC client.
-func NewBillingHandler(billing billingv1.BillingServiceClient) *BillingHandler {
-	return &BillingHandler{billing: billing}
+// NewBillingHandler creates a new BillingHandler with the given billing and reservation gRPC clients.
+func NewBillingHandler(billing billingv1.BillingServiceClient, reservation reservationv1.ReservationServiceClient) *BillingHandler {
+	return &BillingHandler{billing: billing, reservation: reservation}
 }
 
 // RegisterRoutes registers billing REST routes on the Gin engine with JWT auth.
@@ -33,10 +35,20 @@ func (bh *BillingHandler) RegisterRoutes(engine *gin.Engine, mw *middleware.Midd
 
 // GetReservationBilling handles GET /api/v1/reservations/:id/billing.
 // Returns the billing breakdown for a given reservation via the billing gRPC service.
+// Verifies the caller owns the reservation before fetching billing data.
 func (bh *BillingHandler) GetReservationBilling(c *gin.Context) {
 	reservationID := c.Param("id")
 	if reservationID == "" {
 		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	// Verify caller owns this reservation (GetReservation enforces ownership via x-user-id)
+	_, err := bh.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: reservationID,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
 		return
 	}
 

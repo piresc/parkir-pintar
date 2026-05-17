@@ -91,7 +91,7 @@ func NewLockerAdapter(l *redislock.Locker) Locker {
 //go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/reservation/usecase Usecase
 type Usecase interface {
 	CreateReservation(ctx context.Context, req *model.CreateReservationRequest) (*model.Reservation, error)
-	GetReservation(ctx context.Context, id string) (*model.Reservation, error)
+	GetReservation(ctx context.Context, id string, callerID string) (*model.Reservation, error)
 	CancelReservation(ctx context.Context, req *model.CancelReservationRequest) (*model.Reservation, error)
 	CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.Reservation, error)
 	CheckOut(ctx context.Context, req *model.CheckOutRequest) (*model.CheckOutResponse, error)
@@ -140,9 +140,19 @@ func NewUsecase(
 	}
 }
 
-// GetReservation retrieves a reservation by ID.
-func (uc *reservationUsecase) GetReservation(ctx context.Context, id string) (*model.Reservation, error) {
-	return uc.repo.GetByID(ctx, id)
+// GetReservation retrieves a reservation by ID and enforces ownership when callerID is provided.
+func (uc *reservationUsecase) GetReservation(ctx context.Context, id string, callerID string) (*model.Reservation, error) {
+	reservation, err := uc.repo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return nil, apperror.NotFound("reservation not found")
+		}
+		return nil, fmt.Errorf("get reservation: %w", err)
+	}
+	if callerID != "" && reservation.DriverID != callerID {
+		return nil, apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+	}
+	return reservation, nil
 }
 
 // CreateReservation handles idempotent spot reservation with distributed locking.

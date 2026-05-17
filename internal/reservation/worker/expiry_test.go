@@ -127,7 +127,7 @@ func (f *fakeUsecase) ConfirmReservation(_ context.Context, _ *model.ConfirmRese
 func (f *fakeUsecase) CompleteCheckout(_ context.Context, _ *model.CompleteCheckoutRequest) (*model.CheckOutResponse, error) {
 	return nil, nil
 }
-func (f *fakeUsecase) GetReservation(_ context.Context, _ string) (*model.Reservation, error) {
+func (f *fakeUsecase) GetReservation(_ context.Context, _ string, _ string) (*model.Reservation, error) {
 	return nil, nil
 }
 func (f *fakeUsecase) ListByDriver(_ context.Context, _ string, _ string) ([]*model.Reservation, error) {

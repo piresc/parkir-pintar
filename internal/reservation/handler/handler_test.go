@@ -27,8 +27,8 @@ func (m *mockUsecase) CreateReservation(ctx context.Context, req *model.CreateRe
 	return args.Get(0).(*model.Reservation), args.Error(1)
 }
 
-func (m *mockUsecase) GetReservation(ctx context.Context, id string) (*model.Reservation, error) {
-	args := m.Called(ctx, id)
+func (m *mockUsecase) GetReservation(ctx context.Context, id string, callerID string) (*model.Reservation, error) {
+	args := m.Called(ctx, id, callerID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -266,7 +266,7 @@ func TestGetReservation(t *testing.T) {
 			h := NewHandler(uc)
 
 			if tt.req.GetReservationId() != "" {
-				uc.On("GetReservation", mock.Anything, tt.req.GetReservationId()).Return(tt.mockResult, tt.mockErr)
+				uc.On("GetReservation", mock.Anything, tt.req.GetReservationId(), "").Return(tt.mockResult, tt.mockErr)
 			}
 
 			resp, err := h.GetReservation(t.Context(), tt.req)

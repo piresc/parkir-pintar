@@ -73,7 +73,7 @@ func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*
 
 // UpdatePayment updates an existing payment record's mutable fields.
 func (r *sqlxRepository) UpdatePayment(ctx context.Context, payment *model.Payment) error {
-	_, err := r.db.NamedExecContext(ctx,
+	result, err := r.db.NamedExecContext(ctx,
 		`UPDATE payments SET status = :status, transaction_ref = :transaction_ref,
 		 paid_at = :paid_at, idempotency_key = :idempotency_key, updated_at = :updated_at
 		 WHERE id = :id`,
@@ -81,6 +81,13 @@ func (r *sqlxRepository) UpdatePayment(ctx context.Context, payment *model.Payme
 	)
 	if err != nil {
 		return fmt.Errorf("update payment: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update payment rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("update payment: %w: id=%s", ErrNotFound, payment.ID)
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -45,10 +46,16 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 	if err == nil && existing != nil {
 		return existing, nil
 	}
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, fmt.Errorf("start billing idempotency check: %w", err)
+	}
 
 	existingByReservation, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
 	if err == nil && existingByReservation != nil {
 		return existingByReservation, nil
+	}
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, fmt.Errorf("start billing reservation check: %w", err)
 	}
 
 	now := time.Now()
@@ -103,6 +110,9 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 	existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err == nil && existing != nil {
 		return existing, nil
+	}
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		return nil, fmt.Errorf("generate invoice idempotency check: %w", err)
 	}
 
 	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)

@@ -32,7 +32,7 @@ A production-grade smart parking backend managing a centralized parking area wit
 
 ## Architecture Overview
 
-ParkirPintar uses a microservices architecture with 5 Go services communicating via gRPC (synchronous) and NATS JetStream (asynchronous events). The API Gateway exposes REST endpoints and transcodes to internal gRPC calls.
+ParkirPintar uses a microservices architecture with 6 Go services communicating via gRPC (synchronous) and NATS JetStream (asynchronous events). The API Gateway exposes REST endpoints and transcodes to internal gRPC calls.
 
 ```mermaid
 graph TB
@@ -42,9 +42,11 @@ graph TB
         GW -->|gRPC| SEARCH[Search Service<br/>:9092]
         GW -->|gRPC| RESERVE[Reservation Service<br/>:9091]
         GW -->|gRPC| PAYMENT[Payment Service<br/>:9094]
+        GW -->|gRPC| PRESENCE[Presence Service<br/>:9095]
 
         RESERVE -->|gRPC| BILLING[Billing Service<br/>:9093]
         RESERVE -->|gRPC| PAYMENT
+        RESERVE -->|gRPC non-blocking| PRESENCE
     end
 
     subgraph Event Streaming
@@ -74,6 +76,7 @@ graph TB
     ASYNQ --> RD
     BILLING --> PG
     PAYMENT --> PG
+    PRESENCE --> RD
 
     subgraph Observability
         ALLOY[Grafana Alloy] --> TEMPO[Tempo<br/>Traces]
@@ -95,6 +98,7 @@ graph TB
 | **Reservation** | 9091 | Full reservation lifecycle, spot locking, state transitions |
 | **Billing** | 9093 | Fee calculation (hourly + overnight + penalties) |
 | **Payment** | 9094 | QRIS payment processing, refunds, payment status |
+| **Presence** | 9095 | GPS location verification via Redis Geo, wrong-spot detection (50m threshold) |
 
 ---
 
@@ -129,6 +133,7 @@ sequenceDiagram
     participant R as Reservation
     participant B as Billing
     participant P as Payment
+    participant PRES as Presence
     participant Q as Asynq Queue
 
     D->>GW: POST /api/reservations (spot_id, vehicle_type)
@@ -154,6 +159,8 @@ sequenceDiagram
     D->>GW: POST /api/reservations/:id/checkin
     GW->>R: CheckIn (gRPC)
     R->>R: Status → checked_in, record check_in_time
+    R--)PRES: VerifyLocation (gRPC, non-blocking)
+    PRES--)PRES: Redis Geo distance check (50m threshold)
     R-->>D: 200 OK
 
     D->>GW: POST /api/reservations/:id/checkout
@@ -193,13 +200,15 @@ parkir-pintar/
 │   ├── search/main.go            # Search service
 │   ├── reservation/main.go       # Reservation + Asynq workers
 │   ├── billing/main.go           # Billing service
-│   └── payment/main.go           # Payment service
+│   ├── payment/main.go           # Payment service
+│   └── presence/main.go          # Presence service (GPS verification)
 ├── internal/                     # Domain logic (not importable externally)
 │   ├── gateway/handler/          # REST handlers, routing
 │   ├── search/                   # handler, usecase, repository, model, sync
 │   ├── reservation/              # handler, usecase, repository, model, worker, client
 │   ├── billing/                  # handler, usecase, repository, model
 │   ├── payment/                  # handler, usecase, gateway (stub)
+│   ├── presence/                 # handler, usecase, repository (Redis Geo)
 │   └── analytics/                # usecase, repository (peak hours, occupancy)
 ├── pkg/                          # Shared libraries
 │   ├── asynq/                    # Task queue (client, server, handlers, tasks)
@@ -224,7 +233,8 @@ parkir-pintar/
 │   ├── reservation/v1/
 │   ├── billing/v1/
 │   ├── payment/v1/
-│   └── search/v1/
+│   ├── search/v1/
+│   └── presence/v1/
 ├── db/migrations/                # PostgreSQL migrations (golang-migrate)
 ├── deploy/                       # Docker Compose, monitoring configs
 ├── tests/                        # E2E and integration tests
@@ -497,6 +507,7 @@ docker compose -f deploy/docker-compose.local.yml up -d
 | Reservation | 11002 |
 | Billing | 11003 |
 | Payment | 11004 |
+| Presence | 11005 |
 
 ---
 
@@ -563,6 +574,7 @@ Proto definitions in `proto/*/v1/*.proto`:
 - `BillingService` — Fee calculation
 - `PaymentService` — QRIS payment processing
 - `SearchService` — Spot search and filtering
+- `PresenceService` — GPS location verification, wrong-spot detection
 
 ---
 

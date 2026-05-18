@@ -19,20 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PresenceService_VerifyLocation_FullMethodName       = "/presence.v1.PresenceService/VerifyLocation"
-	PresenceService_UpdateDriverLocation_FullMethodName = "/presence.v1.PresenceService/UpdateDriverLocation"
+	PresenceService_VerifyPresence_FullMethodName = "/presence.v1.PresenceService/VerifyPresence"
 )
 
 // PresenceServiceClient is the client API for PresenceService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// PresenceService verifies driver location against assigned parking spots.
+// PresenceService verifies driver presence at assigned parking spots using sensor data.
 type PresenceServiceClient interface {
-	// VerifyLocation checks if a driver's GPS is within acceptable radius of their assigned spot.
-	VerifyLocation(ctx context.Context, in *VerifyLocationRequest, opts ...grpc.CallOption) (*VerifyLocationResponse, error)
-	// UpdateDriverLocation stores the driver's current GPS coordinates.
-	UpdateDriverLocation(ctx context.Context, in *UpdateDriverLocationRequest, opts ...grpc.CallOption) (*UpdateDriverLocationResponse, error)
+	// VerifyPresence checks if the assigned spot's sensor detects occupancy.
+	VerifyPresence(ctx context.Context, in *VerifyPresenceRequest, opts ...grpc.CallOption) (*VerifyPresenceResponse, error)
 }
 
 type presenceServiceClient struct {
@@ -43,20 +40,10 @@ func NewPresenceServiceClient(cc grpc.ClientConnInterface) PresenceServiceClient
 	return &presenceServiceClient{cc}
 }
 
-func (c *presenceServiceClient) VerifyLocation(ctx context.Context, in *VerifyLocationRequest, opts ...grpc.CallOption) (*VerifyLocationResponse, error) {
+func (c *presenceServiceClient) VerifyPresence(ctx context.Context, in *VerifyPresenceRequest, opts ...grpc.CallOption) (*VerifyPresenceResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(VerifyLocationResponse)
-	err := c.cc.Invoke(ctx, PresenceService_VerifyLocation_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *presenceServiceClient) UpdateDriverLocation(ctx context.Context, in *UpdateDriverLocationRequest, opts ...grpc.CallOption) (*UpdateDriverLocationResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateDriverLocationResponse)
-	err := c.cc.Invoke(ctx, PresenceService_UpdateDriverLocation_FullMethodName, in, out, cOpts...)
+	out := new(VerifyPresenceResponse)
+	err := c.cc.Invoke(ctx, PresenceService_VerifyPresence_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -67,12 +54,10 @@ func (c *presenceServiceClient) UpdateDriverLocation(ctx context.Context, in *Up
 // All implementations must embed UnimplementedPresenceServiceServer
 // for forward compatibility.
 //
-// PresenceService verifies driver location against assigned parking spots.
+// PresenceService verifies driver presence at assigned parking spots using sensor data.
 type PresenceServiceServer interface {
-	// VerifyLocation checks if a driver's GPS is within acceptable radius of their assigned spot.
-	VerifyLocation(context.Context, *VerifyLocationRequest) (*VerifyLocationResponse, error)
-	// UpdateDriverLocation stores the driver's current GPS coordinates.
-	UpdateDriverLocation(context.Context, *UpdateDriverLocationRequest) (*UpdateDriverLocationResponse, error)
+	// VerifyPresence checks if the assigned spot's sensor detects occupancy.
+	VerifyPresence(context.Context, *VerifyPresenceRequest) (*VerifyPresenceResponse, error)
 	mustEmbedUnimplementedPresenceServiceServer()
 }
 
@@ -83,11 +68,8 @@ type PresenceServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPresenceServiceServer struct{}
 
-func (UnimplementedPresenceServiceServer) VerifyLocation(context.Context, *VerifyLocationRequest) (*VerifyLocationResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method VerifyLocation not implemented")
-}
-func (UnimplementedPresenceServiceServer) UpdateDriverLocation(context.Context, *UpdateDriverLocationRequest) (*UpdateDriverLocationResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateDriverLocation not implemented")
+func (UnimplementedPresenceServiceServer) VerifyPresence(context.Context, *VerifyPresenceRequest) (*VerifyPresenceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VerifyPresence not implemented")
 }
 func (UnimplementedPresenceServiceServer) mustEmbedUnimplementedPresenceServiceServer() {}
 func (UnimplementedPresenceServiceServer) testEmbeddedByValue()                         {}
@@ -110,38 +92,20 @@ func RegisterPresenceServiceServer(s grpc.ServiceRegistrar, srv PresenceServiceS
 	s.RegisterService(&PresenceService_ServiceDesc, srv)
 }
 
-func _PresenceService_VerifyLocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VerifyLocationRequest)
+func _PresenceService_VerifyPresence_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyPresenceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PresenceServiceServer).VerifyLocation(ctx, in)
+		return srv.(PresenceServiceServer).VerifyPresence(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PresenceService_VerifyLocation_FullMethodName,
+		FullMethod: PresenceService_VerifyPresence_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PresenceServiceServer).VerifyLocation(ctx, req.(*VerifyLocationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PresenceService_UpdateDriverLocation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateDriverLocationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PresenceServiceServer).UpdateDriverLocation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PresenceService_UpdateDriverLocation_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PresenceServiceServer).UpdateDriverLocation(ctx, req.(*UpdateDriverLocationRequest))
+		return srv.(PresenceServiceServer).VerifyPresence(ctx, req.(*VerifyPresenceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -154,12 +118,8 @@ var PresenceService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*PresenceServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "VerifyLocation",
-			Handler:    _PresenceService_VerifyLocation_Handler,
-		},
-		{
-			MethodName: "UpdateDriverLocation",
-			Handler:    _PresenceService_UpdateDriverLocation_Handler,
+			MethodName: "VerifyPresence",
+			Handler:    _PresenceService_VerifyPresence_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,4 +1,4 @@
-// Package e2e_test — free cancellation within 2 minutes integration test.
+// Package e2e_test — cancellation from waiting_payment state integration test.
 //
 // Best practices applied (from Go testify testing standards):
 // - Use require for assertions that must pass to continue (fail-fast)
@@ -20,13 +20,15 @@ import (
 	"parkir-pintar/tests/testhelpers"
 )
 
-// TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes verifies
-// that cancelling a reservation immediately (within the 2-minute free window)
-// results in CANCELLED status and spot released. No penalty system exists;
-// driver simply forfeits the booking fee already paid.
+// TestCancelReservation_ShouldReleaseSpot_WhenCancelledBeforeConfirmation verifies
+// that cancelling a reservation still in waiting_payment state (before payment is
+// processed) results in CANCELLED status and spot released. The billing record
+// exists (created on reservation) but no payment was collected, so the driver
+// loses nothing. No additional penalty is charged.
 //
+// Business rule: No cancellation fee. No additional penalty.
 // Validates: Requirements 10.1, 10.2, 10.3, 10.4
-func TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes(t *testing.T) {
+func TestCancelReservation_ShouldReleaseSpot_WhenCancelledBeforeConfirmation(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db, "payments", "billing_records", "reservations", "drivers")
@@ -43,8 +45,16 @@ func TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes(t *testing
 	})
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
+	assert.Equal(t, model.StatusWaitingPayment, reservation.Status)
 
-	// Act — Cancel immediately (within 2-minute free window)
+	// Count billing records before cancellation
+	var billingCountBefore int
+	err = env.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM billing_records WHERE reservation_id = $1",
+		reservation.ID).Scan(&billingCountBefore)
+	require.NoError(t, err)
+
+	// Act — Cancel before confirmation (payment not yet processed)
 	cancelled, err := env.reservationUC.CancelReservation(ctx, &model.CancelReservationRequest{
 		ReservationID: reservation.ID,
 	})
@@ -60,4 +70,22 @@ func TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes(t *testing
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
 	require.NoError(t, err)
 	assert.Equal(t, "available", spotStatus)
+
+	// Assert — No new billing records created (no cancellation fee)
+	var billingCountAfter int
+	err = env.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM billing_records WHERE reservation_id = $1",
+		reservation.ID).Scan(&billingCountAfter)
+	require.NoError(t, err)
+	assert.Equal(t, billingCountBefore, billingCountAfter,
+		"no new billing record should be created on cancellation")
+
+	// Assert — No payment was processed (booking fee not collected since not confirmed)
+	var paymentCount int
+	err = env.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM payments WHERE billing_id = (SELECT id FROM billing_records WHERE reservation_id = $1)`,
+		reservation.ID).Scan(&paymentCount)
+	require.NoError(t, err)
+	assert.Equal(t, 0, paymentCount,
+		"no payment should exist since reservation was never confirmed")
 }

@@ -1,4 +1,4 @@
-// Package e2e_test — paid cancellation after 2 minutes integration test.
+// Package e2e_test — cancellation after confirmation integration test.
 //
 // Best practices applied (from Go testify testing standards):
 // - Use require for assertions that must pass to continue (fail-fast)
@@ -16,16 +16,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
 
-// TestPaidCancel_ShouldCancelWithoutFee_WhenCancelledAfter2Minutes verifies that
-// cancelling a reservation after the 2-minute window results in CANCELLED status.
-// No cancellation fee is charged — the user only forfeits the booking fee already paid.
+// TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmation verifies
+// that cancelling a confirmed reservation results in CANCELLED status, spot released,
+// and the booking fee (5,000 IDR already charged on confirmation) is NOT refunded.
+// No additional cancellation fee or penalty is charged.
+//
+// Business rule: "No cancellation fee. Driver forfeits the 5,000 IDR booking fee
+// already charged on confirmation. No additional penalty."
 //
 // Validates: Requirements 11.1, 11.2, 11.3
-func TestPaidCancel_ShouldCancelWithoutFee_WhenCancelledAfter2Minutes(t *testing.T) {
+func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmation(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db, "payments", "billing_records", "reservations", "drivers")
@@ -43,19 +48,30 @@ func TestPaidCancel_ShouldCancelWithoutFee_WhenCancelledAfter2Minutes(t *testing
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
 
+	// Confirm reservation — this charges the 5,000 IDR booking fee
 	reservation, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
+	assert.Equal(t, model.StatusConfirmed, reservation.Status)
 
-	// Manipulate confirmed_at to be 3 minutes ago so cancellation is past the free window
-	_, err = env.db.ExecContext(ctx,
-		"UPDATE reservations SET confirmed_at = NOW() - INTERVAL '3 minutes' WHERE id = $1",
-		reservation.ID)
+	// Verify booking fee was charged
+	var bookingFee int64
+	err = env.db.QueryRowContext(ctx,
+		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
+		reservation.ID).Scan(&bookingFee)
+	require.NoError(t, err)
+	assert.Equal(t, pricing.BookingFee, bookingFee, "booking fee should be 5000 IDR")
+
+	// Count billing records before cancellation
+	var billingCountBefore int
+	err = env.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM billing_records WHERE reservation_id = $1",
+		reservation.ID).Scan(&billingCountBefore)
 	require.NoError(t, err)
 
-	// Act — Cancel reservation (now >2 minutes after confirmation)
+	// Act — Cancel the confirmed reservation
 	cancelled, err := env.reservationUC.CancelReservation(ctx, &model.CancelReservationRequest{
 		ReservationID: reservation.ID,
 	})
@@ -71,4 +87,25 @@ func TestPaidCancel_ShouldCancelWithoutFee_WhenCancelledAfter2Minutes(t *testing
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
 	require.NoError(t, err)
 	assert.Equal(t, "available", spotStatus)
+
+	// Assert — No new billing records created (no cancellation fee charged)
+	var billingCountAfter int
+	err = env.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM billing_records WHERE reservation_id = $1",
+		reservation.ID).Scan(&billingCountAfter)
+	require.NoError(t, err)
+	assert.Equal(t, billingCountBefore, billingCountAfter,
+		"no new billing record should be created on cancellation")
+
+	// Assert — Booking fee still exists (NOT refunded)
+	var bookingFeeAfter int64
+	err = env.db.QueryRowContext(ctx,
+		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
+		reservation.ID).Scan(&bookingFeeAfter)
+	require.NoError(t, err)
+	assert.Equal(t, pricing.BookingFee, bookingFeeAfter,
+		"booking fee should remain charged (non-refundable)")
+
+	// Assert — No penalty/cancellation_fee columns exist (removed by migration 000011)
+	// This is implicitly verified by the schema — the columns don't exist.
 }

@@ -3,10 +3,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
 	"time"
 
 	presencehandler "parkir-pintar/internal/presence/handler"
@@ -20,29 +18,8 @@ import (
 	"parkir-pintar/pkg/tracing"
 	presencev1 "parkir-pintar/proto/presence/v1"
 
-	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
-
-func getEnv(key, defaultValue string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultValue
-}
-
-// staticLookup is a minimal ReservationLookup that returns a fixed spot
-// for any reservation. In production, this would call the reservation service.
-type staticLookup struct{}
-
-func (s *staticLookup) GetSpotForReservation(_ context.Context, reservationID string) (*presenceuc.SpotInfo, error) {
-	// In a real implementation, this would query the reservation service
-	// to get the assigned spot for the given reservation.
-	return &presenceuc.SpotInfo{
-		SpotID:   "spot:" + reservationID,
-		SpotCode: "A1-01",
-	}, nil
-}
 
 func main() {
 	cfg, err := config.Load("config/.env")
@@ -62,32 +39,14 @@ func main() {
 		tracer = tracing.NewNoOpTracer()
 	}
 
-	// Redis client for geo operations.
-	redisAddr := getEnv("REDIS_ADDR", fmt.Sprintf("%s:%d", cfg.Redis.Host, cfg.Redis.Port))
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisAddr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
-	})
-	defer rdb.Close()
-
-	// Threshold from env or default 50m.
-	threshold := 50.0
-	if v := os.Getenv("PRESENCE_THRESHOLD_METERS"); v != "" {
-		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
-			threshold = parsed
-		}
-	}
-
 	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, nil)
 
-	repo := presencerepo.NewRepository(rdb)
-	lookup := &staticLookup{}
-	uc := presenceuc.NewUsecase(repo, lookup, threshold)
+	// Initialize stub sensor gateway (replace with real sensor integration in production).
+	sensorGateway := presencerepo.NewStubSensorGateway()
+	uc := presenceuc.NewUsecase(sensorGateway)
 	handler := presencehandler.NewHandler(uc)
 
 	shutdownMgr := server.NewShutdownManager(log)
-	shutdownMgr.Register(func(_ context.Context) error { return rdb.Close() })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 
 	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, cfg.GRPC.Server.RequestTimeout,

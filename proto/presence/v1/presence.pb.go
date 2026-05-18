@@ -21,30 +21,30 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type VerifyLocationRequest struct {
+type VerifyPresenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DriverId      string                 `protobuf:"bytes,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
-	Latitude      float64                `protobuf:"fixed64,2,opt,name=latitude,proto3" json:"latitude,omitempty"`
-	Longitude     float64                `protobuf:"fixed64,3,opt,name=longitude,proto3" json:"longitude,omitempty"`
-	ReservationId string                 `protobuf:"bytes,4,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
+	ReservationId string                 `protobuf:"bytes,2,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
+	FloorNumber   int32                  `protobuf:"varint,3,opt,name=floor_number,json=floorNumber,proto3" json:"floor_number,omitempty"`
+	SpotNumber    int32                  `protobuf:"varint,4,opt,name=spot_number,json=spotNumber,proto3" json:"spot_number,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *VerifyLocationRequest) Reset() {
-	*x = VerifyLocationRequest{}
+func (x *VerifyPresenceRequest) Reset() {
+	*x = VerifyPresenceRequest{}
 	mi := &file_proto_presence_v1_presence_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *VerifyLocationRequest) String() string {
+func (x *VerifyPresenceRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*VerifyLocationRequest) ProtoMessage() {}
+func (*VerifyPresenceRequest) ProtoMessage() {}
 
-func (x *VerifyLocationRequest) ProtoReflect() protoreflect.Message {
+func (x *VerifyPresenceRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_presence_v1_presence_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -56,62 +56,61 @@ func (x *VerifyLocationRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use VerifyLocationRequest.ProtoReflect.Descriptor instead.
-func (*VerifyLocationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use VerifyPresenceRequest.ProtoReflect.Descriptor instead.
+func (*VerifyPresenceRequest) Descriptor() ([]byte, []int) {
 	return file_proto_presence_v1_presence_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *VerifyLocationRequest) GetDriverId() string {
+func (x *VerifyPresenceRequest) GetDriverId() string {
 	if x != nil {
 		return x.DriverId
 	}
 	return ""
 }
 
-func (x *VerifyLocationRequest) GetLatitude() float64 {
-	if x != nil {
-		return x.Latitude
-	}
-	return 0
-}
-
-func (x *VerifyLocationRequest) GetLongitude() float64 {
-	if x != nil {
-		return x.Longitude
-	}
-	return 0
-}
-
-func (x *VerifyLocationRequest) GetReservationId() string {
+func (x *VerifyPresenceRequest) GetReservationId() string {
 	if x != nil {
 		return x.ReservationId
 	}
 	return ""
 }
 
-type VerifyLocationResponse struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Verified         bool                   `protobuf:"varint,1,opt,name=verified,proto3" json:"verified,omitempty"`
-	DistanceMeters   float64                `protobuf:"fixed64,2,opt,name=distance_meters,json=distanceMeters,proto3" json:"distance_meters,omitempty"`
-	AssignedSpotCode string                 `protobuf:"bytes,3,opt,name=assigned_spot_code,json=assignedSpotCode,proto3" json:"assigned_spot_code,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+func (x *VerifyPresenceRequest) GetFloorNumber() int32 {
+	if x != nil {
+		return x.FloorNumber
+	}
+	return 0
 }
 
-func (x *VerifyLocationResponse) Reset() {
-	*x = VerifyLocationResponse{}
+func (x *VerifyPresenceRequest) GetSpotNumber() int32 {
+	if x != nil {
+		return x.SpotNumber
+	}
+	return 0
+}
+
+type VerifyPresenceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Verified      bool                   `protobuf:"varint,1,opt,name=verified,proto3" json:"verified,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyPresenceResponse) Reset() {
+	*x = VerifyPresenceResponse{}
 	mi := &file_proto_presence_v1_presence_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *VerifyLocationResponse) String() string {
+func (x *VerifyPresenceResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*VerifyLocationResponse) ProtoMessage() {}
+func (*VerifyPresenceResponse) ProtoMessage() {}
 
-func (x *VerifyLocationResponse) ProtoReflect() protoreflect.Message {
+func (x *VerifyPresenceResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_presence_v1_presence_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -123,168 +122,40 @@ func (x *VerifyLocationResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use VerifyLocationResponse.ProtoReflect.Descriptor instead.
-func (*VerifyLocationResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use VerifyPresenceResponse.ProtoReflect.Descriptor instead.
+func (*VerifyPresenceResponse) Descriptor() ([]byte, []int) {
 	return file_proto_presence_v1_presence_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *VerifyLocationResponse) GetVerified() bool {
+func (x *VerifyPresenceResponse) GetVerified() bool {
 	if x != nil {
 		return x.Verified
 	}
 	return false
 }
 
-func (x *VerifyLocationResponse) GetDistanceMeters() float64 {
+func (x *VerifyPresenceResponse) GetMessage() string {
 	if x != nil {
-		return x.DistanceMeters
-	}
-	return 0
-}
-
-func (x *VerifyLocationResponse) GetAssignedSpotCode() string {
-	if x != nil {
-		return x.AssignedSpotCode
+		return x.Message
 	}
 	return ""
-}
-
-type UpdateDriverLocationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DriverId      string                 `protobuf:"bytes,1,opt,name=driver_id,json=driverId,proto3" json:"driver_id,omitempty"`
-	Latitude      float64                `protobuf:"fixed64,2,opt,name=latitude,proto3" json:"latitude,omitempty"`
-	Longitude     float64                `protobuf:"fixed64,3,opt,name=longitude,proto3" json:"longitude,omitempty"`
-	ReservationId string                 `protobuf:"bytes,4,opt,name=reservation_id,json=reservationId,proto3" json:"reservation_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateDriverLocationRequest) Reset() {
-	*x = UpdateDriverLocationRequest{}
-	mi := &file_proto_presence_v1_presence_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateDriverLocationRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateDriverLocationRequest) ProtoMessage() {}
-
-func (x *UpdateDriverLocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_presence_v1_presence_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateDriverLocationRequest.ProtoReflect.Descriptor instead.
-func (*UpdateDriverLocationRequest) Descriptor() ([]byte, []int) {
-	return file_proto_presence_v1_presence_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *UpdateDriverLocationRequest) GetDriverId() string {
-	if x != nil {
-		return x.DriverId
-	}
-	return ""
-}
-
-func (x *UpdateDriverLocationRequest) GetLatitude() float64 {
-	if x != nil {
-		return x.Latitude
-	}
-	return 0
-}
-
-func (x *UpdateDriverLocationRequest) GetLongitude() float64 {
-	if x != nil {
-		return x.Longitude
-	}
-	return 0
-}
-
-func (x *UpdateDriverLocationRequest) GetReservationId() string {
-	if x != nil {
-		return x.ReservationId
-	}
-	return ""
-}
-
-type UpdateDriverLocationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateDriverLocationResponse) Reset() {
-	*x = UpdateDriverLocationResponse{}
-	mi := &file_proto_presence_v1_presence_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateDriverLocationResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateDriverLocationResponse) ProtoMessage() {}
-
-func (x *UpdateDriverLocationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_presence_v1_presence_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateDriverLocationResponse.ProtoReflect.Descriptor instead.
-func (*UpdateDriverLocationResponse) Descriptor() ([]byte, []int) {
-	return file_proto_presence_v1_presence_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *UpdateDriverLocationResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
 }
 
 var File_proto_presence_v1_presence_proto protoreflect.FileDescriptor
 
 const file_proto_presence_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	" proto/presence/v1/presence.proto\x12\vpresence.v1\"\x95\x01\n" +
-	"\x15VerifyLocationRequest\x12\x1b\n" +
-	"\tdriver_id\x18\x01 \x01(\tR\bdriverId\x12\x1a\n" +
-	"\blatitude\x18\x02 \x01(\x01R\blatitude\x12\x1c\n" +
-	"\tlongitude\x18\x03 \x01(\x01R\tlongitude\x12%\n" +
-	"\x0ereservation_id\x18\x04 \x01(\tR\rreservationId\"\x8b\x01\n" +
-	"\x16VerifyLocationResponse\x12\x1a\n" +
-	"\bverified\x18\x01 \x01(\bR\bverified\x12'\n" +
-	"\x0fdistance_meters\x18\x02 \x01(\x01R\x0edistanceMeters\x12,\n" +
-	"\x12assigned_spot_code\x18\x03 \x01(\tR\x10assignedSpotCode\"\x9b\x01\n" +
-	"\x1bUpdateDriverLocationRequest\x12\x1b\n" +
-	"\tdriver_id\x18\x01 \x01(\tR\bdriverId\x12\x1a\n" +
-	"\blatitude\x18\x02 \x01(\x01R\blatitude\x12\x1c\n" +
-	"\tlongitude\x18\x03 \x01(\x01R\tlongitude\x12%\n" +
-	"\x0ereservation_id\x18\x04 \x01(\tR\rreservationId\"8\n" +
-	"\x1cUpdateDriverLocationResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xd9\x01\n" +
-	"\x0fPresenceService\x12Y\n" +
-	"\x0eVerifyLocation\x12\".presence.v1.VerifyLocationRequest\x1a#.presence.v1.VerifyLocationResponse\x12k\n" +
-	"\x14UpdateDriverLocation\x12(.presence.v1.UpdateDriverLocationRequest\x1a).presence.v1.UpdateDriverLocationResponseB,Z*parkir-pintar/proto/presence/v1;presencev1b\x06proto3"
+	" proto/presence/v1/presence.proto\x12\vpresence.v1\"\x92\x01\n" +
+	"\x15VerifyPresenceRequest\x12\x1b\n" +
+	"\tdriver_id\x18\x01 \x01(\tR\bdriverId\x12%\n" +
+	"\x0ereservation_id\x18\x02 \x01(\tR\rreservationId\x12!\n" +
+	"\x0cfloor_number\x18\x03 \x01(\x05R\vfloorNumber\x12\x1f\n" +
+	"\vspot_number\x18\x04 \x01(\x05R\nspotNumber\"L\n" +
+	"\x16VerifyPresenceResponse\x12\x1a\n" +
+	"\bverified\x18\x01 \x01(\bR\bverified\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2e\n" +
+	"\x0fPresenceService\x12R\n" +
+	"\x0eVerifyPresence\x12\".presence.v1.VerifyPresenceRequest\x1a#.presence.v1.VerifyPresenceResponseB,Z*parkir-pintar/proto/presence/v1;presencev1b\x06proto3"
 
 var (
 	file_proto_presence_v1_presence_proto_rawDescOnce sync.Once
@@ -298,20 +169,16 @@ func file_proto_presence_v1_presence_proto_rawDescGZIP() []byte {
 	return file_proto_presence_v1_presence_proto_rawDescData
 }
 
-var file_proto_presence_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_proto_presence_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_proto_presence_v1_presence_proto_goTypes = []any{
-	(*VerifyLocationRequest)(nil),        // 0: presence.v1.VerifyLocationRequest
-	(*VerifyLocationResponse)(nil),       // 1: presence.v1.VerifyLocationResponse
-	(*UpdateDriverLocationRequest)(nil),  // 2: presence.v1.UpdateDriverLocationRequest
-	(*UpdateDriverLocationResponse)(nil), // 3: presence.v1.UpdateDriverLocationResponse
+	(*VerifyPresenceRequest)(nil),  // 0: presence.v1.VerifyPresenceRequest
+	(*VerifyPresenceResponse)(nil), // 1: presence.v1.VerifyPresenceResponse
 }
 var file_proto_presence_v1_presence_proto_depIdxs = []int32{
-	0, // 0: presence.v1.PresenceService.VerifyLocation:input_type -> presence.v1.VerifyLocationRequest
-	2, // 1: presence.v1.PresenceService.UpdateDriverLocation:input_type -> presence.v1.UpdateDriverLocationRequest
-	1, // 2: presence.v1.PresenceService.VerifyLocation:output_type -> presence.v1.VerifyLocationResponse
-	3, // 3: presence.v1.PresenceService.UpdateDriverLocation:output_type -> presence.v1.UpdateDriverLocationResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	0, // 0: presence.v1.PresenceService.VerifyPresence:input_type -> presence.v1.VerifyPresenceRequest
+	1, // 1: presence.v1.PresenceService.VerifyPresence:output_type -> presence.v1.VerifyPresenceResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -328,7 +195,7 @@ func file_proto_presence_v1_presence_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_presence_v1_presence_proto_rawDesc), len(file_proto_presence_v1_presence_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

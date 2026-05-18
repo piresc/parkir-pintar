@@ -52,8 +52,6 @@ type ParkingSpot struct {
 	VehicleType string    `json:"vehicle_type" db:"vehicle_type"`
 	SpotCode    string    `json:"spot_code" db:"spot_code"`
 	Status      string    `json:"status" db:"status"`
-	Latitude    *float64  `json:"latitude,omitempty" db:"latitude"`
-	Longitude   *float64  `json:"longitude,omitempty" db:"longitude"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -109,17 +107,14 @@ type CancelReservationRequest struct {
 
 // CheckInRequest is the payload for checking in to a reservation.
 type CheckInRequest struct {
-	ReservationID string  `json:"reservation_id"`
-	CallerID      string  `json:"caller_id,omitempty"`
-	Latitude      float64 `json:"latitude,omitempty"`
-	Longitude     float64 `json:"longitude,omitempty"`
+	ReservationID string `json:"reservation_id"`
+	CallerID      string `json:"caller_id,omitempty"`
 }
 
 // CheckInResponse contains the check-in result with optional presence warnings.
 type CheckInResponse struct {
 	Reservation      *Reservation `json:"reservation"`
 	WrongSpotWarning bool         `json:"wrong_spot_warning,omitempty"`
-	DistanceMeters   float64      `json:"distance_meters,omitempty"`
 }
 
 // CheckOutRequest is the payload for checking out of a reservation.

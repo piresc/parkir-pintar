@@ -285,14 +285,13 @@ type presenceClientAdapter struct {
 	inner client.PresenceClient
 }
 
-func (a *presenceClientAdapter) VerifyLocation(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*usecase.PresenceResult, error) {
-	result, err := a.inner.VerifyLocation(ctx, driverID, lat, lng, reservationID)
+func (a *presenceClientAdapter) VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*usecase.PresenceResult, error) {
+	result, err := a.inner.VerifyPresence(ctx, driverID, reservationID, floorNumber, spotNumber)
 	if err != nil {
 		return nil, err
 	}
 	return &usecase.PresenceResult{
-		Verified:         result.Verified,
-		DistanceMeters:   result.DistanceMeters,
-		AssignedSpotCode: result.AssignedSpotCode,
+		Verified: result.Verified,
+		Message:  result.Message,
 	}, nil
 }

@@ -56,14 +56,13 @@ type PaymentClient interface {
 //
 //go:generate mockgen -destination=../mocks/mock_presence_client.go -package=mocks parkir-pintar/internal/reservation/usecase PresenceClient
 type PresenceClient interface {
-	VerifyLocation(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*PresenceResult, error)
+	VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*PresenceResult, error)
 }
 
-// PresenceResult holds the result of a location verification check.
+// PresenceResult holds the result of a presence verification check.
 type PresenceResult struct {
-	Verified         bool
-	DistanceMeters   float64
-	AssignedSpotCode string
+	Verified bool
+	Message  string
 }
 
 // Lock represents an acquired distributed lock.
@@ -490,20 +489,26 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 
 	// Presence verification (non-blocking, graceful degradation)
 	response := &model.CheckInResponse{Reservation: reservation}
-	if uc.presenceClient != nil && (req.Latitude != 0 || req.Longitude != 0) {
-		presenceResult, err := uc.presenceClient.VerifyLocation(ctx, reservation.DriverID, req.Latitude, req.Longitude, reservation.ID)
-		if err != nil {
-			slog.Warn("presence verification failed, skipping",
+	if uc.presenceClient != nil {
+		// Look up the spot to get floor/spot numbers for sensor verification.
+		spot, spotErr := uc.repo.GetSpotByID(ctx, reservation.SpotID)
+		if spotErr != nil {
+			slog.Warn("failed to look up spot for presence verification, skipping",
 				slog.String("reservation_id", reservation.ID),
-				slog.Any("error", err))
-		} else if !presenceResult.Verified {
-			response.WrongSpotWarning = true
-			response.DistanceMeters = presenceResult.DistanceMeters
-			slog.Warn("driver checked in at wrong spot",
-				slog.String("reservation_id", reservation.ID),
-				slog.String("driver_id", reservation.DriverID),
-				slog.Float64("distance_meters", presenceResult.DistanceMeters),
-				slog.String("assigned_spot", presenceResult.AssignedSpotCode))
+				slog.Any("error", spotErr))
+		} else {
+			presenceResult, err := uc.presenceClient.VerifyPresence(ctx, reservation.DriverID, reservation.ID, spot.FloorNumber, spot.SpotNumber)
+			if err != nil {
+				slog.Warn("presence verification failed, skipping",
+					slog.String("reservation_id", reservation.ID),
+					slog.Any("error", err))
+			} else if !presenceResult.Verified {
+				response.WrongSpotWarning = true
+				slog.Warn("driver checked in at wrong spot",
+					slog.String("reservation_id", reservation.ID),
+					slog.String("driver_id", reservation.DriverID),
+					slog.String("message", presenceResult.Message))
+			}
 		}
 	}
 

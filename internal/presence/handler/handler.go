@@ -22,8 +22,8 @@ func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 
-// VerifyLocation validates request fields and delegates to the usecase.
-func (h *Handler) VerifyLocation(ctx context.Context, req *presencev1.VerifyLocationRequest) (*presencev1.VerifyLocationResponse, error) {
+// VerifyPresence validates request fields and delegates to the usecase.
+func (h *Handler) VerifyPresence(ctx context.Context, req *presencev1.VerifyPresenceRequest) (*presencev1.VerifyPresenceResponse, error) {
 	if req.GetDriverId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "driver_id is required")
 	}
@@ -31,41 +31,18 @@ func (h *Handler) VerifyLocation(ctx context.Context, req *presencev1.VerifyLoca
 		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
 	}
 
-	verified, dist, spotCode, err := h.uc.VerifyLocation(
+	result, err := h.uc.VerifyPresence(
 		ctx,
-		req.GetDriverId(),
-		req.GetLatitude(),
-		req.GetLongitude(),
 		req.GetReservationId(),
+		int(req.GetFloorNumber()),
+		int(req.GetSpotNumber()),
 	)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "verify location: %v", err)
+		return nil, status.Errorf(codes.Internal, "verify presence: %v", err)
 	}
 
-	return &presencev1.VerifyLocationResponse{
-		Verified:         verified,
-		DistanceMeters:   dist,
-		AssignedSpotCode: spotCode,
-	}, nil
-}
-
-// UpdateDriverLocation validates request fields and delegates to the usecase.
-func (h *Handler) UpdateDriverLocation(ctx context.Context, req *presencev1.UpdateDriverLocationRequest) (*presencev1.UpdateDriverLocationResponse, error) {
-	if req.GetDriverId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "driver_id is required")
-	}
-
-	err := h.uc.UpdateDriverLocation(
-		ctx,
-		req.GetDriverId(),
-		req.GetLatitude(),
-		req.GetLongitude(),
-	)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "update driver location: %v", err)
-	}
-
-	return &presencev1.UpdateDriverLocationResponse{
-		Success: true,
+	return &presencev1.VerifyPresenceResponse{
+		Verified: result.Verified,
+		Message:  result.Message,
 	}, nil
 }

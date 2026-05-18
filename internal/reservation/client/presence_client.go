@@ -9,18 +9,17 @@ import (
 	presencev1 "parkir-pintar/proto/presence/v1"
 )
 
-// PresenceResult holds the result of a location verification check.
+// PresenceResult holds the result of a presence verification check.
 type PresenceResult struct {
-	Verified         bool
-	DistanceMeters   float64
-	AssignedSpotCode string
+	Verified bool
+	Message  string
 }
 
 // PresenceClient defines the interface for presence service operations.
 //
 //go:generate mockgen -destination=../mocks/mock_presence_client.go -package=mocks parkir-pintar/internal/reservation/client PresenceClient
 type PresenceClient interface {
-	VerifyLocation(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*PresenceResult, error)
+	VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*PresenceResult, error)
 }
 
 // presenceClient is the concrete gRPC-backed implementation of PresenceClient.
@@ -41,11 +40,11 @@ func NewPresenceClient(client presencev1.PresenceServiceClient) PresenceClient {
 	}
 }
 
-func (c *presenceClient) VerifyLocation(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*PresenceResult, error) {
+func (c *presenceClient) VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*PresenceResult, error) {
 	var result *PresenceResult
 	err := c.cb.Execute(func() error {
 		var err error
-		result, err = c.verifyLocationInner(ctx, driverID, lat, lng, reservationID)
+		result, err = c.verifyPresenceInner(ctx, driverID, reservationID, floorNumber, spotNumber)
 		return err
 	})
 	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
@@ -54,19 +53,18 @@ func (c *presenceClient) VerifyLocation(ctx context.Context, driverID string, la
 	return result, err
 }
 
-func (c *presenceClient) verifyLocationInner(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*PresenceResult, error) {
-	resp, err := c.client.VerifyLocation(ctx, &presencev1.VerifyLocationRequest{
+func (c *presenceClient) verifyPresenceInner(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*PresenceResult, error) {
+	resp, err := c.client.VerifyPresence(ctx, &presencev1.VerifyPresenceRequest{
 		DriverId:      driverID,
-		Latitude:      lat,
-		Longitude:     lng,
 		ReservationId: reservationID,
+		FloorNumber:   int32(floorNumber),
+		SpotNumber:    int32(spotNumber),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &PresenceResult{
-		Verified:         resp.GetVerified(),
-		DistanceMeters:   resp.GetDistanceMeters(),
-		AssignedSpotCode: resp.GetAssignedSpotCode(),
+		Verified: resp.GetVerified(),
+		Message:  resp.GetMessage(),
 	}, nil
 }

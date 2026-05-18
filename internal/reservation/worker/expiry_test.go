@@ -112,7 +112,7 @@ func (f *fakeUsecase) CreateReservation(_ context.Context, _ *model.CreateReserv
 func (f *fakeUsecase) CancelReservation(_ context.Context, _ *model.CancelReservationRequest) (*model.Reservation, error) {
 	return nil, nil
 }
-func (f *fakeUsecase) CheckIn(_ context.Context, _ *model.CheckInRequest) (*model.Reservation, error) {
+func (f *fakeUsecase) CheckIn(_ context.Context, _ *model.CheckInRequest) (*model.CheckInResponse, error) {
 	return nil, nil
 }
 func (f *fakeUsecase) CheckOut(_ context.Context, _ *model.CheckOutRequest) (*model.CheckOutResponse, error) {

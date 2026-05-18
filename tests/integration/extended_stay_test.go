@@ -40,7 +40,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, 60)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
 
 	// --- Phase 1: Create Reservation ---
 	repo.On("FindByIdempotencyKey", mock.Anything, "extended-key").Return(nil, model.ErrNotFound)
@@ -118,7 +118,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	require.NotNil(t, checkedIn)
 
 	// --- Phase 3: Check-Out after 4 hours (reservation was only for 1 hour) ---
-	checkedInAt := *checkedIn.CheckedInAt
+	checkedInAt := *checkedIn.Reservation.CheckedInAt
 	// PRD Example 4: 4 hours total = 20,000 parking + 5,000 booking = 25,000
 	billingRecord := &billingmodel.BillingRecord{
 		ID:          "billing-extended",

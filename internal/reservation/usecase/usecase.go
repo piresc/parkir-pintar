@@ -51,6 +51,21 @@ type PaymentClient interface {
 	ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error)
 }
 
+// PresenceClient defines the interface for presence verification operations.
+// This is optional — if nil, presence verification is skipped (graceful degradation).
+//
+//go:generate mockgen -destination=../mocks/mock_presence_client.go -package=mocks parkir-pintar/internal/reservation/usecase PresenceClient
+type PresenceClient interface {
+	VerifyLocation(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*PresenceResult, error)
+}
+
+// PresenceResult holds the result of a location verification check.
+type PresenceResult struct {
+	Verified         bool
+	DistanceMeters   float64
+	AssignedSpotCode string
+}
+
 // Lock represents an acquired distributed lock.
 type Lock interface {
 	Release(ctx context.Context) error
@@ -93,7 +108,7 @@ type Usecase interface {
 	CreateReservation(ctx context.Context, req *model.CreateReservationRequest) (*model.Reservation, error)
 	GetReservation(ctx context.Context, id string, callerID string) (*model.Reservation, error)
 	CancelReservation(ctx context.Context, req *model.CancelReservationRequest) (*model.Reservation, error)
-	CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.Reservation, error)
+	CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.CheckInResponse, error)
 	CheckOut(ctx context.Context, req *model.CheckOutRequest) (*model.CheckOutResponse, error)
 	ConfirmReservation(ctx context.Context, req *model.ConfirmReservationRequest) (*model.Reservation, error)
 	CompleteCheckout(ctx context.Context, req *model.CompleteCheckoutRequest) (*model.CheckOutResponse, error)
@@ -108,19 +123,22 @@ type reservationUsecase struct {
 	locker         Locker
 	billingClient  BillingClient
 	paymentClient  PaymentClient
+	presenceClient PresenceClient
 	taskEnqueuer   TaskEnqueuer
 	eventPublisher gateway.EventPublisher
 	expiryTimeout  time.Duration
 }
 
 // NewUsecase creates a new reservation Usecase with all required dependencies.
-// taskEnqueuer and eventPublisher are optional (nil-safe); when nil, no async
-// tasks are enqueued and no events are published respectively.
+// taskEnqueuer, eventPublisher, and presenceClient are optional (nil-safe); when nil,
+// no async tasks are enqueued, no events are published, and presence verification
+// is skipped respectively.
 func NewUsecase(
 	repo repository.Repository,
 	locker Locker,
 	billingClient BillingClient,
 	paymentClient PaymentClient,
+	presenceClient PresenceClient,
 	taskEnqueuer TaskEnqueuer,
 	eventPublisher gateway.EventPublisher,
 	expiryTimeoutMinutes int,
@@ -134,6 +152,7 @@ func NewUsecase(
 		locker:         locker,
 		billingClient:  billingClient,
 		paymentClient:  paymentClient,
+		presenceClient: presenceClient,
 		taskEnqueuer:   taskEnqueuer,
 		eventPublisher: eventPublisher,
 		expiryTimeout:  timeout,
@@ -426,9 +445,10 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 }
 
 // CheckIn transitions a confirmed reservation to checked_in, updates the spot
-// to occupied, and notifies billing.
+// to occupied, and notifies billing. Optionally verifies driver presence near
+// the assigned spot (non-blocking: errors are logged but do not prevent check-in).
 // Uses SELECT FOR UPDATE to prevent TOCTOU races.
-func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.Reservation, error) {
+func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.CheckInResponse, error) {
 	var reservation *model.Reservation
 
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
@@ -468,11 +488,30 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		slog.Error("failed to activate billing on check-in", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 	}
 
+	// Presence verification (non-blocking, graceful degradation)
+	response := &model.CheckInResponse{Reservation: reservation}
+	if uc.presenceClient != nil && (req.Latitude != 0 || req.Longitude != 0) {
+		presenceResult, err := uc.presenceClient.VerifyLocation(ctx, reservation.DriverID, req.Latitude, req.Longitude, reservation.ID)
+		if err != nil {
+			slog.Warn("presence verification failed, skipping",
+				slog.String("reservation_id", reservation.ID),
+				slog.Any("error", err))
+		} else if !presenceResult.Verified {
+			response.WrongSpotWarning = true
+			response.DistanceMeters = presenceResult.DistanceMeters
+			slog.Warn("driver checked in at wrong spot",
+				slog.String("reservation_id", reservation.ID),
+				slog.String("driver_id", reservation.DriverID),
+				slog.Float64("distance_meters", presenceResult.DistanceMeters),
+				slog.String("assigned_spot", presenceResult.AssignedSpotCode))
+		}
+	}
+
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusOccupied)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCheckedIn, reservation, "checked-in")
 
-	return reservation, nil
+	return response, nil
 }
 
 // CheckOut transitions a checked_in reservation to checked_out, calculates the

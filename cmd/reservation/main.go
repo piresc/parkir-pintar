@@ -30,6 +30,7 @@ import (
 	"parkir-pintar/pkg/tracing"
 	billingv1 "parkir-pintar/proto/billing/v1"
 	paymentv1 "parkir-pintar/proto/payment/v1"
+	presencev1 "parkir-pintar/proto/presence/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 
 	"google.golang.org/grpc"
@@ -122,6 +123,17 @@ func main() {
 	billingGRPC := billingv1.NewBillingServiceClient(billingConn)
 	paymentGRPC := paymentv1.NewPaymentServiceClient(paymentConn)
 
+	// Dial presence service (optional — graceful degradation if unavailable).
+	var presenceClient usecase.PresenceClient
+	presenceTarget := getEnv("GRPC_PRESENCE_TARGET", "localhost:9095")
+	clientCfg.Target = presenceTarget
+	presenceConn, presenceErr := grpcclient.Dial(context.Background(), clientCfg)
+	if presenceErr != nil {
+		log.Warn("presence service unavailable, presence verification disabled", slog.Any("error", presenceErr))
+	} else {
+		presenceClient = &presenceClientAdapter{inner: client.NewPresenceClient(presencev1.NewPresenceServiceClient(presenceConn))}
+	}
+
 	// Wire domain layers.
 	repo := reservationrepo.NewRepository(tracedPG.GetDB())
 	redislockLocker, err := redislock.NewLocker(redisClient, redislock.Config{
@@ -166,6 +178,7 @@ func main() {
 		repo, usecase.NewLockerAdapter(redislockLocker),
 		client.NewBillingClient(billingGRPC),
 		client.NewPaymentClient(paymentGRPC),
+		presenceClient,
 		asynqClient,
 		eventPublisher,
 		cfg.Reservation.ExpiryTimeoutMinutes,
@@ -265,4 +278,21 @@ func (a *usecaseFailerAdapter) FailReservation(ctx context.Context, reservationI
 	return a.uc.FailReservation(ctx, &model.FailReservationRequest{
 		ReservationID: reservationID,
 	})
+}
+
+// presenceClientAdapter adapts the client.PresenceClient to the usecase.PresenceClient interface.
+type presenceClientAdapter struct {
+	inner client.PresenceClient
+}
+
+func (a *presenceClientAdapter) VerifyLocation(ctx context.Context, driverID string, lat, lng float64, reservationID string) (*usecase.PresenceResult, error) {
+	result, err := a.inner.VerifyLocation(ctx, driverID, lat, lng, reservationID)
+	if err != nil {
+		return nil, err
+	}
+	return &usecase.PresenceResult{
+		Verified:         result.Verified,
+		DistanceMeters:   result.DistanceMeters,
+		AssignedSpotCode: result.AssignedSpotCode,
+	}, nil
 }

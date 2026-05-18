@@ -39,7 +39,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, 60)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
 
 	// --- Phase 1: Create Reservation ---
 	repo.On("FindByIdempotencyKey", mock.Anything, "overnight-key").Return(nil, model.ErrNotFound)
@@ -117,7 +117,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	require.NotNil(t, checkedIn)
 
 	// --- Phase 3: Check-Out (crosses midnight: 22:00 → 06:00 next day) ---
-	checkedInAt := *checkedIn.CheckedInAt
+	checkedInAt := *checkedIn.Reservation.CheckedInAt
 	// PRD Example 3: 5000 booking + 40000 parking (8h) + 20000 overnight = 65000
 	billingRecord := &billingmodel.BillingRecord{
 		ID:          "billing-overnight",

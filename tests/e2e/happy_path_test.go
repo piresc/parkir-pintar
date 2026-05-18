@@ -80,7 +80,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 
 	// Assert — Step 4: CHECKED_IN, spot occupied
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusCheckedIn, checkedIn.Status)
+	assert.Equal(t, model.StatusCheckedIn, checkedIn.Reservation.Status)
 
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)

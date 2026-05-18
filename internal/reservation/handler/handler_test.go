@@ -43,12 +43,12 @@ func (m *mockUsecase) CancelReservation(ctx context.Context, req *model.CancelRe
 	return args.Get(0).(*model.Reservation), args.Error(1)
 }
 
-func (m *mockUsecase) CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.Reservation, error) {
+func (m *mockUsecase) CheckIn(ctx context.Context, req *model.CheckInRequest) (*model.CheckInResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*model.Reservation), args.Error(1)
+	return args.Get(0).(*model.CheckInResponse), args.Error(1)
 }
 
 func (m *mockUsecase) CheckOut(ctx context.Context, req *model.CheckOutRequest) (*model.CheckOutResponse, error) {
@@ -356,7 +356,7 @@ func TestCheckIn(t *testing.T) {
 	tests := []struct {
 		name       string
 		req        *reservationv1.CheckInRequest
-		mockResult *model.Reservation
+		mockResult *model.CheckInResponse
 		mockErr    error
 		wantCode   codes.Code
 	}{
@@ -365,9 +365,11 @@ func TestCheckIn(t *testing.T) {
 			req: &reservationv1.CheckInRequest{
 				ReservationId: "res-123",
 			},
-			mockResult: &model.Reservation{
-				ID:     "res-123",
-				Status: model.StatusCheckedIn,
+			mockResult: &model.CheckInResponse{
+				Reservation: &model.Reservation{
+					ID:     "res-123",
+					Status: model.StatusCheckedIn,
+				},
 			},
 			wantCode: codes.OK,
 		},
@@ -403,8 +405,8 @@ func TestCheckIn(t *testing.T) {
 			if tt.wantCode == codes.OK {
 				assert.NoError(t, err)
 				assert.NotNil(t, resp)
-				assert.Equal(t, tt.mockResult.ID, resp.GetId())
-				assert.Equal(t, tt.mockResult.Status, resp.GetStatus())
+				assert.Equal(t, tt.mockResult.Reservation.ID, resp.GetId())
+				assert.Equal(t, tt.mockResult.Reservation.Status, resp.GetStatus())
 			} else {
 				assert.Nil(t, resp)
 				st, ok := status.FromError(err)

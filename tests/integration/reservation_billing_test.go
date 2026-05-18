@@ -218,7 +218,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, 60)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
 
 	// --- Phase 1: Create Reservation ---
 
@@ -311,8 +311,8 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	// Assert: reservation transitioned to checked_in
 	require.NoError(t, err)
 	require.NotNil(t, checkedIn)
-	assert.Equal(t, model.StatusCheckedIn, checkedIn.Status)
-	assert.NotNil(t, checkedIn.CheckedInAt)
+	assert.Equal(t, model.StatusCheckedIn, checkedIn.Reservation.Status)
+	assert.NotNil(t, checkedIn.Reservation.CheckedInAt)
 
 	// Verify billing activation was called (StartBilling with 0 fee)
 	billing.AssertCalled(t, "StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string"))
@@ -320,7 +320,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	// --- Phase 3: Check-Out ---
 
 	// Arrange: return checked-in reservation for checkout
-	checkedInAt := *checkedIn.CheckedInAt
+	checkedInAt := *checkedIn.Reservation.CheckedInAt
 	billingRecord := &billingmodel.BillingRecord{
 		ID:          "billing-integ-1",
 		TotalAmount: 15000,

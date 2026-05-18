@@ -109,8 +109,17 @@ type CancelReservationRequest struct {
 
 // CheckInRequest is the payload for checking in to a reservation.
 type CheckInRequest struct {
-	ReservationID string `json:"reservation_id"`
-	CallerID      string `json:"caller_id,omitempty"`
+	ReservationID string  `json:"reservation_id"`
+	CallerID      string  `json:"caller_id,omitempty"`
+	Latitude      float64 `json:"latitude,omitempty"`
+	Longitude     float64 `json:"longitude,omitempty"`
+}
+
+// CheckInResponse contains the check-in result with optional presence warnings.
+type CheckInResponse struct {
+	Reservation      *Reservation `json:"reservation"`
+	WrongSpotWarning bool         `json:"wrong_spot_warning,omitempty"`
+	DistanceMeters   float64      `json:"distance_meters,omitempty"`
 }
 
 // CheckOutRequest is the payload for checking out of a reservation.

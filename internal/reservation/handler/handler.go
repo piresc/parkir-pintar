@@ -119,7 +119,7 @@ func (h *Handler) CheckIn(ctx context.Context, req *reservationv1.CheckInRequest
 		return nil, mapError(err)
 	}
 
-	return reservationToProto(result), nil
+	return reservationToProto(result.Reservation), nil
 }
 
 // CheckOut validates reservation_id and delegates to the usecase.

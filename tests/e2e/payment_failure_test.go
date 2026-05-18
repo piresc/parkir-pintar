@@ -10,6 +10,7 @@ package e2e_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -74,17 +75,17 @@ func TestPaymentFailure_ShouldCreateFailedRecord_WhenGatewayFails(t *testing.T) 
 		ReservationID: reservation.ID,
 	})
 
+	// CompleteCheckout succeeds even when payment fails — the payment record
+	// is created with status "failed" but the checkout flow completes.
+	require.NoError(t, completeErr, "CompleteCheckout should succeed (payment failure is recorded, not propagated)")
+
+	// Query the checkout payment (not the booking fee payment) by idempotency key
 	var paymentStatus string
 	queryErr := env.db.QueryRowContext(ctx,
 		`SELECT status FROM payments
-		 WHERE billing_id = (SELECT id FROM billing_records WHERE reservation_id = $1)`,
-		reservation.ID).Scan(&paymentStatus)
+		 WHERE idempotency_key = $1`,
+		fmt.Sprintf("payment-%s", reservation.ID)).Scan(&paymentStatus)
 	require.NoError(t, queryErr)
-
-	if completeErr != nil {
-		assert.Equal(t, "failed", paymentStatus)
-		return
-	}
 
 	assert.Equal(t, "failed", paymentStatus)
 }

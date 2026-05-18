@@ -176,7 +176,7 @@ func TestMain(m *testing.M) {
 
 	// Usecases
 	billUC := billinguc.NewUsecase(billRepo)
-	payUC := paymentuc.NewUsecase(payRepo, stubGW)
+	payUC := paymentuc.NewUsecase(payRepo, stubGW, nil)
 
 	billAdapter := &billingAdapter{uc: billUC}
 	payAdapter := &paymentAdapter{uc: payUC}

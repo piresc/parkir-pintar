@@ -132,7 +132,11 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 	}
 
 	if record.Status != model.BillingStatusCalculated {
-		return nil, fmt.Errorf("cannot invoice billing record in status %q: expected %q", record.Status, model.BillingStatusCalculated)
+		// Idempotent: if already invoiced, return the existing record
+		if record.Status == model.BillingStatusInvoiced {
+			return record, nil
+		}
+		return nil, fmt.Errorf("cannot invoice billing record in status %q: expected %q or %q", record.Status, model.BillingStatusCalculated, model.BillingStatusInvoiced)
 	}
 
 	record.Status = model.BillingStatusInvoiced

@@ -12,7 +12,7 @@ redis_memory_size_gb = 2
 
 # Cloud Run
 max_instances   = 10
-container_image = "ghcr.io/piresc/parkir-pintar:latest"
+container_image = "ghcr.io/piresc/parkir-pintar:production"
 
 # Services
 nats_url      = "nats://nats-prod:4222"

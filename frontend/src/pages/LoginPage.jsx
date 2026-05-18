@@ -4,38 +4,31 @@ import { useAuth } from '../contexts/AuthContext';
 import GlassCard from '../components/ui/GlassCard';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-
-function decodeJWTPayload(token) {
-  try {
-    const base64 = token.split('.')[1];
-    const json = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
+import { api } from '../api/client';
 
 export default function LoginPage() {
-  const [token, setToken] = useState('');
+  const [driverId, setDriverId] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    const trimmed = token.trim();
+    const trimmed = driverId.trim();
     if (!trimmed) return;
     setError('');
+    setLoading(true);
 
-    const payload = decodeJWTPayload(trimmed);
-    if (!payload) {
-      setError('Invalid JWT token');
-      return;
+    try {
+      const data = await api.login(trimmed);
+      login(data.token, trimmed);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
     }
-
-    const driverId = payload.user_id || payload.sub || 'unknown';
-    login(trimmed, driverId);
-    navigate('/dashboard');
   }
 
   return (
@@ -45,17 +38,16 @@ export default function LoginPage() {
         <h1 className="login-title">ParkirPintar</h1>
         <p className="login-subtitle">Smart Parking, Simplified</p>
         <form onSubmit={handleSubmit} className="login-form">
-          <label>JWT Token</label>
+          <label>Driver ID</label>
           <Input
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Paste your JWT token"
-            style={{ fontSize: '0.8em' }}
+            value={driverId}
+            onChange={(e) => setDriverId(e.target.value)}
+            placeholder="Enter your driver ID"
           />
 
           {error && <p style={{ color: 'var(--error, #ff4444)', fontSize: '0.85em' }}>{error}</p>}
-          <Button variant="cta" type="submit" disabled={!token.trim()}>
-            Enter Garage
+          <Button variant="cta" type="submit" disabled={!driverId.trim() || loading}>
+            {loading ? 'Signing in...' : 'Enter Garage'}
           </Button>
         </form>
       </GlassCard>

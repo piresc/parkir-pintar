@@ -50,7 +50,7 @@ func TestProcessPayment_ShouldReturnPromptly_WhenContextCancelledDuringRetry(t *
 	gw.On("Charge", mock.Anything, int64(5000), "qris").Return("", gatewayErr)
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
 
-	uc := NewUsecase(repo, gw)
+	uc := NewUsecase(repo, gw, nil)
 	req := &model.ProcessPaymentRequest{
 		BillingID:      "billing-ctx",
 		Amount:         5000,

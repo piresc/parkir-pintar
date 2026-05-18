@@ -14,7 +14,7 @@ import (
 
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
-	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/internal/shared/grpcerror"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 )
 
@@ -264,5 +264,5 @@ func reservationToProto(r *model.Reservation) *reservationv1.ReservationResponse
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	return apperror.MapToGRPCError(err)
+	return grpcerror.MapToGRPCError(err)
 }

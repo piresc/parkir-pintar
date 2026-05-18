@@ -62,7 +62,7 @@ func setupTestRouter(t *testing.T, h *Handler) *gin.Engine {
 }
 
 func TestJWTValidation_MissingToken(t *testing.T) {
-	h := NewHandler(nil, nil, nil)
+	h := NewHandler(nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/availability?vehicle_type=car", nil)
@@ -78,7 +78,7 @@ func TestJWTValidation_MissingToken(t *testing.T) {
 }
 
 func TestJWTValidation_InvalidToken(t *testing.T) {
-	h := NewHandler(nil, nil, nil)
+	h := NewHandler(nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/availability?vehicle_type=car", nil)
@@ -135,7 +135,7 @@ func TestWriteGRPCError(t *testing.T) {
 }
 
 func TestCreateReservation_InvalidBody(t *testing.T) {
-	h := NewHandler(nil, nil, nil)
+	h := NewHandler(nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)
@@ -149,7 +149,7 @@ func TestCreateReservation_InvalidBody(t *testing.T) {
 }
 
 func TestGetFloorMap_InvalidFloor(t *testing.T) {
-	h := NewHandler(nil, nil, nil)
+	h := NewHandler(nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)
@@ -163,7 +163,7 @@ func TestGetFloorMap_InvalidFloor(t *testing.T) {
 
 // TestRouteRegistration verifies all expected routes are registered.
 func TestRouteRegistration(t *testing.T) {
-	h := NewHandler(nil, nil, nil)
+	h := NewHandler(nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	routes := router.Routes()
@@ -194,7 +194,7 @@ func TestRouteRegistration(t *testing.T) {
 func TestGetAvailability_NilClient(t *testing.T) {
 	// With nil search client, calling the handler should panic or return error.
 	// We just verify the JWT auth passes and the handler is reached.
-	h := NewHandler(nil, &mockSearchClient{}, nil)
+	h := NewHandler(nil, &mockSearchClient{}, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)
@@ -209,7 +209,7 @@ func TestGetAvailability_NilClient(t *testing.T) {
 
 // TestGetPaymentStatus_NilClient verifies payment status route with mock.
 func TestGetPaymentStatus_MockClient(t *testing.T) {
-	h := NewHandler(nil, nil, &mockPaymentClient{})
+	h := NewHandler(nil, nil, &mockPaymentClient{}, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)

@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 
 	"parkir-pintar/internal/payment/model"
@@ -24,11 +25,18 @@ import (
 // ErrNotFound is returned when a payment record is not found.
 var ErrNotFound = errors.New("payment not found")
 
+// ErrConflict is returned when a unique constraint violation occurs (e.g. duplicate idempotency key).
+var ErrConflict = errors.New("conflict: duplicate record")
+
+// ErrStatusMismatch is returned when an optimistic update fails due to unexpected current status.
+var ErrStatusMismatch = errors.New("status mismatch: concurrent modification")
+
 // Repository defines the data access interface for payment records.
 type Repository interface {
 	CreatePayment(ctx context.Context, payment *model.Payment) error
 	GetByIdempotencyKey(ctx context.Context, key string) (*model.Payment, error)
 	UpdatePayment(ctx context.Context, payment *model.Payment) error
+	UpdatePaymentWithStatusCheck(ctx context.Context, payment *model.Payment, expectedStatus string) error
 	GetByID(ctx context.Context, id string) (*model.Payment, error)
 	GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error)
 }
@@ -53,6 +61,10 @@ func (r *sqlxRepository) CreatePayment(ctx context.Context, payment *model.Payme
 		payment,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrConflict
+		}
 		return fmt.Errorf("create payment: %w", err)
 	}
 	return nil
@@ -88,6 +100,30 @@ func (r *sqlxRepository) UpdatePayment(ctx context.Context, payment *model.Payme
 	}
 	if rows == 0 {
 		return fmt.Errorf("update payment: %w: id=%s", ErrNotFound, payment.ID)
+	}
+	return nil
+}
+
+// UpdatePaymentWithStatusCheck performs an optimistic update that only succeeds
+// if the payment's current status matches expectedStatus. This prevents double-refund
+// and other race conditions.
+func (r *sqlxRepository) UpdatePaymentWithStatusCheck(ctx context.Context, payment *model.Payment, expectedStatus string) error {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE payments SET status = $1, transaction_ref = $2,
+		 paid_at = $3, idempotency_key = $4, updated_at = $5
+		 WHERE id = $6 AND status = $7`,
+		payment.Status, payment.TransactionRef, payment.PaidAt,
+		payment.IdempotencyKey, payment.UpdatedAt, payment.ID, expectedStatus,
+	)
+	if err != nil {
+		return fmt.Errorf("update payment with status check: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update payment with status check rows affected: %w", err)
+	}
+	if rows == 0 {
+		return ErrStatusMismatch
 	}
 	return nil
 }

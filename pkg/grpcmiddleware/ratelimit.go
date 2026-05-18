@@ -21,6 +21,7 @@ type RateLimitConfig = ratelimit.Config
 // Requests exceeding the limit receive a gRPC ResourceExhausted status code.
 func (i *Interceptors) RateLimitUnaryInterceptor(cfg RateLimitConfig) grpc.UnaryServerInterceptor {
 	store := ratelimit.NewStore(cfg)
+	i.rateLimitStore = store
 
 	return func(
 		ctx context.Context,

@@ -18,7 +18,7 @@ import (
 
 	"parkir-pintar/internal/search/model"
 	"parkir-pintar/internal/search/usecase"
-	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/internal/shared/grpcerror"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
 
@@ -142,5 +142,5 @@ func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetai
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	return apperror.MapToGRPCError(err)
+	return grpcerror.MapToGRPCError(err)
 }

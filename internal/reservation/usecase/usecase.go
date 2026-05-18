@@ -258,6 +258,11 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		}
 
 		if err := uc.repo.CreateReservationTx(ctx, tx, reservation); err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+				pgErr.ConstraintName == "idx_reservations_one_active_per_driver" {
+				return apperror.New("CONFLICT", "driver already has an active reservation", 409)
+			}
 			return err
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, spotStatusReserved)
@@ -380,15 +385,25 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 // failReservationInternal transitions a waiting_payment reservation to failed,
 // releases the spot. Used when payment fails during ConfirmReservation or CreateReservation.
 func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reservation *model.Reservation) {
-	now := time.Now()
-	reservation.Status = model.StatusFailed
-	reservation.UpdatedAt = now
-
 	if txErr := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
-		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
+		// Re-fetch with lock to prevent TOCTOU
+		locked, err := uc.repo.GetByIDForUpdate(ctx, tx, reservation.ID)
+		if err != nil {
+			return fmt.Errorf("fail reservation lock: %w", err)
+		}
+		// Only transition from waiting_payment
+		if locked.Status != model.StatusWaitingPayment {
+			return nil // Already transitioned by another path — no-op
+		}
+
+		now := time.Now()
+		locked.Status = model.StatusFailed
+		locked.UpdatedAt = now
+
+		if err := uc.repo.UpdateReservationTx(ctx, tx, locked); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, locked.SpotID, spotStatusAvailable)
 	}); txErr != nil {
 		slog.Error("failed to release spot on payment failure",
 			slog.String("reservation_id", reservation.ID),

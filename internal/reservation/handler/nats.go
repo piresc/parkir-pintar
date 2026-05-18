@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -58,7 +59,8 @@ func (h *NATSHandler) Stop() {
 }
 
 func (h *NATSHandler) handleMessage(msg jetstream.Msg) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	var event PaymentResultEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {

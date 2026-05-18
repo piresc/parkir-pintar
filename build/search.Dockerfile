@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 1: Build
 # =============================================================================
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
@@ -39,9 +39,6 @@ WORKDIR /app
 
 # Copy binary
 COPY --from=builder /build/search ./search
-
-# Copy CA cert for mTLS
-COPY infra/certs/dev/ca.pem /etc/ssl/certs/parkir-pintar-ca.pem
 
 USER appuser
 

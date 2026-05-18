@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 
 	"parkir-pintar/internal/billing/model"
@@ -15,6 +16,9 @@ import (
 
 // ErrNotFound is returned when a billing record or penalty is not found.
 var ErrNotFound = errors.New("billing record not found")
+
+// ErrConflict is returned when a unique constraint is violated (duplicate record).
+var ErrConflict = errors.New("conflict: duplicate record")
 
 // Repository defines the data access interface for billing records.
 //
@@ -48,6 +52,10 @@ func (r *sqlxRepository) CreateBillingRecord(ctx context.Context, record *model.
 		record,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrConflict
+		}
 		return fmt.Errorf("create billing record: %w", err)
 	}
 	return nil

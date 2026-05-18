@@ -34,7 +34,6 @@ type Usecase interface {
 	ProcessQRIS(ctx context.Context, req *model.ProcessQRISRequest) (*model.Payment, error)
 	RefundPayment(ctx context.Context, req *model.RefundPaymentRequest) (*model.Payment, error)
 	GetPaymentStatus(ctx context.Context, req *model.GetPaymentStatusRequest) (*model.Payment, error)
-	SetEventPublisher(pub EventPublisher)
 }
 
 // EventPublisher defines the interface for publishing payment result events.
@@ -51,16 +50,12 @@ type paymentUsecase struct {
 }
 
 // NewUsecase creates a new payment Usecase with all required dependencies.
-func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway) Usecase {
+func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway, pub EventPublisher) Usecase {
 	return &paymentUsecase{
-		repo: repo,
-		gw:   gw,
+		repo:           repo,
+		gw:             gw,
+		eventPublisher: pub,
 	}
-}
-
-// SetEventPublisher sets an optional event publisher for payment result events.
-func (uc *paymentUsecase) SetEventPublisher(pub EventPublisher) {
-	uc.eventPublisher = pub
 }
 
 // ProcessPayment processes a payment with idempotency check and circuit breaker
@@ -89,6 +84,13 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	}
 
 	if err := uc.repo.CreatePayment(ctx, payment); err != nil {
+		if errors.Is(err, repository.ErrConflict) {
+			existing, fetchErr := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+			if fetchErr != nil {
+				return nil, fmt.Errorf("process payment fetch after conflict: %w", fetchErr)
+			}
+			return existing, nil
+		}
 		return nil, fmt.Errorf("process payment create: %w", err)
 	}
 
@@ -228,11 +230,8 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 
 	payment.Status = model.PaymentStatusRefunded
 	payment.UpdatedAt = time.Now()
-	if req.IdempotencyKey != "" {
-		payment.IdempotencyKey = req.IdempotencyKey
-	}
 
-	if err := uc.repo.UpdatePayment(ctx, payment); err != nil {
+	if err := uc.repo.UpdatePaymentWithStatusCheck(ctx, payment, model.PaymentStatusSuccess); err != nil {
 		return nil, fmt.Errorf("refund payment update: %w", err)
 	}
 

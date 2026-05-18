@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -59,10 +60,7 @@ func (s *GracefulServer) Start() error {
 
 	select {
 	case err := <-errCh:
-		// Use slog.Error + os.Exit(1) instead of srv.ErrorLog.Fatal()
-		// to avoid nil pointer crash (fix from boilerplate-golang)
-		slog.Error("server failed to start", slog.String("error", err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("server failed to start: %w", err)
 	case sig := <-quit:
 		s.logger.Info("received shutdown signal", slog.String("signal", sig.String()))
 	}

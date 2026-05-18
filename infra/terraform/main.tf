@@ -106,6 +106,10 @@ resource "google_sql_database_instance" "postgres" {
   }
 
   deletion_protection = var.environment == "production"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_sql_database" "main" {
@@ -132,6 +136,29 @@ resource "google_redis_instance" "cache" {
   redis_version      = "REDIS_7_0"
 
   depends_on = [google_service_networking_connection.private_vpc]
+}
+
+# -------------------------------------------------------------------
+# Secret Manager - Database URL
+# -------------------------------------------------------------------
+
+resource "google_secret_manager_secret" "database_url" {
+  secret_id = "${var.service_name}-database-url"
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "database_url" {
+  secret      = google_secret_manager_secret.database_url.id
+  secret_data = "postgresql://${google_sql_user.app.name}:${var.db_password}@${google_sql_database_instance.postgres.private_ip_address}:5432/${google_sql_database.main.name}?sslmode=disable"
+}
+
+resource "google_secret_manager_secret_iam_member" "cloudrun_access_db_url" {
+  secret_id = google_secret_manager_secret.database_url.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudrun_sa.email}"
 }
 
 # -------------------------------------------------------------------
@@ -166,8 +193,13 @@ resource "google_cloud_run_v2_service" "gateway" {
       }
 
       env {
-        name  = "DATABASE_URL"
-        value = "postgresql://${google_sql_user.app.name}:${var.db_password}@${google_sql_database_instance.postgres.private_ip_address}:5432/${google_sql_database.main.name}?sslmode=disable"
+        name = "DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.database_url.secret_id
+            version = "latest"
+          }
+        }
       }
 
       env {

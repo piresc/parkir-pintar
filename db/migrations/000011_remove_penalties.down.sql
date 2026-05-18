@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS billing.penalties (
     id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    reservation_id UUID        NOT NULL REFERENCES reservations(id),
+    reservation_id UUID        NOT NULL REFERENCES reservation.reservations(id),
     penalty_type   VARCHAR(20) NOT NULL CHECK (penalty_type IN ('wrong_spot', 'cancellation')),
     amount         BIGINT      NOT NULL,
     description    TEXT,

@@ -27,7 +27,7 @@ func TestRoutes_ShouldRegisterAllPRDRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 
-	h := gwhandler.NewHandler(nil, nil, nil)
+	h := gwhandler.NewHandler(nil, nil, nil, config.JWTConfig{Secret: "test-secret", Expiration: 60, Issuer: "parkir-pintar"})
 	cfg := &config.Config{}
 	mw := middleware.NewMiddleware(cfg, nil, nil)
 	h.RegisterRoutes(engine, mw, "test-secret")

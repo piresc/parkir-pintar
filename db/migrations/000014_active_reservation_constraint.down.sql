@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS reservation.idx_reservations_one_active_per_driver;

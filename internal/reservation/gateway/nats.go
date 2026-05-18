@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"parkir-pintar/pkg/events"
 	pkgnats "parkir-pintar/pkg/nats"
@@ -34,7 +35,7 @@ func (p *NATSEventPublisher) PublishSpotUpdated(ctx context.Context, event SpotU
 	if err != nil {
 		return fmt.Errorf("marshal spot updated event: %w", err)
 	}
-	msgID := fmt.Sprintf("spot-%s-%s", event.SpotID, event.Status)
+	msgID := fmt.Sprintf("spot-%s-%s-%d", event.SpotID, event.Status, time.Now().UnixNano())
 	return p.publisher.Publish(ctx, pkgnats.SubjectReservationSearchSpotUpdated, data, msgID)
 }
 
@@ -44,6 +45,6 @@ func (p *NATSEventPublisher) PublishReservationEvent(ctx context.Context, subjec
 	if err != nil {
 		return fmt.Errorf("marshal reservation event: %w", err)
 	}
-	msgID := fmt.Sprintf("res-%s-%s", event.ReservationID, event.Status)
+	msgID := fmt.Sprintf("res-%s-%s-%d", event.ReservationID, event.Status, time.Now().UnixNano())
 	return p.publisher.Publish(ctx, subject, data, msgID)
 }

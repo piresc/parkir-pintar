@@ -32,7 +32,7 @@ RUN for svc in gateway reservation search billing payment presence; do \
 # =============================================================================
 # Stage 2: Runtime
 # =============================================================================
-FROM alpine:3.19
+FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates tzdata curl
 

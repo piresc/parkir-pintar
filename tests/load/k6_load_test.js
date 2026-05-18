@@ -51,12 +51,13 @@ if (__ENV.SCENARIO === 'smoke') {
   delete options.scenarios.smoke_test;
 }
 
-const VEHICLE_TYPES = ['car', 'motorcycle', 'truck'];
+// NOTE: TEST_JWT_TOKEN env var is required for authenticated endpoints.
+const VEHICLE_TYPES = ['car', 'motorcycle'];
 const FLOOR_IDS = [1, 2, 3, 4, 5];
 
 function searchAvailability() {
   const vehicleType = VEHICLE_TYPES[randomIntBetween(0, VEHICLE_TYPES.length - 1)];
-  const res = http.get(`${BASE_URL}/api/v1/search/availability?vehicle_type=${vehicleType}`, {
+  const res = http.get(`${BASE_URL}/api/v1/availability?vehicle_type=${vehicleType}`, {
     tags: { name: 'search_availability' },
   });
 
@@ -73,7 +74,7 @@ function searchAvailability() {
 
 function searchFloor() {
   const floorId = FLOOR_IDS[randomIntBetween(0, FLOOR_IDS.length - 1)];
-  const res = http.get(`${BASE_URL}/api/v1/search/floors/${floorId}`, {
+  const res = http.get(`${BASE_URL}/api/v1/floors/${floorId}`, {
     tags: { name: 'search_floor' },
   });
 

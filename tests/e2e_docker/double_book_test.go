@@ -40,10 +40,23 @@ func TestDockerDoubleBook_ShouldRejectSecond_WhenSameSpot(t *testing.T) {
 		t.Fatalf("expected HTTP 200 for availability, got %d", availResp.StatusCode)
 	}
 
-	// Send two concurrent requests for the same spot using user_selected mode.
-	// Both use unique idempotency keys but target the same spot_id.
-	// Since we may not know a specific spot_id, we use system_assigned mode
-	// and rely on the system to detect conflicts at the DB level.
+	// Parse availability response to get a specific spot_id for user_selected mode.
+	var availBody struct {
+		Spots []struct {
+			ID string `json:"id"`
+		} `json:"spots"`
+	}
+	if err := json.NewDecoder(availResp.Body).Decode(&availBody); err != nil || len(availBody.Spots) == 0 {
+		t.Logf("Could not parse spot_id from availability response, falling back to system_assigned")
+	}
+
+	// Determine spot_id to target — use first available spot if possible.
+	spotID := ""
+	if len(availBody.Spots) > 0 {
+		spotID = availBody.Spots[0].ID
+	}
+
+	// Send two concurrent requests targeting the same spot using user_selected mode.
 	var wg sync.WaitGroup
 	statusCodes := make([]int, 2)
 
@@ -52,12 +65,19 @@ func TestDockerDoubleBook_ShouldRejectSecond_WhenSameSpot(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 
-			body, marshalErr := json.Marshal(map[string]string{
+			reqBody := map[string]string{
 				"driver_id":       denv.driverID,
 				"vehicle_type":    "motorcycle",
-				"assignment_mode": "system_assigned",
 				"idempotency_key": uuid.New().String(),
-			})
+			}
+			if spotID != "" {
+				reqBody["assignment_mode"] = "user_selected"
+				reqBody["spot_id"] = spotID
+			} else {
+				reqBody["assignment_mode"] = "system_assigned"
+			}
+
+			body, marshalErr := json.Marshal(reqBody)
 			if marshalErr != nil {
 				t.Errorf("goroutine %d: failed to marshal request: %v", idx, marshalErr)
 				return
@@ -80,27 +100,28 @@ func TestDockerDoubleBook_ShouldRejectSecond_WhenSameSpot(t *testing.T) {
 	wg.Wait()
 
 	// --- Assert ---
-	// With system_assigned mode and enough spots, both may succeed (HTTP 201).
-	// The double-book scenario is most meaningful with user_selected + same spot_id.
-	// Here we verify at least one succeeded.
-	hasCreated := false
+	// With user_selected mode targeting the same spot, exactly one should succeed
+	// and the other should get a conflict (409).
+	successCount := 0
+	conflictCount := 0
 	for _, code := range statusCodes {
 		if code == http.StatusCreated {
-			hasCreated = true
+			successCount++
 		}
-	}
-
-	if !hasCreated {
-		t.Fatalf("expected at least one HTTP 201, got status codes: %v", statusCodes)
-	}
-
-	// Check if we got a conflict (409) — expected when both target the same spot
-	hasConflict := false
-	for _, code := range statusCodes {
 		if code == http.StatusConflict {
-			hasConflict = true
+			conflictCount++
 		}
 	}
 
-	t.Logf("Double-book status codes: %v (conflict detected: %v)", statusCodes, hasConflict)
+	if successCount+conflictCount != 2 {
+		t.Fatalf("expected exactly 1 success + 1 conflict, got status codes: %v", statusCodes)
+	}
+	if successCount != 1 {
+		t.Fatalf("expected exactly one HTTP 201, got %d successes in status codes: %v", successCount, statusCodes)
+	}
+	if conflictCount != 1 {
+		t.Fatalf("expected exactly one HTTP 409, got %d conflicts in status codes: %v", conflictCount, statusCodes)
+	}
+
+	t.Logf("Double-book status codes: %v (conflict correctly detected)", statusCodes)
 }

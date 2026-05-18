@@ -202,7 +202,7 @@ func main() {
 
 	// 12. Register gateway REST routes (with JWT auth)
 	jwtSecret := cfg.JWT.Secret
-	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient)
+	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient, cfg.JWT)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 13. Register analytics REST routes (gRPC-backed, with JWT auth)

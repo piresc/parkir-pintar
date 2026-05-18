@@ -279,9 +279,9 @@ func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T
 		successCount++
 	}
 
-	// At least one should succeed (the first to acquire the row)
-	assert.GreaterOrEqual(t, successCount, 1,
-		"at least one concurrent operation should succeed")
+	// Exactly one should succeed (the first to acquire the row)
+	assert.Equal(t, 1, successCount,
+		"exactly one concurrent lifecycle operation should succeed")
 
 	// Verify the reservation is in a valid terminal or checked-in state
 	var finalStatus string

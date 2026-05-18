@@ -266,6 +266,10 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("JWT_SECRET is required")
 	}
 
+	if cfg.App.Environment != "local" && cfg.App.Environment != "test" && len(cfg.JWT.Secret) < 32 {
+		return fmt.Errorf("JWT_SECRET must be at least 32 characters in non-local environments")
+	}
+
 	return nil
 }
 

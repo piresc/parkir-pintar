@@ -72,16 +72,21 @@ func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvai
 		slog.Warn("search: failed to unmarshal cached availability", slog.Any("error", jsonErr))
 	}
 
-	// Cache miss or Redis error — fall back to DB (coalesced via singleflight)
+	// Cache miss or Redis error — fall back to DB (coalesced via singleflight).
+	// Use detached context to prevent first-caller cancellation from affecting
+	// coalesced callers.
 	result, err, _ := uc.sf.Do(cacheKey, func() (interface{}, error) {
-		floors, err := uc.repo.GetAvailabilityByVehicleType(ctx, req.VehicleType)
+		sfCtx, sfCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer sfCancel()
+
+		floors, err := uc.repo.GetAvailabilityByVehicleType(sfCtx, req.VehicleType)
 		if err != nil {
 			return nil, fmt.Errorf("get availability: %w", err)
 		}
 
 		// Store in cache (non-critical)
 		if data, jsonErr := json.Marshal(floors); jsonErr == nil {
-			if setErr := uc.redis.Set(ctx, cacheKey, string(data), cacheTTL); setErr != nil {
+			if setErr := uc.redis.Set(sfCtx, cacheKey, string(data), cacheTTL); setErr != nil {
 				slog.Warn("search: failed to cache availability", slog.Any("error", setErr))
 			}
 		}
@@ -115,16 +120,21 @@ func (uc *searchUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMap
 		slog.Warn("search: failed to unmarshal cached floor map", slog.Any("error", jsonErr))
 	}
 
-	// Cache miss or Redis error — fall back to DB (coalesced via singleflight)
+	// Cache miss or Redis error — fall back to DB (coalesced via singleflight).
+	// Use detached context to prevent first-caller cancellation from affecting
+	// coalesced callers.
 	result, err, _ := uc.sf.Do(cacheKey, func() (interface{}, error) {
-		spots, err := uc.repo.GetFloorSpots(ctx, req.FloorNumber)
+		sfCtx, sfCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer sfCancel()
+
+		spots, err := uc.repo.GetFloorSpots(sfCtx, req.FloorNumber)
 		if err != nil {
 			return nil, fmt.Errorf("get floor map: %w", err)
 		}
 
 		// Store in cache (non-critical)
 		if data, jsonErr := json.Marshal(spots); jsonErr == nil {
-			if setErr := uc.redis.Set(ctx, cacheKey, string(data), cacheTTL); setErr != nil {
+			if setErr := uc.redis.Set(sfCtx, cacheKey, string(data), cacheTTL); setErr != nil {
 				slog.Warn("search: failed to cache floor map", slog.Any("error", setErr))
 			}
 		}

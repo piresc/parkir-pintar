@@ -141,10 +141,10 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/search || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 9090 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 15s
 
   reservation:
@@ -193,10 +193,10 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/reservation || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 9090 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 15s
 
   billing:
@@ -227,10 +227,10 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/billing || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 9090 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 15s
 
   payment:
@@ -265,10 +265,10 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "ps | grep -v grep | grep /app/payment || exit 1"]
+      test: ["CMD-SHELL", "nc -z localhost 9090 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 15s
 
 volumes:

@@ -12,7 +12,7 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/usecase"
-	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/internal/shared/grpcerror"
 	billingv1 "parkir-pintar/proto/billing/v1"
 )
 
@@ -136,5 +136,5 @@ func billingRecordToProto(r *model.BillingRecord) *billingv1.BillingResponse {
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	return apperror.MapToGRPCError(err)
+	return grpcerror.MapToGRPCError(err)
 }

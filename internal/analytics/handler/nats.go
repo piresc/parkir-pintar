@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -32,14 +33,15 @@ func (h *NATSHandler) InitConsumers() (jetstream.ConsumeContext, error) {
 func (h *NATSHandler) handleReservationEvent(msg jetstream.Msg) {
 	var event model.ReservationEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
-		slog.Error("failed to unmarshal reservation event",
+		slog.Error("failed to unmarshal reservation event (terminating poison message)",
 			slog.String("subject", msg.Subject()),
 			slog.String("error", err.Error()))
-		_ = msg.Nak()
+		_ = msg.Term()
 		return
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
 	if err := h.uc.RecordEvent(ctx, event); err != nil {
 		slog.Error("failed to record reservation event",
@@ -50,7 +52,11 @@ func (h *NATSHandler) handleReservationEvent(msg jetstream.Msg) {
 		return
 	}
 
-	_ = msg.Ack()
+	if err := msg.Ack(); err != nil {
+		slog.Error("failed to ack reservation event",
+			slog.String("reservation_id", event.ReservationID),
+			slog.String("error", err.Error()))
+	}
 	slog.Info("recorded analytics event",
 		slog.String("reservation_id", event.ReservationID),
 		slog.String("status", event.Status),

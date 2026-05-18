@@ -1,0 +1,33 @@
+# Version control
+.git
+.github
+.gitignore
+
+# Environment and secrets
+.env
+config/.env
+deploy/staging/.env
+infra/
+
+# Documentation
+docs/
+*.md
+
+# Tests
+tests/
+**/*_test.go
+
+# Build artifacts
+bin/
+.coverage/
+frontend/node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# Monitoring configs (not needed in app images)
+deploy/monitoring/
+
+# Temporary
+/tmp/

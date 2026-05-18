@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -47,7 +48,8 @@ func (h *NATSHandler) handleSpotUpdated(msg jetstream.Msg) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
 	// Upsert into spot_read_model
 	spotData := sync.SpotData{

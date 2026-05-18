@@ -3,6 +3,7 @@ package grpcmiddleware
 import (
 	"log/slog"
 
+	"parkir-pintar/pkg/ratelimit"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/tracing"
 )
@@ -10,10 +11,19 @@ import (
 // Interceptors is the single entry point for all gRPC interceptors. It holds
 // shared dependencies that individual interceptor methods need.
 type Interceptors struct {
-	jwtSecret   string
-	logger      *slog.Logger
-	tracer      tracing.Tracer
-	redisClient *redis.Client
+	jwtSecret      string
+	logger         *slog.Logger
+	tracer         tracing.Tracer
+	redisClient    *redis.Client
+	rateLimitStore *ratelimit.Store
+}
+
+// Shutdown releases resources held by the interceptors, including stopping
+// the background cleanup goroutine of the rate limit store.
+func (i *Interceptors) Shutdown() {
+	if i.rateLimitStore != nil {
+		i.rateLimitStore.Stop()
+	}
 }
 
 // NewInterceptors creates an Interceptors instance with the given dependencies.

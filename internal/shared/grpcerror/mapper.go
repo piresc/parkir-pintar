@@ -1,5 +1,5 @@
-// Package apperror provides gRPC error mapping utilities.
-package apperror
+// Package grpcerror provides gRPC error mapping utilities.
+package grpcerror
 
 import (
 	"errors"
@@ -11,6 +11,7 @@ import (
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	reservationmodel "parkir-pintar/internal/reservation/model"
 	searchrepo "parkir-pintar/internal/search/repository"
+	"parkir-pintar/pkg/apperror"
 )
 
 // MapToGRPCError maps domain errors to gRPC status codes. It is a superset
@@ -41,7 +42,7 @@ func MapToGRPCError(err error) error {
 	}
 
 	// Check structured AppError with HTTP status mapping.
-	var appErr *AppError
+	var appErr *apperror.AppError
 	if errors.As(err, &appErr) {
 		switch appErr.HTTPStatus {
 		case 400:

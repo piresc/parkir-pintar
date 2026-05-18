@@ -4,11 +4,25 @@ function getToken() {
   return localStorage.getItem('pp_token');
 }
 
+function clearAuthAndRedirect() {
+  localStorage.removeItem('pp_token');
+  localStorage.removeItem('pp_driver_id');
+  // Redirect to login page
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+}
+
 async function apiRequest(method, path, body = null) {
   const headers = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${getToken() || ''}`,
   };
+
+  const token = getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const opts = { method, headers };
   if (body) opts.body = JSON.stringify(body);
 
@@ -16,6 +30,9 @@ async function apiRequest(method, path, body = null) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    if (res.status === 401) {
+      clearAuthAndRedirect();
+    }
     const err = new Error(data.error || `HTTP ${res.status}`);
     err.status = res.status;
     err.data = data;
@@ -25,6 +42,9 @@ async function apiRequest(method, path, body = null) {
 }
 
 export const api = {
+  // Auth
+  login: (driverId) => apiRequest('POST', '/api/v1/auth/login', { driver_id: driverId }),
+
   // Health
   getHealth: () => apiRequest('GET', '/health'),
   getHealthReady: () => apiRequest('GET', '/health/ready'),

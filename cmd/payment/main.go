@@ -5,6 +5,8 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	paymentgateway "parkir-pintar/internal/payment/gateway"
@@ -69,13 +71,12 @@ func main() {
 
 	repo := paymentrepo.NewRepository(tracedPG.GetDB())
 	gw := paymentgateway.NewStubGateway(false)
-	uc := paymentuc.NewUsecase(repo, gw)
-	handler := paymenthandler.NewHandler(uc)
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })
 
 	// NATS setup (publish-only for payment results)
+	var paymentPublisher paymentuc.EventPublisher
 	if cfg.NATS.Enabled {
 		natsClient, natsErr := pkgnats.NewClient(cfg.NATS.URL)
 		if natsErr != nil {
@@ -90,11 +91,13 @@ func main() {
 		}
 
 		publisher := pkgnats.NewPublisher(natsClient)
-		paymentPublisher := paymentgateway.NewPaymentEventPublisher(publisher)
-		uc.SetEventPublisher(paymentPublisher)
+		paymentPublisher = paymentgateway.NewPaymentEventPublisher(publisher)
 
 		shutdownMgr.Register(func(ctx context.Context) error { natsClient.Close(ctx); return nil })
 	}
+
+	uc := paymentuc.NewUsecase(repo, gw, paymentPublisher)
+	handler := paymenthandler.NewHandler(uc)
 
 	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
@@ -114,13 +117,35 @@ func main() {
 		),
 	)
 	grpcSrv.RegisterService(&paymentv1.PaymentService_ServiceDesc, handler)
-	if err := grpcSrv.Start(); err != nil {
-		log.Error("gRPC server error", slog.Any("error", err))
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- grpcSrv.Start()
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info("shutdown signal received")
+	case err := <-serverErr:
+		if err != nil {
+			log.Error("gRPC server error", slog.Any("error", err))
+		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
 	defer cancel()
-	if err := shutdownMgr.Shutdown(ctx); err != nil {
+	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {
 		log.Error("shutdown error", slog.Any("error", err))
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			os.Exit(1)
+		}
+	default:
 	}
 }

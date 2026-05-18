@@ -19,7 +19,7 @@ import (
 
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/usecase"
-	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/internal/shared/grpcerror"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
@@ -46,6 +46,10 @@ func (h *Handler) ProcessPayment(ctx context.Context, req *paymentv1.ProcessPaym
 	}
 	if req.GetAmount() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "amount must be positive")
+	}
+	const maxPaymentAmount int64 = 100_000_000 // 100M IDR
+	if req.GetAmount() > maxPaymentAmount {
+		return nil, status.Error(codes.InvalidArgument, "amount exceeds maximum allowed (100,000,000)")
 	}
 	if req.GetPaymentMethod() == "" {
 		return nil, status.Error(codes.InvalidArgument, "payment_method is required")
@@ -147,5 +151,5 @@ func paymentToProto(p *model.Payment) *paymentv1.PaymentResponse {
 
 // mapError maps domain errors to gRPC status codes.
 func mapError(err error) error {
-	return apperror.MapToGRPCError(err)
+	return grpcerror.MapToGRPCError(err)
 }

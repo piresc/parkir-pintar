@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"parkir-pintar/pkg/auth"
+	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/middleware"
 	"parkir-pintar/pkg/response"
 
@@ -28,6 +30,7 @@ type Handler struct {
 	reservation reservationv1.ReservationServiceClient
 	search      searchv1.SearchServiceClient
 	payment     paymentv1.PaymentServiceClient
+	jwtCfg      config.JWTConfig
 }
 
 // NewHandler creates a new gateway Handler with gRPC clients for each service.
@@ -35,16 +38,23 @@ func NewHandler(
 	reservation reservationv1.ReservationServiceClient,
 	search searchv1.SearchServiceClient,
 	payment paymentv1.PaymentServiceClient,
+	jwtCfg config.JWTConfig,
 ) *Handler {
 	return &Handler{
 		reservation: reservation,
 		search:      search,
 		payment:     payment,
+		jwtCfg:      jwtCfg,
 	}
 }
 
 // RegisterRoutes registers all REST API routes on the Gin engine with JWT auth.
 func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, jwtSecret string) {
+	// Public routes (no auth required)
+	public := engine.Group("/api/v1")
+	public.POST("/auth/login", h.Login)
+
+	// Protected routes (JWT auth required)
 	api := engine.Group("/api/v1")
 	api.Use(mw.JWTAuth(jwtSecret))
 
@@ -71,6 +81,33 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 // The JWT middleware guarantees this is always set for authenticated routes.
 func getUserID(c *gin.Context) string {
 	return c.GetString(middleware.KeyUserID)
+}
+
+// Login handles POST /api/v1/auth/login — accepts a driver_id and returns a signed JWT.
+func (h *Handler) Login(c *gin.Context) {
+	var req struct {
+		DriverID string `json:"driver_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.DriverID == "" {
+		response.Error(c, http.StatusBadRequest, "driver_id is required")
+		return
+	}
+
+	token, expiresAt, err := auth.GenerateToken(req.DriverID, "driver", h.jwtCfg)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to generate token")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{
+		"token":      token,
+		"expires_at": expiresAt,
+		"driver_id":  req.DriverID,
+	})
 }
 
 // contextWithAuth extracts the Authorization header from the Gin context
@@ -109,8 +146,13 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 		return
 	}
 
-	// Enforce ownership: driver_id must match authenticated user
-	if uid := getUserID(c); uid != "" && req.DriverID != uid {
+	// Enforce ownership: driver_id must match authenticated user (fail closed)
+	uid := getUserID(c)
+	if uid == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
+	if req.DriverID != uid {
 		response.Error(c, http.StatusForbidden, "cannot create reservation for another driver")
 		return
 	}
@@ -152,8 +194,12 @@ func (h *Handler) GetReservation(c *gin.Context) {
 // ListByDriver transcodes GET /api/v1/reservations to ReservationService.ListByDriver.
 // Uses the authenticated user's ID — ignores client-supplied driver_id.
 func (h *Handler) ListByDriver(c *gin.Context) {
-	// Use authenticated user's ID — ignore client-supplied driver_id
+	// Use authenticated user's ID — ignore client-supplied driver_id (fail closed)
 	driverID := getUserID(c)
+	if driverID == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
 	statusFilter := c.Query("status")
 
 	resp, err := h.reservation.ListByDriver(contextWithAuth(c), &reservationv1.ListByDriverRequest{

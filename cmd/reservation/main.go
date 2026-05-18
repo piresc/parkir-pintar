@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	reservationgateway "parkir-pintar/internal/reservation/gateway"
@@ -240,14 +242,36 @@ func main() {
 		),
 	)
 	grpcSrv.RegisterService(&reservationv1.ReservationService_ServiceDesc, handler)
-	if err := grpcSrv.Start(); err != nil {
-		log.Error("gRPC server error", slog.Any("error", err))
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- grpcSrv.Start()
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info("shutdown signal received")
+	case err := <-serverErr:
+		if err != nil {
+			log.Error("gRPC server error", slog.Any("error", err))
+		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
 	defer cancel()
-	if err := shutdownMgr.Shutdown(ctx); err != nil {
+	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {
 		log.Error("shutdown error", slog.Any("error", err))
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			os.Exit(1)
+		}
+	default:
 	}
 }
 

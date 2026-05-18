@@ -71,6 +71,13 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
 	if err := uc.repo.CreateBillingRecord(ctx, record); err != nil {
+		if errors.Is(err, repository.ErrConflict) {
+			existing, fetchErr := uc.repo.GetByReservationID(ctx, req.ReservationID)
+			if fetchErr != nil {
+				return nil, fmt.Errorf("start billing fetch after conflict: %w", fetchErr)
+			}
+			return existing, nil
+		}
 		return nil, fmt.Errorf("start billing: %w", err)
 	}
 
@@ -83,6 +90,10 @@ func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.Calculate
 	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
 	if err != nil {
 		return nil, fmt.Errorf("calculate fee get record: %w", err)
+	}
+
+	if record.Status != model.BillingStatusPending {
+		return nil, fmt.Errorf("cannot calculate fee for billing record in status %q: expected %q", record.Status, model.BillingStatusPending)
 	}
 
 	feeResult := pricing.CalculateSessionFee(req.CheckInAt, req.CheckOutAt)
@@ -120,6 +131,10 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 		return nil, fmt.Errorf("generate invoice get record: %w", err)
 	}
 
+	if record.Status != model.BillingStatusCalculated {
+		return nil, fmt.Errorf("cannot invoice billing record in status %q: expected %q", record.Status, model.BillingStatusCalculated)
+	}
+
 	record.Status = model.BillingStatusInvoiced
 	record.UpdatedAt = time.Now()
 
@@ -135,6 +150,11 @@ func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.Appl
 	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
 	if err != nil {
 		return nil, fmt.Errorf("apply overnight fee get record: %w", err)
+	}
+
+	// Idempotent: if already marked overnight, return as-is
+	if record.IsOvernight {
+		return record, nil
 	}
 
 	overnightFee := req.Amount

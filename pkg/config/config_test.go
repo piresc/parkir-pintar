@@ -133,7 +133,7 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	t.Setenv("DB_SSL_MODE", "require")
 	t.Setenv("REDIS_PORT", "6380")
 	t.Setenv("REDIS_POOL_SIZE", "20")
-	t.Setenv("JWT_SECRET", "my-jwt-secret")
+	t.Setenv("JWT_SECRET", "my-jwt-secret-that-is-at-least-32-chars-long")
 	t.Setenv("JWT_EXPIRATION", "120")
 	t.Setenv("AUTH_API_KEYS", "svc1:key1,svc2:key2")
 	t.Setenv("TRACING_ENABLED", "true")
@@ -159,7 +159,7 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	assert.Equal(t, "require", cfg.Database.SSLMode)
 	assert.Equal(t, 6380, cfg.Redis.Port)
 	assert.Equal(t, 20, cfg.Redis.PoolSize)
-	assert.Equal(t, "my-jwt-secret", cfg.JWT.Secret)
+	assert.Equal(t, "my-jwt-secret-that-is-at-least-32-chars-long", cfg.JWT.Secret)
 	assert.Equal(t, 120, cfg.JWT.Expiration)
 	assert.Equal(t, map[string]string{"svc1": "key1", "svc2": "key2"}, cfg.Auth.APIKeys)
 	assert.True(t, cfg.Tracing.Enabled)
@@ -251,7 +251,7 @@ func TestLoad_ShouldLoadDotEnvFile_WhenAppEnvIsLocal(t *testing.T) {
 func TestLoad_ShouldNotLoadDotEnvFile_WhenAppEnvIsProduction(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("APP_ENV", "production")
-	t.Setenv("JWT_SECRET", "prod-secret")
+	t.Setenv("JWT_SECRET", "prod-secret-that-is-at-least-32-chars-long")
 
 	// Create a .env file that would override APP_NAME
 	tmpDir := t.TempDir()

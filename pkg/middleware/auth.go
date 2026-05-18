@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -60,12 +61,16 @@ func (m *Middleware) JWTAuth(secret string) gin.HandlerFunc {
 }
 
 // APIKeyAuth returns middleware that validates the X-API-Key header against
-// a map of expected service→key pairs. Returns 401 on missing or invalid keys.
+// a map of expected service→key pairs using constant-time comparison to
+// prevent timing attacks. Returns 401 on missing or invalid keys.
 func (m *Middleware) APIKeyAuth(expectedKeys map[string]string) gin.HandlerFunc {
-	// Build a reverse lookup: key → service name for O(1) validation.
-	validKeys := make(map[string]string, len(expectedKeys))
+	type keyEntry struct {
+		service string
+		key     []byte
+	}
+	entries := make([]keyEntry, 0, len(expectedKeys))
 	for svc, key := range expectedKeys {
-		validKeys[key] = svc
+		entries = append(entries, keyEntry{service: svc, key: []byte(key)})
 	}
 
 	return func(c *gin.Context) {
@@ -76,7 +81,17 @@ func (m *Middleware) APIKeyAuth(expectedKeys map[string]string) gin.HandlerFunc 
 			return
 		}
 
-		if _, ok := validKeys[apiKey]; !ok {
+		apiKeyBytes := []byte(apiKey)
+		valid := false
+		for _, entry := range entries {
+			if subtle.ConstantTimeEq(int32(len(apiKeyBytes)), int32(len(entry.key))) == 1 &&
+				subtle.ConstantTimeCompare(apiKeyBytes, entry.key) == 1 {
+				valid = true
+				break
+			}
+		}
+
+		if !valid {
 			c.Abort()
 			response.Error(c, http.StatusUnauthorized, "invalid API key")
 			return

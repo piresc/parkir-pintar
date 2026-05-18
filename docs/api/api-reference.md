@@ -637,5 +637,5 @@ For internal consumers, the following events are published:
 | `billing.invoiced` | BILLING | Invoice generated |
 | `payment.success` | PAYMENTS | Payment processed successfully |
 | `payment.failed` | PAYMENTS | Payment processing failed |
-| `presence.arrival` | PRESENCE | Driver arrived at geofence |
+| `presence.arrival` | PRESENCE | Spot sensor confirmed vehicle occupancy |
 | `presence.wrong_spot` | PRESENCE | Driver detected at wrong spot |

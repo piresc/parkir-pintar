@@ -70,7 +70,7 @@ The architecture prioritizes:
 | **Reservation** | 9091 | Spot reservation lifecycle, distributed locking, expiry worker | reservations, parking_spots (write) |
 | **Billing** | 9093 | Fee calculation (pricing engine), invoice generation, penalties | billing_records, penalties |
 | **Payment** | 9094 | Payment processing, QRIS integration, refunds | payments |
-| **Presence** | 9095 | Location streaming, geofence arrival detection, wrong-spot detection | presence_logs |
+| **Presence** | 9095 | Sensor-based spot occupancy verification, wrong-spot detection | presence_logs |
 | **Notification** | 9096 | Push/SMS/Email notifications (stub — logs payloads) | None |
 
 ### Service Boundaries

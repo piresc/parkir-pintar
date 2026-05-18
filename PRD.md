@@ -67,7 +67,7 @@ Deliver the fastest, simplest parking reservation experience — one tap to rese
 - Real-time availability view
 - Two spot assignment modes (system-assigned and user-selected)
 - Payment gateway integration (including QRIS)
-- Location-based arrival detection (geofence)
+- Sensor-based spot occupancy verification
 - Presence streaming during active sessions
 
 ### Out of Scope
@@ -106,7 +106,7 @@ Deliver the fastest, simplest parking reservation experience — one tap to rese
 - If the Driver does not check in within 1 hour after confirmation, the reservation expires automatically and the spot is released.
 
 ### FR-04: Check-In
-- Check-in occurs when the Driver arrives and is detected by geofence, or manually checks in.
+- Check-in occurs when the Driver arrives and manually checks in; the system verifies via spot sensor.
 - Billing starts at check-in time.
 
 ### FR-05: Check-Out
@@ -314,7 +314,7 @@ PENDING → SUCCESS
 - Location data supports arrival detection and presence streaming.
 
 ### 12.2 Geofence
-- The system uses geofence detection to auto-detect Driver arrival at the parking area.
+- The system uses spot sensors to verify vehicle presence at the assigned parking spot.
 - Geofence triggers automatic check-in when the Driver enters the parking area boundary.
 
 ### 12.3 Presence Streaming
@@ -440,7 +440,7 @@ Reserve Spot Flow:
     → Return ReservationConfirmation to Client
 
 Check-In Flow:
-  PresenceService detects geofence entry
+  PresenceService queries spot sensor for occupancy
     → ReservationService.CheckIn(reservation_id)
     → PostgreSQL: UpdateReservationStatus(CHECKED_IN)
     → BillingService.StartBilling(reservation_id)
@@ -509,7 +509,7 @@ Reservation Expiry Flow (Background Job):
 ### 14.6 Presence Service
 | Attribute       | Detail                                                    |
 |-----------------|-----------------------------------------------------------|
-| Responsibility  | Location streaming, geofence arrival detection, wrong-spot detection |
+| Responsibility  | Sensor-based spot occupancy verification, wrong-spot detection |
 | Data Sources    | Redis (streams/pub-sub)                                   |
 | Key RPCs        | `StreamLocation` (streaming RPC), `DetectArrival`, `DetectWrongSpot`, `GetPresence` |
 | Update Frequency| At least every 30 seconds                                |
@@ -796,7 +796,7 @@ CREATE INDEX idx_presence_reservation_time ON presence_logs (reservation_id, rec
 8. All monetary values are in IDR (Indonesian Rupiah).
 9. The system operates in a single timezone (WIB / UTC+7) for overnight fee calculation.
 10. The super app handles Driver registration and authentication; ParkirPintar receives a valid JWT token from the super app.
-11. There is no physical barrier integration — check-in and check-out are app-driven (geofence or manual).
+11. There is no physical barrier integration — check-in and check-out are app-driven (sensor verification + manual).
 12. Database is PostgreSQL; caching and locking use Redis; message queuing uses Redis Streams or a similar lightweight queue.
 13. For testing purposes, payment gateway responses are simulated/stubbed.
 

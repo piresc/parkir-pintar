@@ -128,7 +128,7 @@
 | ID | Requirement | Priority | Source |
 |----|-------------|----------|--------|
 | FR-025 | System shall receive streaming location updates from driver mobile app | Must | SH-02 |
-| FR-026 | System shall detect driver arrival within parking geofence | Must | SH-01 |
+| FR-026 | System shall verify vehicle presence at assigned spot via sensor | Must | SH-01 |
 | FR-027 | System shall detect wrong-spot parking based on GPS coordinates | Must | SH-01 |
 | FR-028 | System shall provide latest known location for active reservations | Should | SH-01 |
 

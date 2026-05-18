@@ -114,12 +114,12 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 				payment.Status = model.PaymentStatusFailed
 				payment.UpdatedAt = time.Now()
 				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cleanupCancel()
-				if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil {
+				if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
 					slog.Error("failed to update payment status on context cancel",
 						slog.String("payment_id", payment.ID),
 						slog.Any("error", updateErr))
 				}
+				cleanupCancel()
 				return nil, fmt.Errorf("payment processing cancelled: %w", ctx.Err())
 			}
 		}

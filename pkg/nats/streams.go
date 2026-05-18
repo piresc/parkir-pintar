@@ -9,6 +9,13 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
+// Stream subject patterns used in stream and consumer definitions.
+const (
+	SubjectPatternReservationSearch    = "reservation.search.*"
+	SubjectPatternReservationAnalytics = "reservation.analytics.*"
+	SubjectPatternPaymentReservation   = "payment.reservation.*"
+)
+
 // StreamConfig holds the configuration for creating a stream.
 type StreamConfig struct {
 	Name      string
@@ -34,21 +41,21 @@ func DefaultStreamConfigs() []StreamConfig {
 	return []StreamConfig{
 		{
 			Name:      StreamReservationSearch,
-			Subjects:  []string{"reservation.search.*"},
+			Subjects:  []string{SubjectPatternReservationSearch},
 			Retention: jetstream.InterestPolicy,
 			Storage:   jetstream.FileStorage,
 			MaxAge:    24 * time.Hour,
 		},
 		{
 			Name:      StreamReservationAnalytics,
-			Subjects:  []string{"reservation.analytics.*"},
+			Subjects:  []string{SubjectPatternReservationAnalytics},
 			Retention: jetstream.LimitsPolicy,
 			Storage:   jetstream.FileStorage,
 			MaxAge:    7 * 24 * time.Hour,
 		},
 		{
 			Name:      StreamPaymentReservation,
-			Subjects:  []string{"payment.reservation.*"},
+			Subjects:  []string{SubjectPatternPaymentReservation},
 			Retention: jetstream.InterestPolicy,
 			Storage:   jetstream.FileStorage,
 			MaxAge:    24 * time.Hour,
@@ -63,7 +70,7 @@ func DefaultConsumerConfigs() map[string]ConsumerConfig {
 		ConsumerSearchSpot: {
 			Stream:        StreamReservationSearch,
 			Name:          ConsumerSearchSpot,
-			FilterSubject: "reservation.search.*",
+			FilterSubject: SubjectPatternReservationSearch,
 			AckPolicy:     jetstream.AckExplicitPolicy,
 			AckWait:       30 * time.Second,
 			MaxDeliver:    5,
@@ -72,7 +79,7 @@ func DefaultConsumerConfigs() map[string]ConsumerConfig {
 		ConsumerAnalytics: {
 			Stream:        StreamReservationAnalytics,
 			Name:          ConsumerAnalytics,
-			FilterSubject: "reservation.analytics.*",
+			FilterSubject: SubjectPatternReservationAnalytics,
 			AckPolicy:     jetstream.AckExplicitPolicy,
 			AckWait:       30 * time.Second,
 			MaxDeliver:    5,
@@ -81,7 +88,7 @@ func DefaultConsumerConfigs() map[string]ConsumerConfig {
 		ConsumerReservationPayment: {
 			Stream:        StreamPaymentReservation,
 			Name:          ConsumerReservationPayment,
-			FilterSubject: "payment.reservation.*",
+			FilterSubject: SubjectPatternPaymentReservation,
 			AckPolicy:     jetstream.AckExplicitPolicy,
 			AckWait:       30 * time.Second,
 			MaxDeliver:    5,

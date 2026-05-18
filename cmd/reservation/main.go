@@ -269,7 +269,7 @@ func main() {
 	select {
 	case err := <-serverErr:
 		if err != nil {
-			os.Exit(1)
+			log.Error("server exited with error", slog.Any("error", err))
 		}
 	default:
 	}

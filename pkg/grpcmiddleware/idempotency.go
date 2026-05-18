@@ -95,21 +95,21 @@ func (i *Interceptors) IdempotencyUnaryInterceptor(cfg IdempotencyConfig) grpc.U
 				return resp, handlerErr
 			}
 
-		// Serialize and replace sentinel with the actual response.
-		var data []byte
-		var marshalErr error
-		if pm, ok := resp.(proto.Message); ok {
-			data, marshalErr = protojson.Marshal(pm)
-		} else {
-			data, marshalErr = json.Marshal(resp)
-		}
-		if marshalErr != nil {
-			i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to marshal response",
-				slog.String("key", redisKey),
-				slog.String("error", marshalErr.Error()),
-			)
-			return resp, nil
-		}
+			// Serialize and replace sentinel with the actual response.
+			var data []byte
+			var marshalErr error
+			if pm, ok := resp.(proto.Message); ok {
+				data, marshalErr = protojson.Marshal(pm)
+			} else {
+				data, marshalErr = json.Marshal(resp)
+			}
+			if marshalErr != nil {
+				i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to marshal response",
+					slog.String("key", redisKey),
+					slog.String("error", marshalErr.Error()),
+				)
+				return resp, nil
+			}
 
 			if setErr := i.redisClient.Set(ctx, redisKey, string(data), cfg.TTL); setErr != nil {
 				i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: redis SET failed",

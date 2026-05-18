@@ -211,17 +211,12 @@ services:
       APP_ENV: staging
       GRPC_SERVER_PORT: "50054"
       JWT_SECRET: ${JWT_SECRET}
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
       TRACING_ENABLED: "true"
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
-      PRESENCE_THRESHOLD_METERS: "50"
     networks:
       - app
-      - infra-backend
       - observability
     restart: unless-stopped
     healthcheck:

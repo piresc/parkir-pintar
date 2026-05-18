@@ -98,7 +98,7 @@ graph TB
 | **Reservation** | 9091 | Full reservation lifecycle, spot locking, state transitions |
 | **Billing** | 9093 | Fee calculation (hourly + overnight + penalties) |
 | **Payment** | 9094 | QRIS payment processing, refunds, payment status |
-| **Presence** | 9095 | GPS location verification via Redis Geo, wrong-spot detection (50m threshold) |
+| **Presence** | 9095 | Sensor-based spot occupancy verification, wrong-spot detection |
 
 ---
 
@@ -160,7 +160,7 @@ sequenceDiagram
     GW->>R: CheckIn (gRPC)
     R->>R: Status → checked_in, record check_in_time
     R--)PRES: VerifyLocation (gRPC, non-blocking)
-    PRES--)PRES: Redis Geo distance check (50m threshold)
+    PRES--)PRES: Query spot sensor (occupied/empty)
     R-->>D: 200 OK
 
     D->>GW: POST /api/reservations/:id/checkout
@@ -201,14 +201,14 @@ parkir-pintar/
 │   ├── reservation/main.go       # Reservation + Asynq workers
 │   ├── billing/main.go           # Billing service
 │   ├── payment/main.go           # Payment service
-│   └── presence/main.go          # Presence service (GPS verification)
+│   └── presence/main.go          # Presence service (sensor verification)
 ├── internal/                     # Domain logic (not importable externally)
 │   ├── gateway/handler/          # REST handlers, routing
 │   ├── search/                   # handler, usecase, repository, model, sync
 │   ├── reservation/              # handler, usecase, repository, model, worker, client
 │   ├── billing/                  # handler, usecase, repository, model
 │   ├── payment/                  # handler, usecase, gateway (stub)
-│   ├── presence/                 # handler, usecase, repository (Redis Geo)
+│   ├── presence/                 # handler, usecase, repository (sensor gateway)
 │   └── analytics/                # usecase, repository (peak hours, occupancy)
 ├── pkg/                          # Shared libraries
 │   ├── asynq/                    # Task queue (client, server, handlers, tasks)
@@ -421,7 +421,7 @@ The following assumptions scope the MVP implementation:
 - **Overnight fee** — 20,000 IDR per midnight crossed (not a flat one-time fee), justified by fairness for multi-night stays
 - **No overstay penalty** — Additional time beyond checkout is billed at the standard hourly rate (5,000 IDR/hour)
 - **Payment gateway is stubbed** — Interface-ready for Midtrans/Xendit QRIS integration
-- **Presence service** — Uses GPS + Redis Geo for wrong-spot detection (50m threshold)
+- **Presence service** — Uses sensor-based spot occupancy verification for wrong-spot detection
 - **Authentication is BYO-JWT** — Tokens issued externally by super-app or standalone auth service
 - **Wrong-spot detection** — Warning/flag only, not a blocker (driver can still park)
 - **Notification service** — Out of scope for MVP; NATS events provide the foundation for future implementation
@@ -574,7 +574,7 @@ Proto definitions in `proto/*/v1/*.proto`:
 - `BillingService` — Fee calculation
 - `PaymentService` — QRIS payment processing
 - `SearchService` — Spot search and filtering
-- `PresenceService` — GPS location verification, wrong-spot detection
+- `PresenceService` — Sensor-based spot occupancy verification, wrong-spot detection
 
 ---
 

@@ -90,3 +90,6 @@ opencode.json
 # Kiro
 # =============================================================================
 .kiro
+
+# Agent planning files
+.hermes/

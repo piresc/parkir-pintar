@@ -683,9 +683,9 @@ Reservation Expiry Flow (Background Job):
 |-----------------|--------------|----------------------|--------------------------------|
 | id              | UUID         | PK                   | Unique log entry identifier    |
 | reservation_id  | UUID         | FK → reservations.id | Associated active reservation  |
-| latitude        | DECIMAL(10,7)| NOT NULL             | GPS latitude                   |
-| longitude       | DECIMAL(10,7)| NOT NULL             | GPS longitude                  |
-| accuracy        | FLOAT        | NULLABLE             | GPS accuracy in meters         |
+| floor_number    | INT          | NOT NULL             | Floor of assigned spot         |
+| spot_number     | INT          | NOT NULL             | Spot number on floor           |
+| sensor_status   | VARCHAR(20)  | NOT NULL             | Sensor reading (occupied/empty)|
 | recorded_at     | TIMESTAMP    | NOT NULL             | When location was recorded     |
 
 ### 16.3 Key Indexes
@@ -788,11 +788,11 @@ CREATE INDEX idx_presence_reservation_time ON presence_logs (reservation_id, rec
 
 1. The parking area is a single building with a fixed layout (5 floors, 30 car + 50 motorcycle spots per floor). The layout does not change at runtime.
 2. Each Driver has one vehicle type per session (car or motorcycle). A Driver cannot reserve spots for multiple vehicles simultaneously.
-3. The Driver's smartphone has GPS/location services enabled and the app has location permissions.
-4. Geofence detection is based on GPS coordinates provided by the client app; the backend does not integrate with physical sensors or barriers.
+3. Each parking spot is equipped with an occupancy sensor that polls every 30 seconds.
+4. Spot verification is based on sensor readings; the backend queries the sensor gateway to confirm vehicle presence.
 5. The payment gateway and QRIS provider are external third-party services; the Payment Service integrates via their APIs (stubbed for testing).
 6. The Notification Service is a stub — it logs notification payloads but does not send actual messages.
-7. Wrong-spot detection relies on presence/location data from the Driver's phone; accuracy depends on GPS precision.
+7. Wrong-spot detection relies on spot sensor data; if the assigned spot sensor shows empty after check-in, a warning is flagged.
 8. All monetary values are in IDR (Indonesian Rupiah).
 9. The system operates in a single timezone (WIB / UTC+7) for overnight fee calculation.
 10. The super app handles Driver registration and authentication; ParkirPintar receives a valid JWT token from the super app.

@@ -124,7 +124,7 @@ ParkirPintar uses a microservices architecture with per-service PostgreSQL schem
 - **Reservation** — Booking lifecycle with distributed locking
 - **Billing** — Fee calculation, invoicing
 - **Payment** — Payment processing (QRIS, e-wallet, etc.)
-- **Presence** — GPS-based check-in/check-out
+- **Presence** — Sensor-based spot occupancy verification
 - **Notification** — Event-driven notifications via NATS
 
 ### Communication

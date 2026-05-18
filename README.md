@@ -15,7 +15,9 @@ A production-grade smart parking backend managing a centralized parking area wit
 - [Low-Level Design (LLD)](#low-level-design-lld)
 - [Entity Relationship Diagram](#entity-relationship-diagram)
 - [State Machines](#state-machines)
+- [Assumptions](#assumptions)
 - [Tech Stack](#tech-stack)
+- [3rd-Party Libraries & Justification](#3rd-party-libraries--justification)
 - [Project Structure](#project-structure)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
@@ -241,7 +243,7 @@ OvernightFee  = 20000 // IDR per midnight crossed
 // CalculateCancellationFee returns booking fee as non-refundable penalty
 ```
 
-Overnight calculation counts actual midnight crossings (00:00 boundaries) between check-in and check-out, charging 20,000 IDR per crossing.
+Overnight calculation counts actual midnight crossings (00:00 boundaries in WIB timezone) between check-in and check-out, charging 20,000 IDR per midnight crossed. Multi-night stays are charged proportionally (e.g., 2 midnights = 40,000 IDR).
 
 ### Distributed Locking Strategy
 
@@ -399,6 +401,24 @@ stateDiagram-v2
 
 ---
 
+## Assumptions
+
+The following assumptions scope the MVP implementation:
+
+- **Single parking area** — Centralized inventory with no multi-area or multi-tenant support
+- **Booking fee** — 5,000 IDR charged on reservation confirmation; non-refundable
+- **No cancellation fee** — Driver simply forfeits the booking fee already charged
+- **Overnight fee** — 20,000 IDR per midnight crossed (not a flat one-time fee), justified by fairness for multi-night stays
+- **No overstay penalty** — Additional time beyond checkout is billed at the standard hourly rate (5,000 IDR/hour)
+- **Payment gateway is stubbed** — Interface-ready for Midtrans/Xendit QRIS integration
+- **Presence service** — Uses GPS + Redis Geo for wrong-spot detection (50m threshold)
+- **Authentication is BYO-JWT** — Tokens issued externally by super-app or standalone auth service
+- **Wrong-spot detection** — Warning/flag only, not a blocker (driver can still park)
+- **Notification service** — Out of scope for MVP; NATS events provide the foundation for future implementation
+- **Arrival detection** — Location-based arrival detection replaced by manual check-in for MVP simplicity
+
+---
+
 ## Tech Stack
 
 | Category | Technology |
@@ -415,6 +435,29 @@ stateDiagram-v2
 | Reverse Proxy | Traefik |
 | CI/CD | GitHub Actions → GHCR → Watchtower |
 | Code Quality | SonarCloud |
+
+---
+
+## 3rd-Party Libraries & Justification
+
+| Library | Justification |
+|---------|---------------|
+| `google.golang.org/grpc` | gRPC framework for service-to-service communication (assessment requirement) |
+| `google.golang.org/protobuf` | Protocol Buffers serialization for gRPC |
+| `github.com/jmoiron/sqlx` | Lightweight SQL extension over database/sql, struct scanning without full ORM overhead |
+| `github.com/jackc/pgx/v5` | High-performance PostgreSQL driver with native Go types |
+| `github.com/redis/go-redis/v9` | Redis client for distributed locking, caching, and geo operations |
+| `github.com/bsm/redislock` | Production-grade Redis distributed lock (Redlock algorithm) |
+| `github.com/sony/gobreaker` | Circuit breaker pattern for resilient inter-service calls |
+| `github.com/hibiken/asynq` | Redis-based async task queue for background workers (expiry, billing) |
+| `github.com/nats-io/nats.go` | NATS JetStream client for event-driven messaging between services |
+| `github.com/joho/godotenv` | Environment variable loading from .env files |
+| `github.com/google/uuid` | RFC 4122 UUID generation for entity IDs and idempotency keys |
+| `go.opentelemetry.io/otel` | OpenTelemetry SDK for distributed tracing and metrics |
+| `github.com/stretchr/testify` | Assertion library for readable, maintainable tests |
+| `github.com/testcontainers/testcontainers-go` | Disposable Docker containers for integration/E2E tests |
+| `pgregory.net/rapid` | Property-based testing for invariant verification |
+| `golang.org/x/time/rate` | Token bucket rate limiter for API protection |
 
 ---
 

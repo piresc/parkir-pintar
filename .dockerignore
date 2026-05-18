@@ -10,7 +10,10 @@ deploy/staging/.env
 infra/
 
 # Documentation
-docs/
+# Documentation (except swagger)
+docs/**/*.md
+docs/requirements/
+docs/api/
 *.md
 
 # Tests

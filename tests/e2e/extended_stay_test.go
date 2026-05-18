@@ -29,7 +29,7 @@ import (
 func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -89,8 +89,7 @@ func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *tes
 	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee,
 		"parking fee should be billed_hours × 5000")
 
-	// Assert — No overstay penalty (PRD §9.4: no overstay penalty)
-	testhelpers.AssertNoPenalty(t, env.db, reservation.ID)
+	// Assert — No overstay penalty (PRD: no penalty system)
 
 	// Assert — Total = booking_fee + parking_fee + overnight_fee (no penalty)
 	// Overnight fee may be non-zero if the 5-hour session crosses midnight in WIB.

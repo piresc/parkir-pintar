@@ -97,5 +97,4 @@ message CheckOutResponse {
   int64 booking_fee = 5;
   int64 parking_fee = 6;
   int64 overnight_fee = 7;
-  int64 penalty_amount = 8;
 }

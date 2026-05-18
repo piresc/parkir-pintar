@@ -113,8 +113,6 @@ func protoToBillingRecord(r *billingv1.BillingResponse) *billingmodel.BillingRec
 		BookingFee:      r.GetBookingFee(),
 		ParkingFee:      r.GetParkingFee(),
 		OvernightFee:    r.GetOvernightFee(),
-		CancellationFee: r.GetCancellationFee(),
-		PenaltyAmount:   r.GetPenaltyAmount(),
 		TotalAmount:     r.GetTotalAmount(),
 		DurationMinutes: int(r.GetDurationMinutes()),
 		BilledHours:     int(r.GetBilledHours()),

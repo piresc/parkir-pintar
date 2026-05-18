@@ -123,9 +123,6 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	// Assert: expiry succeeded
 	require.NoError(t, err)
 
-	// Verify: No ApplyPenalty call — booking fee is the only no-show cost
-	billing.AssertNotCalled(t, "ApplyPenalty", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-
 	// Verify: spot released to "available"
 	repo.AssertCalled(t, "UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-expire-1", "available")
 

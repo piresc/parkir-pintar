@@ -173,11 +173,6 @@ func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID s
 	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
 }
 
-func (m *MockBillingClient) ApplyPenalty(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
-	args := m.Called(ctx, reservationID, penaltyType, amount, description)
-	return args.Error(0)
-}
-
 // MockPaymentClient implements usecase.PaymentClient using testify/mock.
 type MockPaymentClient struct {
 	mock.Mock
@@ -361,10 +356,6 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	assert.Equal(t, pricing.BookingFee, checkOutResult.BookingFee)
 	assert.Equal(t, int64(10000), checkOutResult.ParkingFee)
 	assert.Equal(t, int64(0), checkOutResult.OvernightFee)
-	assert.Equal(t, int64(0), checkOutResult.PenaltyAmount)
-
-	// Verify: no penalty applied
-	billing.AssertNotCalled(t, "ApplyPenalty")
 
 	// Verify: payment NOT processed during checkout (happens in CompleteCheckout)
 	payment.AssertNotCalled(t, "ProcessPayment")

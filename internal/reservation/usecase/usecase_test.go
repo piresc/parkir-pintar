@@ -175,11 +175,6 @@ func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID s
 	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
 }
 
-func (m *MockBillingClient) ApplyPenalty(ctx context.Context, reservationID string, penaltyType string, amount int64, description string) error {
-	args := m.Called(ctx, reservationID, penaltyType, amount, description)
-	return args.Error(0)
-}
-
 // MockPaymentClient implements PaymentClient using testify/mock.
 type MockPaymentClient struct {
 	mock.Mock
@@ -441,7 +436,7 @@ func TestCancelReservation_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-cancel-free").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-5", "available").Return(nil)
-	// No ApplyPenalty call expected since fee is 0
+	// No ApplyPenalty call expected since penalty system is removed
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	req := &model.CancelReservationRequest{ReservationID: "res-cancel-free"}
@@ -453,8 +448,6 @@ func TestCancelReservation_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing
 	require.NoError(t, err)
 	assert.Equal(t, model.StatusCancelled, result.Status)
 	assert.NotNil(t, result.CancelledAt)
-	// ApplyPenalty should NOT have been called (fee is 0)
-	billing.AssertNotCalled(t, "ApplyPenalty")
 	repo.AssertExpectations(t)
 }
 
@@ -676,8 +669,7 @@ func TestExpireReservation_ShouldReleaseSpot_WhenConfirmedState(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	// No ApplyPenalty call — booking fee already charged at confirmation is the only cost
-	billing.AssertNotCalled(t, "ApplyPenalty", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	// No penalty system — booking fee already charged at confirmation is the only cost
 	repo.AssertExpectations(t)
 }
 

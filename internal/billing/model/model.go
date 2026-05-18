@@ -18,8 +18,6 @@ type BillingRecord struct {
 	BookingFee      int64     `json:"booking_fee" db:"booking_fee"`
 	ParkingFee      int64     `json:"parking_fee" db:"parking_fee"`
 	OvernightFee    int64     `json:"overnight_fee" db:"overnight_fee"`
-	CancellationFee int64     `json:"cancellation_fee" db:"cancellation_fee"`
-	PenaltyAmount   int64     `json:"penalty_amount" db:"penalty_amount"`
 	TotalAmount     int64     `json:"total_amount" db:"total_amount"`
 	DurationMinutes int       `json:"duration_minutes" db:"duration_minutes"`
 	BilledHours     int       `json:"billed_hours" db:"billed_hours"`

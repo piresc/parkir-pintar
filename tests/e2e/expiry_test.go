@@ -29,7 +29,7 @@ import (
 func TestExpiry_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -70,7 +70,4 @@ func TestExpiry_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
 	require.NoError(t, err)
 	assert.Equal(t, "available", spotStatus)
-
-	// Assert — No additional no-show penalty applied (booking fee is the only cost)
-	testhelpers.AssertNoPenaltyExists(t, env.db, reservation.ID, "no_show")
 }

@@ -44,11 +44,11 @@ func TestGetByReservationID_Found(t *testing.T) {
 	now := time.Now()
 	rows := sqlmock.NewRows([]string{
 		"id", "reservation_id", "booking_fee", "parking_fee", "overnight_fee",
-		"cancellation_fee", "penalty_amount", "total_amount", "duration_minutes",
+		"total_amount", "duration_minutes",
 		"billed_hours", "is_overnight", "idempotency_key", "status", "created_at", "updated_at",
 	}).AddRow(
 		"bill-1", "res-1", 5000, 10000, 20000,
-		0, 0, 35000, 120,
+		35000, 120,
 		2, true, "key-123", "invoiced", now, now,
 	)
 
@@ -92,8 +92,6 @@ func TestCreateBillingRecord(t *testing.T) {
 		BookingFee:      5000,
 		ParkingFee:      0,
 		OvernightFee:    0,
-		CancellationFee: 0,
-		PenaltyAmount:   0,
 		TotalAmount:     5000,
 		DurationMinutes: 0,
 		BilledHours:     0,

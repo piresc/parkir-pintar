@@ -6,7 +6,7 @@ option go_package = "parkir-pintar/proto/billing/v1;billingv1";
 
 import "google/protobuf/timestamp.proto";
 
-// BillingService handles fee calculation, invoice generation, and penalty application.
+// BillingService handles fee calculation and invoice generation.
 service BillingService {
   // StartBilling creates a billing record when a reservation is confirmed.
   rpc StartBilling(StartBillingRequest) returns (BillingResponse);
@@ -14,8 +14,6 @@ service BillingService {
   rpc CalculateFee(CalculateFeeRequest) returns (BillingResponse);
   // GenerateInvoice generates an idempotent invoice for a reservation.
   rpc GenerateInvoice(GenerateInvoiceRequest) returns (BillingResponse);
-  // ApplyPenalty applies a penalty (wrong-spot, no-show) to a billing record.
-  rpc ApplyPenalty(ApplyPenaltyRequest) returns (BillingResponse);
   // ApplyOvernightFee applies the overnight flat fee to a billing record.
   rpc ApplyOvernightFee(ApplyOvernightFeeRequest) returns (BillingResponse);
 }
@@ -37,13 +35,6 @@ message GenerateInvoiceRequest {
   string idempotency_key = 2;
 }
 
-message ApplyPenaltyRequest {
-  string reservation_id = 1;
-  string penalty_type = 2;   // "wrong_spot" or "cancellation"
-  int64 amount = 3;
-  string description = 4;
-}
-
 message ApplyOvernightFeeRequest {
   string reservation_id = 1;
 }
@@ -54,8 +45,6 @@ message BillingResponse {
   int64 booking_fee = 3;
   int64 parking_fee = 4;
   int64 overnight_fee = 5;
-  int64 cancellation_fee = 6;
-  int64 penalty_amount = 7;
   int64 total_amount = 8;
   int32 duration_minutes = 9;
   int32 billed_hours = 10;

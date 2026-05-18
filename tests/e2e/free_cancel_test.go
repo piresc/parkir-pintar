@@ -22,13 +22,14 @@ import (
 
 // TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes verifies
 // that cancelling a reservation immediately (within the 2-minute free window)
-// results in CANCELLED status, spot released, and no penalty.
+// results in CANCELLED status and spot released. No penalty system exists;
+// driver simply forfeits the booking fee already paid.
 //
 // Validates: Requirements 10.1, 10.2, 10.3, 10.4
 func TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")
@@ -59,7 +60,4 @@ func TestFreeCancel_ShouldNotApplyPenalty_WhenCancelledWithin2Minutes(t *testing
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
 	require.NoError(t, err)
 	assert.Equal(t, "available", spotStatus)
-
-	// Assert — No penalty record exists
-	testhelpers.AssertNoPenalty(t, env.db, reservation.ID)
 }

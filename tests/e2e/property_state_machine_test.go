@@ -33,7 +33,7 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 
 		// Clean tables for isolation
 		err := testhelpers.TruncateTables(ctx, env.db,
-			"penalties", "payments", "billing_records", "reservations", "drivers")
+			"payments", "billing_records", "reservations", "drivers")
 		require.NoError(t, err)
 		err = testhelpers.ResetSpots(ctx, env.db)
 		require.NoError(t, err)

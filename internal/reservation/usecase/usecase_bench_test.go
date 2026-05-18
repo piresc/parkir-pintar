@@ -97,7 +97,6 @@ func BenchmarkCancelReservation(b *testing.B) {
 	repo.On("GetSpotForUpdate", mock.Anything, "spot-1").Return(&model.ParkingSpot{
 		ID: "spot-1", FloorNumber: 1, SpotNumber: 1, VehicleType: "car", SpotCode: "F1-C-001", Status: "reserved",
 	}, nil)
-	billing.On("ApplyPenalty", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, 60)
 	ctx := context.Background()

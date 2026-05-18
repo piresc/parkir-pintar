@@ -97,11 +97,6 @@ func (h *Handler) GenerateInvoice(ctx context.Context, req *billingv1.GenerateIn
 	return billingRecordToProto(result), nil
 }
 
-// ApplyPenalty is no longer supported. Returns Unimplemented to maintain wire compatibility.
-func (h *Handler) ApplyPenalty(_ context.Context, _ *billingv1.ApplyPenaltyRequest) (*billingv1.BillingResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "penalty system has been removed")
-}
-
 // ApplyOvernightFee validates required fields and delegates to the usecase.
 func (h *Handler) ApplyOvernightFee(ctx context.Context, req *billingv1.ApplyOvernightFeeRequest) (*billingv1.BillingResponse, error) {
 	if req.GetReservationId() == "" {
@@ -130,8 +125,6 @@ func billingRecordToProto(r *model.BillingRecord) *billingv1.BillingResponse {
 		BookingFee:      r.BookingFee,
 		ParkingFee:      r.ParkingFee,
 		OvernightFee:    r.OvernightFee,
-		CancellationFee: r.CancellationFee,
-		PenaltyAmount:   r.PenaltyAmount,
 		TotalAmount:     r.TotalAmount,
 		DurationMinutes: int32(r.DurationMinutes),
 		BilledHours:     int32(r.BilledHours),

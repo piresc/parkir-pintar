@@ -57,83 +57,26 @@ func AssertSpotStatusCounts(t *testing.T, db *sqlx.DB) {
 
 // AssertBillingTotal verifies that the billing_records.total_amount for a given
 // reservation equals the sum of its individual fee fields:
-// booking_fee + parking_fee + overnight_fee + cancellation_fee + penalty_amount.
+// booking_fee + parking_fee + overnight_fee.
 //
 // Validates: Requirement 5.4 — billing total consistency.
 func AssertBillingTotal(t *testing.T, db *sqlx.DB, reservationID string) {
 	t.Helper()
 
 	var billing struct {
-		BookingFee      int64 `db:"booking_fee"`
-		ParkingFee      int64 `db:"parking_fee"`
-		OvernightFee    int64 `db:"overnight_fee"`
-		CancellationFee int64 `db:"cancellation_fee"`
-		PenaltyAmount   int64 `db:"penalty_amount"`
-		TotalAmount     int64 `db:"total_amount"`
+		BookingFee   int64 `db:"booking_fee"`
+		ParkingFee   int64 `db:"parking_fee"`
+		OvernightFee int64 `db:"overnight_fee"`
+		TotalAmount  int64 `db:"total_amount"`
 	}
 
 	err := db.GetContext(context.Background(), &billing,
-		`SELECT booking_fee, parking_fee, overnight_fee, cancellation_fee, penalty_amount, total_amount
+		`SELECT booking_fee, parking_fee, overnight_fee, total_amount
 		 FROM billing_records WHERE reservation_id = $1`, reservationID)
 	require.NoError(t, err, "failed to query billing_records for reservation %s", reservationID)
 
-	expectedTotal := billing.BookingFee + billing.ParkingFee + billing.OvernightFee +
-		billing.CancellationFee + billing.PenaltyAmount
+	expectedTotal := billing.BookingFee + billing.ParkingFee + billing.OvernightFee
 	require.Equal(t, expectedTotal, billing.TotalAmount,
-		"billing total mismatch for reservation %s: booking=%d + parking=%d + overnight=%d + cancellation=%d + penalty=%d = %d, but total_amount=%d",
-		reservationID, billing.BookingFee, billing.ParkingFee, billing.OvernightFee,
-		billing.CancellationFee, billing.PenaltyAmount, expectedTotal, billing.TotalAmount)
-}
-
-// AssertNoPenalty verifies that no penalty records exist in the penalties table
-// for the given reservation ID.
-//
-// Validates: Requirement 10.4 — no penalty for free cancellation.
-func AssertNoPenalty(t *testing.T, db *sqlx.DB, reservationID string) {
-	t.Helper()
-
-	var count int
-	err := db.QueryRowContext(context.Background(),
-		"SELECT COUNT(*) FROM penalties WHERE reservation_id = $1", reservationID).Scan(&count)
-	require.NoError(t, err, "failed to query penalties for reservation %s", reservationID)
-	require.Equal(t, 0, count,
-		"expected no penalties for reservation %s, but found %d", reservationID, count)
-}
-
-// AssertPenaltyExists verifies that a penalty record exists in the penalties
-// table for the given reservation with the specified penalty_type and amount.
-//
-// Validates: Requirement 9.3 — wrong-spot penalty exists with correct type and amount.
-func AssertPenaltyExists(t *testing.T, db *sqlx.DB, reservationID, penaltyType string, amount int64) {
-	t.Helper()
-
-	var count int
-	err := db.QueryRowContext(context.Background(),
-		`SELECT COUNT(*) FROM penalties
-		 WHERE reservation_id = $1 AND penalty_type = $2 AND amount = $3`,
-		reservationID, penaltyType, amount).Scan(&count)
-	require.NoError(t, err,
-		"failed to query penalties for reservation %s, type %s", reservationID, penaltyType)
-	require.Greater(t, count, 0,
-		"expected penalty record for reservation %s with type=%s and amount=%d, but found none",
-		reservationID, penaltyType, amount)
-}
-
-// AssertNoPenaltyExists verifies that no penalty record exists in the penalties
-// table for the given reservation with the specified penalty_type.
-//
-// Validates: PRD — booking fee is the only no-show cost, no additional penalty.
-func AssertNoPenaltyExists(t *testing.T, db *sqlx.DB, reservationID, penaltyType string) {
-	t.Helper()
-
-	var count int
-	err := db.QueryRowContext(context.Background(),
-		`SELECT COUNT(*) FROM penalties
-		 WHERE reservation_id = $1 AND penalty_type = $2`,
-		reservationID, penaltyType).Scan(&count)
-	require.NoError(t, err,
-		"failed to query penalties for reservation %s, type %s", reservationID, penaltyType)
-	require.Equal(t, 0, count,
-		"expected no penalty record for reservation %s with type=%s, but found %d",
-		reservationID, penaltyType, count)
+		"billing total mismatch for reservation %s: booking=%d + parking=%d + overnight=%d = %d, but total_amount=%d",
+		reservationID, billing.BookingFee, billing.ParkingFee, billing.OvernightFee, expectedTotal, billing.TotalAmount)
 }

@@ -29,7 +29,6 @@ func TestSchema_ShouldHaveAllTables(t *testing.T) {
 		"reservation.parking_spots",
 		"reservation.reservations",
 		"billing.billing_records",
-		"billing.penalties",
 		"payment.payments",
 		"search.spot_read_model",
 	}

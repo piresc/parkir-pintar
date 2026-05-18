@@ -115,7 +115,6 @@ export default function ActiveReservationPage() {
         booking_fee: res.data?.booking_fee,
         parking_fee: res.data?.parking_fee,
         overnight_fee: res.data?.overnight_fee,
-        penalty_amount: res.data?.penalty_amount,
       });
       navigate(`/checkout/${resId}`);
     } catch (e) {

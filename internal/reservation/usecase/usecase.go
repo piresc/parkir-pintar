@@ -527,14 +527,13 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 	}
 
 	return &model.CheckOutResponse{
-		Reservation:   reservation,
-		TotalAmount:   billingRecord.TotalAmount,
-		BillingID:     billingRecord.ID,
-		PaymentID:     "", // payment not yet processed
-		BookingFee:    billingRecord.BookingFee,
-		ParkingFee:    billingRecord.ParkingFee,
-		OvernightFee:  billingRecord.OvernightFee,
-		PenaltyAmount: billingRecord.PenaltyAmount,
+		Reservation:  reservation,
+		TotalAmount:  billingRecord.TotalAmount,
+		BillingID:    billingRecord.ID,
+		PaymentID:    "", // payment not yet processed
+		BookingFee:   billingRecord.BookingFee,
+		ParkingFee:   billingRecord.ParkingFee,
+		OvernightFee: billingRecord.OvernightFee,
 	}, nil
 }
 
@@ -595,14 +594,13 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCompleted, reservation, "completed")
 
 	return &model.CheckOutResponse{
-		Reservation:   reservation,
-		TotalAmount:   billingRecord.TotalAmount,
-		BillingID:     billingRecord.ID,
-		PaymentID:     paymentID,
-		BookingFee:    billingRecord.BookingFee,
-		ParkingFee:    billingRecord.ParkingFee,
-		OvernightFee:  billingRecord.OvernightFee,
-		PenaltyAmount: billingRecord.PenaltyAmount,
+		Reservation:  reservation,
+		TotalAmount:  billingRecord.TotalAmount,
+		BillingID:    billingRecord.ID,
+		PaymentID:    paymentID,
+		BookingFee:   billingRecord.BookingFee,
+		ParkingFee:   billingRecord.ParkingFee,
+		OvernightFee: billingRecord.OvernightFee,
 	}, nil
 }
 

@@ -40,10 +40,10 @@ func NewRepository(db *sqlx.DB) Repository {
 func (r *sqlxRepository) CreateBillingRecord(ctx context.Context, record *model.BillingRecord) error {
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO billing_records (id, reservation_id, booking_fee, parking_fee, overnight_fee,
-		 cancellation_fee, penalty_amount, total_amount, duration_minutes, billed_hours,
+		 total_amount, duration_minutes, billed_hours,
 		 is_overnight, idempotency_key, status, created_at, updated_at)
 		 VALUES (:id, :reservation_id, :booking_fee, :parking_fee, :overnight_fee,
-		 :cancellation_fee, :penalty_amount, :total_amount, :duration_minutes, :billed_hours,
+		 :total_amount, :duration_minutes, :billed_hours,
 		 :is_overnight, :idempotency_key, :status, :created_at, :updated_at)`,
 		record,
 	)
@@ -83,8 +83,7 @@ func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*
 func (r *sqlxRepository) UpdateBillingRecord(ctx context.Context, record *model.BillingRecord) error {
 	result, err := r.db.NamedExecContext(ctx,
 		`UPDATE billing_records SET booking_fee = :booking_fee, parking_fee = :parking_fee,
-		 overnight_fee = :overnight_fee, cancellation_fee = :cancellation_fee,
-		 penalty_amount = :penalty_amount, total_amount = :total_amount,
+		 overnight_fee = :overnight_fee, total_amount = :total_amount,
 		 duration_minutes = :duration_minutes, billed_hours = :billed_hours,
 		 is_overnight = :is_overnight, status = :status, updated_at = :updated_at
 		 WHERE id = :id`,

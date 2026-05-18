@@ -52,6 +52,8 @@ type ParkingSpot struct {
 	VehicleType string    `json:"vehicle_type" db:"vehicle_type"`
 	SpotCode    string    `json:"spot_code" db:"spot_code"`
 	Status      string    `json:"status" db:"status"`
+	Latitude    *float64  `json:"latitude,omitempty" db:"latitude"`
+	Longitude   *float64  `json:"longitude,omitempty" db:"longitude"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -131,14 +133,13 @@ type CompleteCheckoutRequest struct {
 
 // CheckOutResponse contains the checkout result with billing details.
 type CheckOutResponse struct {
-	Reservation   *Reservation `json:"reservation"`
-	TotalAmount   int64        `json:"total_amount"`
-	BillingID     string       `json:"billing_id"`
-	PaymentID     string       `json:"payment_id"`
-	BookingFee    int64        `json:"booking_fee"`
-	ParkingFee    int64        `json:"parking_fee"`
-	OvernightFee  int64        `json:"overnight_fee"`
-	PenaltyAmount int64        `json:"penalty_amount"`
+	Reservation  *Reservation `json:"reservation"`
+	TotalAmount  int64        `json:"total_amount"`
+	BillingID    string       `json:"billing_id"`
+	PaymentID    string       `json:"payment_id"`
+	BookingFee   int64        `json:"booking_fee"`
+	ParkingFee   int64        `json:"parking_fee"`
+	OvernightFee int64        `json:"overnight_fee"`
 }
 
 // FailReservationRequest is the payload for failing a waiting_payment reservation.

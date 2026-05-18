@@ -29,7 +29,7 @@ func TestPaymentFailure_ShouldCreateFailedRecord_WhenGatewayFails(t *testing.T) 
 	// Arrange
 	ctx := context.Background()
 	err := testhelpers.TruncateTables(ctx, env.db,
-		"penalties", "payments", "billing_records", "reservations", "drivers")
+		"payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driverID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")

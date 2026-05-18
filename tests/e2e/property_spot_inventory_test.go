@@ -32,7 +32,7 @@ func TestProperty1_SpotInventoryConservation(t *testing.T) {
 
 		// Clean tables for isolation
 		err := testhelpers.TruncateTables(ctx, env.db,
-			"penalties", "payments", "billing_records", "reservations", "drivers")
+			"payments", "billing_records", "reservations", "drivers")
 		require.NoError(t, err)
 
 		// Insert a test driver

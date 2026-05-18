@@ -145,6 +145,5 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	assert.Equal(t, model.StatusCheckedOut, checkOutResult.Reservation.Status)
 	assert.Equal(t, int64(25000), checkOutResult.TotalAmount, "PRD Example 4: 4-hour overstay total should be 25,000 IDR (no penalty)")
 
-	// Verify: no penalty was applied (overstay is free per PRD §9.4)
-	billing.AssertNotCalled(t, "ApplyPenalty")
+	// Verify: no penalty was applied (penalty system removed)
 }

@@ -137,14 +137,13 @@ func (h *Handler) CheckOut(ctx context.Context, req *reservationv1.CheckOutReque
 	}
 
 	return &reservationv1.CheckOutResponse{
-		Reservation:   reservationToProto(result.Reservation),
-		TotalAmount:   result.TotalAmount,
-		BillingId:     result.BillingID,
-		PaymentId:     result.PaymentID,
-		BookingFee:    result.BookingFee,
-		ParkingFee:    result.ParkingFee,
-		OvernightFee:  result.OvernightFee,
-		PenaltyAmount: result.PenaltyAmount,
+		Reservation:  reservationToProto(result.Reservation),
+		TotalAmount:  result.TotalAmount,
+		BillingId:    result.BillingID,
+		PaymentId:    result.PaymentID,
+		BookingFee:   result.BookingFee,
+		ParkingFee:   result.ParkingFee,
+		OvernightFee: result.OvernightFee,
 	}, nil
 }
 
@@ -180,14 +179,13 @@ func (h *Handler) CompleteCheckout(ctx context.Context, req *reservationv1.Compl
 	}
 
 	return &reservationv1.CheckOutResponse{
-		Reservation:   reservationToProto(result.Reservation),
-		TotalAmount:   result.TotalAmount,
-		BillingId:     result.BillingID,
-		PaymentId:     result.PaymentID,
-		BookingFee:    result.BookingFee,
-		ParkingFee:    result.ParkingFee,
-		OvernightFee:  result.OvernightFee,
-		PenaltyAmount: result.PenaltyAmount,
+		Reservation:  reservationToProto(result.Reservation),
+		TotalAmount:  result.TotalAmount,
+		BillingId:    result.BillingID,
+		PaymentId:    result.PaymentID,
+		BookingFee:   result.BookingFee,
+		ParkingFee:   result.ParkingFee,
+		OvernightFee: result.OvernightFee,
 	}, nil
 }
 

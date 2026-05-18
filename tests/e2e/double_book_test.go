@@ -28,7 +28,7 @@ import (
 func TestDoubleBook_ShouldRejectSecond_WhenSameSpotConcurrent(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
-	err := testhelpers.TruncateTables(ctx, env.db, "penalties", "payments", "billing_records", "reservations", "drivers")
+	err := testhelpers.TruncateTables(ctx, env.db, "payments", "billing_records", "reservations", "drivers")
 	require.NoError(t, err)
 
 	driver1ID, err := testhelpers.InsertTestDriver(ctx, env.db, "car")

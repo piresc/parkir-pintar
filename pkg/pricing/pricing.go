@@ -4,7 +4,7 @@
 //   - Booking fee: 5,000 IDR (non-refundable, charged at confirmation)
 //   - Hourly rate: 5,000 IDR per started hour (minimum 1 hour)
 //   - Overnight fee: 20,000 IDR per midnight crossed in WIB (UTC+7)
-//   - Cancellation: free within 2 minutes, 5,000 IDR after
+//   - Cancellation: driver forfeits booking fee only (no additional charge)
 //   - No-show: forfeits booking fee only (no additional charge)
 //   - Wrong-spot penalty: 200,000 IDR (not in scope for detection)
 package pricing

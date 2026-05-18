@@ -139,7 +139,6 @@ export default function CheckoutPage() {
           bookingFee={checkout.booking_fee || 0}
           parkingFee={checkout.parking_fee || 0}
           overnightFee={checkout.overnight_fee || 0}
-          penalty={checkout.penalty_amount || 0}
           total={total}
         />
         {error && <ErrorBanner message={error} />}

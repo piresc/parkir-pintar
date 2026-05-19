@@ -3,7 +3,7 @@ import StatusBadge from '../ui/StatusBadge';
 import CountdownTimer from './CountdownTimer';
 import { formatDateTime } from '../../utils/formatters';
 
-export default function ReservationCard({ reservation, spotCode }) {
+export default function ReservationCard({ reservation, spotCode, onExpire }) {
   return (
     <GlassCard className="reservation-card">
       <div className="reservation-header">
@@ -27,7 +27,7 @@ export default function ReservationCard({ reservation, spotCode }) {
         </span>
       </div>
       {reservation.status === 'confirmed' && reservation.expires_at && (
-        <CountdownTimer target={reservation.expires_at} />
+        <CountdownTimer target={reservation.expires_at} onExpire={onExpire} />
       )}
     </GlassCard>
   );

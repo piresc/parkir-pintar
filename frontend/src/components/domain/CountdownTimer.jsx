@@ -2,15 +2,20 @@ import { useState, useEffect } from 'react';
 
 import { parseTimestamp } from '../../utils/formatters';
 
-export default function CountdownTimer({ target }) {
+export default function CountdownTimer({ target, onExpire }) {
   const [remaining, setRemaining] = useState(() => calcRemaining(target));
 
   useEffect(() => {
     const id = setInterval(() => {
-      setRemaining(calcRemaining(target));
+      const r = calcRemaining(target);
+      setRemaining(r);
+      if (r.expired) {
+        clearInterval(id);
+        if (onExpire) onExpire();
+      }
     }, 1000);
     return () => clearInterval(id);
-  }, [target]);
+  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function calcRemaining(t) {
     const diff = parseTimestamp(t) - Date.now();

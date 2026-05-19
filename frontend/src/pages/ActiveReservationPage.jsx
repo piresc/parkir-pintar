@@ -58,6 +58,26 @@ export default function ActiveReservationPage() {
     }
   }, [reservation?.spot_id]);
 
+  // Handle countdown expiry — refetch reservation to get backend's expired status
+  async function handleExpire() {
+    const resId = id || activeReservation?.id;
+    if (!resId) return;
+    try {
+      const res = await api.getReservation(resId);
+      const data = res.data || res;
+      if (data.status === 'expired' || data.status === 'cancelled') {
+        clearReservation();
+        fetchReservations();
+      } else {
+        setReservation(data);
+      }
+    } catch {
+      // Backend already expired it — clear local state
+      clearReservation();
+      fetchReservations();
+    }
+  }
+
   async function handleCheckIn() {
     setLoading(true);
     setError(null);
@@ -136,7 +156,7 @@ export default function ActiveReservationPage() {
       {/* Active Reservation Section */}
       {reservation ? (
         <>
-          <ReservationCard reservation={reservation} spotCode={spotCode} />
+          <ReservationCard reservation={reservation} spotCode={spotCode} onExpire={handleExpire} />
           {error && <ErrorBanner message={error} />}
           {loading && <LoadingSpinner />}
           <div className="action-buttons">

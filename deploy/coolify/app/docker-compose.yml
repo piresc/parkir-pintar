@@ -5,7 +5,7 @@
 services:
   gateway:
     image: ghcr.io/piresc/parkir-pintar:latest
-    container_name: parkir-gateway
+
     command: ["/app/gateway"]
     ports:
       - "8082:8080"
@@ -51,7 +51,7 @@ services:
 
   search:
     image: ghcr.io/piresc/parkir-pintar:latest
-    container_name: parkir-search
+
     command: ["/app/search"]
     environment:
       APP_NAME: parkir-pintar-search
@@ -88,7 +88,7 @@ services:
 
   reservation:
     image: ghcr.io/piresc/parkir-pintar:latest
-    container_name: parkir-reservation
+
     command: ["/app/reservation"]
     environment:
       APP_NAME: parkir-pintar-reservation
@@ -135,7 +135,7 @@ services:
 
   billing:
     image: ghcr.io/piresc/parkir-pintar:latest
-    container_name: parkir-billing
+
     command: ["/app/billing"]
     environment:
       APP_NAME: parkir-pintar-billing
@@ -167,7 +167,7 @@ services:
 
   payment:
     image: ghcr.io/piresc/parkir-pintar:latest
-    container_name: parkir-payment
+
     command: ["/app/payment"]
     environment:
       APP_NAME: parkir-pintar-payment
@@ -204,7 +204,7 @@ services:
 
   presence:
     image: ghcr.io/piresc/parkir-pintar:latest
-    container_name: parkir-presence
+
     command: ["/app/presence"]
     environment:
       APP_NAME: parkir-pintar-presence
@@ -228,7 +228,7 @@ services:
 
   frontend:
     image: ghcr.io/piresc/parkir-pintar-frontend:latest
-    container_name: parkir-pintar-frontend
+
     networks:
       - app
     restart: unless-stopped

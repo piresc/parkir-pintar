@@ -15,7 +15,7 @@ K6 := $(shell which k6 2>/dev/null || echo "k6")
 
 # Docker
 DOCKER_COMPOSE := docker compose
-COMPOSE_FILE := deploy/docker-compose.yml
+COMPOSE_FILE := docker-compose.yml
 
 # Migration
 MIGRATE := $(shell which migrate 2>/dev/null || echo "migrate")

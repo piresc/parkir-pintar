@@ -94,3 +94,4 @@ opencode.json
 # Agent planning files
 .hermes/
 docs/superpowers/
+gateway

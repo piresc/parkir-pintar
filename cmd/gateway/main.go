@@ -133,8 +133,8 @@ func main() {
 	clientCfg.Target = analyticsTarget
 	analyticsConn, err := grpcclient.Dial(ctx, clientCfg)
 	if err != nil {
-		log.Error("failed to connect to analytics service", slog.Any("error", err))
-		os.Exit(1)
+		log.Warn("analytics service unavailable, continuing without analytics", slog.Any("error", err))
+		analyticsConn = nil
 	}
 
 	// 7. Create gRPC service clients
@@ -142,7 +142,10 @@ func main() {
 	searchClient := searchv1.NewSearchServiceClient(searchConn)
 	paymentClient := paymentv1.NewPaymentServiceClient(paymentConn)
 	billingClient := billingv1.NewBillingServiceClient(billingConn)
-	analyticsClient := analyticsv1.NewAnalyticsServiceClient(analyticsConn)
+	var analyticsClient analyticsv1.AnalyticsServiceClient
+	if analyticsConn != nil {
+		analyticsClient = analyticsv1.NewAnalyticsServiceClient(analyticsConn)
+	}
 
 	// 8. Setup shutdown manager
 	shutdownMgr := server.NewShutdownManager(log)
@@ -150,7 +153,9 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { return searchConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return paymentConn.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
-	shutdownMgr.Register(func(_ context.Context) error { return analyticsConn.Close() })
+	if analyticsConn != nil {
+		shutdownMgr.Register(func(_ context.Context) error { return analyticsConn.Close() })
+	}
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 	if met != nil {
 		shutdownMgr.Register(func(ctx context.Context) error { return met.Shutdown(ctx) })

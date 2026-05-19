@@ -21,8 +21,19 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.getAvailability();
-      setData(res.data);
+      const [carRes, motoRes] = await Promise.all([
+        api.getAvailability('car'),
+        api.getAvailability('motorcycle'),
+      ]);
+      // Merge car + moto data per floor
+      const carFloors = carRes.data?.floors || [];
+      const motoFloors = motoRes.data?.floors || [];
+      const floors = carFloors.map((cf, i) => ({
+        floor_number: cf.floor_number,
+        available_car: cf.available_car || 0,
+        available_moto: motoFloors[i]?.available_moto || 0,
+      }));
+      setData({ floors, total: null });
     } catch (e) {
       setError(e.message);
     } finally {

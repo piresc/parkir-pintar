@@ -21,6 +21,7 @@ import (
 	"parkir-pintar/pkg/response"
 
 	paymentv1 "parkir-pintar/proto/payment/v1"
+	presencev1 "parkir-pintar/proto/presence/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
@@ -31,6 +32,7 @@ type Handler struct {
 	reservation reservationv1.ReservationServiceClient
 	search      searchv1.SearchServiceClient
 	payment     paymentv1.PaymentServiceClient
+	presence    presencev1.PresenceServiceClient
 	jwtCfg      config.JWTConfig
 }
 
@@ -39,12 +41,14 @@ func NewHandler(
 	reservation reservationv1.ReservationServiceClient,
 	search searchv1.SearchServiceClient,
 	payment paymentv1.PaymentServiceClient,
+	presence presencev1.PresenceServiceClient,
 	jwtCfg config.JWTConfig,
 ) *Handler {
 	return &Handler{
 		reservation: reservation,
 		search:      search,
 		payment:     payment,
+		presence:    presence,
 		jwtCfg:      jwtCfg,
 	}
 }
@@ -76,6 +80,9 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 
 	// Payment routes
 	api.GET("/payments/:id/status", h.GetPaymentStatus)
+
+	// Presence routes
+	api.POST("/presence/stream", h.StreamPresence)
 }
 
 // getUserID extracts the authenticated user's ID from the Gin context.
@@ -385,6 +392,41 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, resp)
+}
+
+// streamPresenceRequest is the JSON body for POST /api/v1/presence/stream.
+type streamPresenceRequest struct {
+	ReservationID string  `json:"reservation_id" binding:"required"`
+	Latitude      float64 `json:"latitude"`
+	Longitude     float64 `json:"longitude"`
+	Accuracy      float64 `json:"accuracy"`
+}
+
+// StreamPresence transcodes POST /api/v1/presence/stream to PresenceService.VerifyPresence.
+// The frontend sends GPS coordinates; the backend uses sensor-based verification (stub).
+// Returns {is_geofenced: true} to allow check-in flow.
+func (h *Handler) StreamPresence(c *gin.Context) {
+	var req streamPresenceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	driverID := getUserID(c)
+
+	resp, err := h.presence.VerifyPresence(contextWithAuth(c), &presencev1.VerifyPresenceRequest{
+		DriverId:      driverID,
+		ReservationId: req.ReservationID,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, map[string]interface{}{
+		"is_geofenced": resp.GetVerified(),
+		"message":      resp.GetMessage(),
+	})
 }
 
 // grpcCodeToHTTP maps gRPC status codes to HTTP status codes.

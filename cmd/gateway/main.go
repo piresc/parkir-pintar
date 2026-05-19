@@ -28,6 +28,7 @@ import (
 	analyticsv1 "parkir-pintar/proto/analytics/v1"
 	billingv1 "parkir-pintar/proto/billing/v1"
 	paymentv1 "parkir-pintar/proto/payment/v1"
+	presencev1 "parkir-pintar/proto/presence/v1"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
@@ -93,6 +94,7 @@ func main() {
 	billingTarget := getEnv("GRPC_BILLING_TARGET", "localhost:9093")
 	paymentTarget := getEnv("GRPC_PAYMENT_TARGET", "localhost:9094")
 	analyticsTarget := getEnv("GRPC_ANALYTICS_TARGET", "localhost:9095")
+	presenceTarget := getEnv("GRPC_PRESENCE_TARGET", "localhost:9096")
 
 	clientCfg := grpcclient.ClientConfig{
 		DialTimeout:      cfg.GRPC.Client.DialTimeout,
@@ -137,6 +139,13 @@ func main() {
 		analyticsConn = nil
 	}
 
+	clientCfg.Target = presenceTarget
+	presenceConn, err := grpcclient.Dial(ctx, clientCfg)
+	if err != nil {
+		log.Warn("presence service unavailable, continuing without presence", slog.Any("error", err))
+		presenceConn = nil
+	}
+
 	// 7. Create gRPC service clients
 	reservationClient := reservationv1.NewReservationServiceClient(reservationConn)
 	searchClient := searchv1.NewSearchServiceClient(searchConn)
@@ -145,6 +154,10 @@ func main() {
 	var analyticsClient analyticsv1.AnalyticsServiceClient
 	if analyticsConn != nil {
 		analyticsClient = analyticsv1.NewAnalyticsServiceClient(analyticsConn)
+	}
+	var presenceClient presencev1.PresenceServiceClient
+	if presenceConn != nil {
+		presenceClient = presencev1.NewPresenceServiceClient(presenceConn)
 	}
 
 	// 8. Setup shutdown manager
@@ -155,6 +168,9 @@ func main() {
 	shutdownMgr.Register(func(_ context.Context) error { return billingConn.Close() })
 	if analyticsConn != nil {
 		shutdownMgr.Register(func(_ context.Context) error { return analyticsConn.Close() })
+	}
+	if presenceConn != nil {
+		shutdownMgr.Register(func(_ context.Context) error { return presenceConn.Close() })
 	}
 	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
 	if met != nil {
@@ -207,7 +223,7 @@ func main() {
 
 	// 12. Register gateway REST routes (with JWT auth)
 	jwtSecret := cfg.JWT.Secret
-	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient, cfg.JWT)
+	gwHandler := gatewayhandler.NewHandler(reservationClient, searchClient, paymentClient, presenceClient, cfg.JWT)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// 13. Register analytics REST routes (gRPC-backed, with JWT auth)

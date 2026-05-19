@@ -284,7 +284,7 @@ jobs:
             ghcr.io/${{ github.repository }}-frontend:main-${{ github.sha }}
 
   # -------------------------------------------------------------------------
-  # Deploy to staging via Coolify webhook (after both images pushed)
+  # Deploy to staging via Coolify API restart (after both images pushed)
   # -------------------------------------------------------------------------
   deploy-staging:
     name: Deploy to Staging
@@ -292,9 +292,11 @@ jobs:
     needs: [build-push-staging, build-push-frontend]
     if: github.event_name == 'push'
     steps:
-      - name: Trigger Coolify redeploy
+      - name: Trigger Coolify service restart
         run: |
-          curl -sSf -X GET \
+          curl -sSf -X POST \
             "${{ secrets.COOLIFY_WEBHOOK_URL }}" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
             --max-time 30

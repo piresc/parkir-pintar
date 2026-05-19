@@ -66,7 +66,10 @@ export function ReservationProvider({ children }) {
     ? currentReservation
     : null;
 
-  const pastReservations = reservations.filter(r => !ACTIVE_STATUSES.includes(r.status));
+  const HIDDEN_STATUSES = ['failed', 'expired'];
+  const pastReservations = reservations.filter(
+    r => !ACTIVE_STATUSES.includes(r.status) && !HIDDEN_STATUSES.includes(r.status)
+  );
 
   return (
     <ReservationContext.Provider

@@ -33,8 +33,18 @@ export default function DashboardPage() {
   useEffect(() => {
     load();
     const id = setInterval(load, 10000);
-    return () => clearInterval(id);
-  }, []);
+
+    // Refetch when tab/page becomes visible again (e.g. navigate back)
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') load();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="page dashboard-page">

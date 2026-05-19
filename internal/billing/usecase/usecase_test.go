@@ -210,9 +210,9 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 	repo.AssertExpectations(t)
 }
 
-// TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey verifies
-// that GenerateInvoice returns the existing record when the idempotency key already exists.
-func TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testing.T) {
+// TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced verifies
+// that GenerateInvoice returns the existing record when already in "invoiced" status.
+func TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 
@@ -225,7 +225,7 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *tes
 		IdempotencyKey: "invoice-res-3",
 		Status:         model.BillingStatusInvoiced,
 	}
-	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-res-3").Return(existing, nil)
+	repo.On("GetByReservationID", mock.Anything, "res-3").Return(existing, nil)
 
 	uc := NewUsecase(repo)
 	req := &model.GenerateInvoiceRequest{
@@ -251,7 +251,6 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	// Arrange
 	repo := new(MockRepository)
 
-	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-res-4").Return(nil, repository.ErrNotFound)
 	existingRecord := &model.BillingRecord{
 		ID:             "billing-4",
 		ReservationID:  "res-4",

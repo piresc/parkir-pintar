@@ -49,6 +49,7 @@ type BillingClient interface {
 //go:generate mockgen -destination=../mocks/mock_payment_client.go -package=mocks parkir-pintar/internal/reservation/usecase PaymentClient
 type PaymentClient interface {
 	ProcessPayment(ctx context.Context, billingID string, amount int64, paymentMethod string, idempotencyKey string) (string, error)
+	RefundPayment(ctx context.Context, paymentID string) error
 }
 
 // PresenceClient defines the interface for presence verification operations.
@@ -190,17 +191,6 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		return existing, nil
 	}
 
-	// Check if driver already has an active reservation
-	active, err := uc.repo.ListByDriverID(ctx, req.DriverID, "")
-	if err != nil {
-		return nil, fmt.Errorf("check active reservations: %w", err)
-	}
-	for _, r := range active {
-		if r.Status == model.StatusWaitingPayment || r.Status == model.StatusConfirmed || r.Status == model.StatusCheckedIn {
-			return nil, apperror.New("CONFLICT", "driver already has an active reservation", 409)
-		}
-	}
-
 	// Step 2: Find available spot
 	var spotID string
 	switch req.AssignmentMode {
@@ -339,7 +329,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Process payment for booking fee
 	paymentIdempotencyKey := fmt.Sprintf("booking-payment-%s", reservation.ID)
-	_, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, paymentMethodQRIS, paymentIdempotencyKey)
+	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, paymentMethodQRIS, paymentIdempotencyKey)
 
 	if payErr != nil {
 		slog.Error("booking fee payment failed",
@@ -358,6 +348,14 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		}
 		// Verify status hasn't changed since our first check
 		if current.Status != model.StatusWaitingPayment {
+			// Compensate: refund the payment we just processed
+			// Best-effort refund — log error if it fails for manual intervention
+			if refundErr := uc.paymentClient.RefundPayment(ctx, paymentID); refundErr != nil {
+				slog.Error("failed to refund orphaned payment",
+					slog.String("payment_id", paymentID),
+					slog.String("reservation_id", reservation.ID),
+					slog.Any("error", refundErr))
+			}
 			return apperror.New("CONFLICT", "reservation status changed concurrently", 409)
 		}
 
@@ -638,11 +636,17 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		return nil, fmt.Errorf("complete checkout process payment: %w", err)
 	}
 
-	// Release spot
+	// Transition to completed and release spot atomically
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
+		now := time.Now()
+		reservation.Status = model.StatusCompleted
+		reservation.UpdatedAt = now
+		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
+			return err
+		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
 	}); err != nil {
-		slog.Error("failed to release spot after checkout payment",
+		slog.Error("failed to complete reservation after payment",
 			slog.String("reservation_id", reservation.ID),
 			slog.Any("error", err))
 		return nil, fmt.Errorf("complete checkout release spot: %w", err)

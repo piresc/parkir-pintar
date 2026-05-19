@@ -20,6 +20,9 @@ var ErrNotFound = errors.New("billing record not found")
 // ErrConflict is returned when a unique constraint is violated (duplicate record).
 var ErrConflict = errors.New("conflict: duplicate record")
 
+// ErrConcurrentModification is returned when an optimistic lock fails due to a version mismatch.
+var ErrConcurrentModification = errors.New("concurrent modification: version mismatch")
+
 // Repository defines the data access interface for billing records.
 //
 //go:generate mockgen -destination=../mocks/mock_repository.go -package=mocks parkir-pintar/internal/billing/repository Repository
@@ -45,10 +48,10 @@ func (r *sqlxRepository) CreateBillingRecord(ctx context.Context, record *model.
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO billing_records (id, reservation_id, booking_fee, parking_fee, overnight_fee,
 		 total_amount, duration_minutes, billed_hours,
-		 is_overnight, idempotency_key, status, created_at, updated_at)
+		 is_overnight, idempotency_key, status, version, created_at, updated_at)
 		 VALUES (:id, :reservation_id, :booking_fee, :parking_fee, :overnight_fee,
 		 :total_amount, :duration_minutes, :billed_hours,
-		 :is_overnight, :idempotency_key, :status, :created_at, :updated_at)`,
+		 :is_overnight, :idempotency_key, :status, :version, :created_at, :updated_at)`,
 		record,
 	)
 	if err != nil {
@@ -88,24 +91,32 @@ func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*
 }
 
 // UpdateBillingRecord updates an existing billing record's mutable fields.
+// It uses optimistic locking via the version column to prevent lost updates.
 func (r *sqlxRepository) UpdateBillingRecord(ctx context.Context, record *model.BillingRecord) error {
+	currentVersion := record.Version
+	record.Version = currentVersion + 1
+
 	result, err := r.db.NamedExecContext(ctx,
 		`UPDATE billing_records SET booking_fee = :booking_fee, parking_fee = :parking_fee,
 		 overnight_fee = :overnight_fee, total_amount = :total_amount,
 		 duration_minutes = :duration_minutes, billed_hours = :billed_hours,
-		 is_overnight = :is_overnight, status = :status, updated_at = :updated_at
-		 WHERE id = :id`,
+		 is_overnight = :is_overnight, status = :status, version = :version,
+		 updated_at = :updated_at
+		 WHERE id = :id AND version = `+fmt.Sprintf("%d", currentVersion),
 		record,
 	)
 	if err != nil {
+		record.Version = currentVersion // rollback in-memory version on error
 		return fmt.Errorf("update billing record: %w", err)
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
+		record.Version = currentVersion
 		return fmt.Errorf("update billing record rows affected: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("update billing record: %w: id=%s", ErrNotFound, record.ID)
+		record.Version = currentVersion
+		return ErrConcurrentModification
 	}
 	return nil
 }

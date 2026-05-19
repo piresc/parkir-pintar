@@ -24,6 +24,7 @@ type BillingRecord struct {
 	IsOvernight     bool      `json:"is_overnight" db:"is_overnight"`
 	IdempotencyKey  string    `json:"idempotency_key" db:"idempotency_key"`
 	Status          string    `json:"status" db:"status"`
+	Version         int       `json:"version" db:"version"`
 	CreatedAt       time.Time `json:"created_at,omitzero" db:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at,omitzero" db:"updated_at"`
 }

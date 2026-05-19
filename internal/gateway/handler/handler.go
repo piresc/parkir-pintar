@@ -5,6 +5,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"math"
 	"net/http"
 	"strconv"
@@ -419,7 +420,8 @@ func grpcCodeToHTTP(code codes.Code) int {
 func writeGRPCError(c *gin.Context, err error) {
 	st, ok := status.FromError(err)
 	if !ok {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		slog.Error("non-gRPC error in gateway", "error", err)
+		response.Error(c, http.StatusInternalServerError, "internal server error")
 		return
 	}
 	httpCode := grpcCodeToHTTP(st.Code())

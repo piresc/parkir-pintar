@@ -87,55 +87,54 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 // CalculateFee computes the parking fee based on actual session duration using
 // the pricing engine and updates the billing record.
 func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.CalculateFeeRequest) (*model.BillingRecord, error) {
-	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
-	if err != nil {
-		return nil, fmt.Errorf("calculate fee get record: %w", err)
+	const maxRetries = 2
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
+		if err != nil {
+			return nil, fmt.Errorf("calculate fee get record: %w", err)
+		}
+
+		if record.Status != model.BillingStatusPending {
+			return nil, fmt.Errorf("cannot calculate fee for billing record in status %q: expected %q", record.Status, model.BillingStatusPending)
+		}
+
+		feeResult := pricing.CalculateSessionFee(req.CheckInAt, req.CheckOutAt)
+
+		record.ParkingFee = feeResult.ParkingFee
+		record.OvernightFee = feeResult.OvernightFee
+		record.DurationMinutes = feeResult.DurationMinutes
+		record.BilledHours = feeResult.BilledHours
+		record.IsOvernight = feeResult.IsOvernight
+		record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
+		record.Status = model.BillingStatusCalculated
+		record.UpdatedAt = time.Now()
+
+		if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
+			if errors.Is(err, repository.ErrConcurrentModification) && attempt < maxRetries {
+				continue
+			}
+			return nil, fmt.Errorf("calculate fee update: %w", err)
+		}
+
+		return record, nil
 	}
-
-	if record.Status != model.BillingStatusPending {
-		return nil, fmt.Errorf("cannot calculate fee for billing record in status %q: expected %q", record.Status, model.BillingStatusPending)
-	}
-
-	feeResult := pricing.CalculateSessionFee(req.CheckInAt, req.CheckOutAt)
-
-	record.ParkingFee = feeResult.ParkingFee
-	record.OvernightFee = feeResult.OvernightFee
-	record.DurationMinutes = feeResult.DurationMinutes
-	record.BilledHours = feeResult.BilledHours
-	record.IsOvernight = feeResult.IsOvernight
-	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
-	record.Status = model.BillingStatusCalculated
-	record.UpdatedAt = time.Now()
-
-	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
-		return nil, fmt.Errorf("calculate fee update: %w", err)
-	}
-
-	return record, nil
+	return nil, fmt.Errorf("calculate fee: %w", repository.ErrConcurrentModification)
 }
 
 // GenerateInvoice generates an idempotent invoice for a reservation. If the
-// idempotency key already exists, the existing record is returned.
+// record is already in "invoiced" status, it is returned immediately.
 func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.GenerateInvoiceRequest) (*model.BillingRecord, error) {
-	// Idempotency check via idempotency_key
-	existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
-	if err == nil && existing != nil {
-		return existing, nil
-	}
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		return nil, fmt.Errorf("generate invoice idempotency check: %w", err)
-	}
-
 	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
 	if err != nil {
 		return nil, fmt.Errorf("generate invoice get record: %w", err)
 	}
 
+	// Idempotent: if already invoiced, return the existing record.
+	if record.Status == model.BillingStatusInvoiced {
+		return record, nil
+	}
+
 	if record.Status != model.BillingStatusCalculated {
-		// Idempotent: if already invoiced, return the existing record
-		if record.Status == model.BillingStatusInvoiced {
-			return record, nil
-		}
 		return nil, fmt.Errorf("cannot invoice billing record in status %q: expected %q or %q", record.Status, model.BillingStatusCalculated, model.BillingStatusInvoiced)
 	}
 
@@ -151,29 +150,36 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 
 // ApplyOvernightFee updates the overnight fee and total on the billing record.
 func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.ApplyOvernightFeeRequest) (*model.BillingRecord, error) {
-	record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
-	if err != nil {
-		return nil, fmt.Errorf("apply overnight fee get record: %w", err)
-	}
+	const maxRetries = 2
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		record, err := uc.repo.GetByReservationID(ctx, req.ReservationID)
+		if err != nil {
+			return nil, fmt.Errorf("apply overnight fee get record: %w", err)
+		}
 
-	// Idempotent: if already marked overnight, return as-is
-	if record.IsOvernight {
+		// Idempotent: if already marked overnight, return as-is
+		if record.IsOvernight {
+			return record, nil
+		}
+
+		overnightFee := req.Amount
+		if overnightFee <= 0 {
+			overnightFee = pricing.OvernightPerNight
+		}
+
+		record.OvernightFee = overnightFee
+		record.IsOvernight = true
+		record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
+		record.UpdatedAt = time.Now()
+
+		if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
+			if errors.Is(err, repository.ErrConcurrentModification) && attempt < maxRetries {
+				continue
+			}
+			return nil, fmt.Errorf("apply overnight fee update: %w", err)
+		}
+
 		return record, nil
 	}
-
-	overnightFee := req.Amount
-	if overnightFee <= 0 {
-		overnightFee = pricing.OvernightPerNight
-	}
-
-	record.OvernightFee = overnightFee
-	record.IsOvernight = true
-	record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
-	record.UpdatedAt = time.Now()
-
-	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
-		return nil, fmt.Errorf("apply overnight fee update: %w", err)
-	}
-
-	return record, nil
+	return nil, fmt.Errorf("apply overnight fee: %w", repository.ErrConcurrentModification)
 }

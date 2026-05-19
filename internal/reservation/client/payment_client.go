@@ -51,3 +51,16 @@ func (c *PaymentClient) processPaymentInner(ctx context.Context, billingID strin
 	}
 	return resp.GetId(), nil
 }
+
+func (c *PaymentClient) RefundPayment(ctx context.Context, paymentID string) error {
+	err := c.cb.Execute(func() error {
+		_, err := c.client.RefundPayment(ctx, &paymentv1.RefundPaymentRequest{
+			PaymentId: paymentID,
+		})
+		return err
+	})
+	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
+		return apperror.New("SERVICE_UNAVAILABLE", "payment service temporarily unavailable", 503)
+	}
+	return err
+}

@@ -86,6 +86,12 @@ func (a *paymentAdapter) ProcessPayment(ctx context.Context, billingID string, a
 	return payment.ID, nil
 }
 
+// RefundPayment refunds a previously processed payment.
+func (a *paymentAdapter) RefundPayment(ctx context.Context, paymentID string) error {
+	_, err := a.uc.RefundPayment(ctx, &paymentmodel.RefundPaymentRequest{PaymentID: paymentID})
+	return err
+}
+
 // ---------------------------------------------------------------------------
 // reservationRedisAdapter — wraps *redis.Client → reservation.RedisClient
 // ---------------------------------------------------------------------------

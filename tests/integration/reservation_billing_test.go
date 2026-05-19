@@ -183,6 +183,11 @@ func (m *MockPaymentClient) ProcessPayment(ctx context.Context, billingID string
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockPaymentClient) RefundPayment(ctx context.Context, paymentID string) error {
+	args := m.Called(ctx, paymentID)
+	return args.Error(0)
+}
+
 type MockLock struct {
 	mock.Mock
 }

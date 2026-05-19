@@ -240,6 +240,7 @@ services:
       start_period: 5s
     labels:
       - traefik.enable=true
+      - traefik.docker.network=parkir-app
       - traefik.http.routers.parkir-fe.entrypoints=http
       - traefik.http.routers.parkir-fe.rule=Host(`parkir-pintar.piresc.dev`)
       - traefik.http.routers.parkir-fe-https.entrypoints=https

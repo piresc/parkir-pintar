@@ -22,27 +22,35 @@ import (
 // allStatuses is the complete set of reservation statuses.
 var allStatuses = []string{
 	StatusPending,
+	StatusWaitingPayment,
 	StatusConfirmed,
 	StatusCheckedIn,
 	StatusCheckedOut,
+	StatusCompleted,
 	StatusExpired,
 	StatusCancelled,
+	StatusFailed,
 }
 
 // validTransitionPairs enumerates every allowed (from, to) pair.
 var validTransitionPairs = [][2]string{
 	{StatusPending, StatusConfirmed},
+	{StatusWaitingPayment, StatusConfirmed},
+	{StatusWaitingPayment, StatusFailed},
+	{StatusWaitingPayment, StatusCancelled},
 	{StatusConfirmed, StatusCheckedIn},
 	{StatusConfirmed, StatusExpired},
 	{StatusConfirmed, StatusCancelled},
 	{StatusCheckedIn, StatusCheckedOut},
+	{StatusCheckedOut, StatusCompleted},
 }
 
 // terminalStatuses are statuses with no outgoing transitions.
 var terminalStatuses = []string{
-	StatusCheckedOut,
+	StatusCompleted,
 	StatusExpired,
 	StatusCancelled,
+	StatusFailed,
 }
 
 // validTransitionSet builds a lookup set for O(1) membership checks.
@@ -136,7 +144,7 @@ func TestProperty4_InvalidTransitionsAlwaysFail(t *testing.T) {
 }
 
 // TestProperty4_TerminalStatesHaveNoOutgoingTransitions verifies that for any terminal
-// state (checked_out, expired, cancelled) and any target status, ValidateTransition
+// state (completed, expired, cancelled, failed) and any target status, ValidateTransition
 // returns an error wrapping ErrInvalidTransition.
 //
 // **Validates: Requirements 7.1, 7.2, 7.3**

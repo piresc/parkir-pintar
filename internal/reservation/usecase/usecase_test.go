@@ -185,6 +185,11 @@ func (m *MockPaymentClient) ProcessPayment(ctx context.Context, billingID string
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockPaymentClient) RefundPayment(ctx context.Context, paymentID string) error {
+	args := m.Called(ctx, paymentID)
+	return args.Error(0)
+}
+
 // MockLock implements Lock using testify/mock.
 type MockLock struct {
 	mock.Mock
@@ -260,7 +265,6 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "new-key").Return(nil, model.ErrNotFound)
-	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-42",
 		VehicleType: "car",
@@ -312,7 +316,6 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "user-key").Return(nil, model.ErrNotFound)
-	repo.On("ListByDriverID", mock.Anything, "driver-2", "").Return([]*model.Reservation{}, nil)
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-99").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
@@ -358,7 +361,6 @@ func TestCreateReservation_ShouldReturnConflict_WhenLockContention(t *testing.T)
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "lock-key").Return(nil, model.ErrNotFound)
-	repo.On("ListByDriverID", mock.Anything, "driver-3", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:     "spot-locked",
 		Status: "available",
@@ -394,7 +396,6 @@ func TestCreateReservation_ShouldReturnConflict_WhenNoAvailableSpots(t *testing.
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "no-spots-key").Return(nil, model.ErrNotFound)
-	repo.On("ListByDriverID", mock.Anything, "driver-4", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(nil, model.ErrNotFound)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
@@ -696,7 +697,6 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 
 	// First idempotency check: not found (concurrent request hasn't committed yet)
 	repo.On("FindByIdempotencyKey", mock.Anything, "dup-key").Return(nil, model.ErrNotFound).Once()
-	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-42",
 		VehicleType: "car",
@@ -748,7 +748,6 @@ func TestCreateReservation_ShouldReturnError_WhenNonUniqueConstraintError(t *tes
 	payment := new(MockPaymentClient)
 
 	repo.On("FindByIdempotencyKey", mock.Anything, "err-key").Return(nil, model.ErrNotFound)
-	repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-50",
 		VehicleType: "car",
@@ -804,7 +803,6 @@ func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) 
 	}
 
 	repo.On("FindByIdempotencyKey", ctx, "idem-mismatch-001").Return(nil, model.ErrNotFound)
-	repo.On("ListByDriverID", ctx, "driver-001", "").Return([]*model.Reservation{}, nil)
 	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-moto-001").Return(motorcycleSpot, nil)
 	lck := new(MockLock)
 	locker.On("Acquire", ctx, "spot:spot-moto-001").Return(lck, nil)
@@ -909,13 +907,14 @@ func TestCompleteCheckout_ShouldProcessPaymentAndReleaseSpot_WhenCheckedOut(t *t
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-complete").Return(reservation, nil)
 	billing.On("GenerateInvoice", mock.Anything, "res-complete", mock.AnythingOfType("string")).Return(billingRecord, nil)
 	payment.On("ProcessPayment", mock.Anything, "billing-2", int64(15000), "qris", mock.AnythingOfType("string")).Return("pay-2", nil)
+	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "available").Return(nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
 	result, err := uc.CompleteCheckout(t.Context(), &model.CompleteCheckoutRequest{ReservationID: "res-complete"})
 
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusCheckedOut, result.Reservation.Status)
+	assert.Equal(t, model.StatusCompleted, result.Reservation.Status)
 	assert.Equal(t, int64(15000), result.TotalAmount)
 	assert.Equal(t, "pay-2", result.PaymentID)
 	assert.Equal(t, "billing-2", result.BillingID)

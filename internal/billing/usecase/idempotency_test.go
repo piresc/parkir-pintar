@@ -9,17 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/pkg/pricing"
 )
 
-// TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys
-// verifies PRD §17.1: "different keys create different records" for billing.
-func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys(t *testing.T) {
+// TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations
+// verifies PRD §17.1: "different reservations create different invoice records" for billing.
+func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(t *testing.T) {
 	// Arrange — first invoice
 	repo := new(MockRepository)
 
-	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-key-1").Return(nil, repository.ErrNotFound).Once()
 	record1 := &model.BillingRecord{
 		ID:             "billing-1",
 		ReservationID:  "res-1",
@@ -31,7 +29,7 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(record1, nil).Once()
 	repo.On("UpdateBillingRecord", mock.Anything, mock.MatchedBy(func(r *model.BillingRecord) bool {
-		return r.Status == model.BillingStatusInvoiced
+		return r.Status == model.BillingStatusInvoiced && r.ReservationID == "res-1"
 	})).Return(nil).Once()
 
 	uc := NewUsecase(repo)
@@ -43,7 +41,6 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	require.NotNil(t, inv1)
 
 	// Arrange — second invoice for different reservation
-	repo.On("GetByIdempotencyKey", mock.Anything, "invoice-key-2").Return(nil, repository.ErrNotFound).Once()
 	record2 := &model.BillingRecord{
 		ID:             "billing-2",
 		ReservationID:  "res-2",
@@ -55,7 +52,7 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-2").Return(record2, nil).Once()
 	repo.On("UpdateBillingRecord", mock.Anything, mock.MatchedBy(func(r *model.BillingRecord) bool {
-		return r.Status == model.BillingStatusInvoiced
+		return r.Status == model.BillingStatusInvoiced && r.ReservationID == "res-2"
 	})).Return(nil).Once()
 
 	inv2, err := uc.GenerateInvoice(t.Context(), &model.GenerateInvoiceRequest{
@@ -65,11 +62,11 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKe
 	require.NoError(t, err)
 	require.NotNil(t, inv2)
 
-	// Assert: different keys → different invoice records
-	assert.NotEqual(t, inv1.ID, inv2.ID, "different idempotency keys must produce different billing records")
+	// Assert: different reservations → different invoice records
+	assert.NotEqual(t, inv1.ID, inv2.ID, "different reservations must produce different billing records")
 	assert.NotEqual(t, inv1.ReservationID, inv2.ReservationID)
 
-	// Assert: UpdateBillingRecord was called twice (once per key)
+	// Assert: UpdateBillingRecord was called twice (once per reservation)
 	repo.AssertNumberOfCalls(t, "UpdateBillingRecord", 2)
 
 	repo.AssertExpectations(t)

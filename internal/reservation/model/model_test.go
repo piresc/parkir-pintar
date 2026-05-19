@@ -27,6 +27,7 @@ func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) 
 		{name: "confirmed to expired", from: StatusConfirmed, to: StatusExpired},
 		{name: "confirmed to cancelled", from: StatusConfirmed, to: StatusCancelled},
 		{name: "checked_in to checked_out", from: StatusCheckedIn, to: StatusCheckedOut},
+		{name: "checked_out to completed", from: StatusCheckedOut, to: StatusCompleted},
 	}
 
 	for _, tt := range tests {
@@ -78,10 +79,10 @@ func TestValidateTransition_ShouldReturnError_WhenTransitionIsInvalid(t *testing
 }
 
 func TestValidateTransition_ShouldReturnError_WhenFromTerminalState(t *testing.T) {
-	terminalStates := []string{StatusCheckedOut, StatusExpired, StatusCancelled}
+	terminalStates := []string{StatusCompleted, StatusExpired, StatusCancelled, StatusFailed}
 	allStatuses := []string{
 		StatusPending, StatusConfirmed, StatusCheckedIn,
-		StatusCheckedOut, StatusExpired, StatusCancelled,
+		StatusCheckedOut, StatusCompleted, StatusExpired, StatusCancelled, StatusFailed,
 	}
 
 	for _, terminal := range terminalStates {

@@ -2,7 +2,6 @@ package grpcmiddleware
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,9 +13,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const (
@@ -58,6 +54,11 @@ func (i *Interceptors) IdempotencyUnaryInterceptor(cfg IdempotencyConfig) grpc.U
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
+		// If Redis is unavailable, skip idempotency logic entirely.
+		if i.redisClient == nil {
+			return handler(ctx, req)
+		}
+
 		// Skip idempotency for methods not in the enforcement list.
 		if _, ok := enforced[info.FullMethod]; !ok {
 			return handler(ctx, req)
@@ -84,70 +85,50 @@ func (i *Interceptors) IdempotencyUnaryInterceptor(cfg IdempotencyConfig) grpc.U
 		if acquired {
 			// We own the key — execute the handler.
 			resp, handlerErr := handler(ctx, req)
-			if handlerErr != nil {
-				// Handler failed — remove the sentinel so retries can proceed.
-				if delErr := i.redisClient.Delete(ctx, redisKey); delErr != nil {
-					i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to delete sentinel after handler error",
-						slog.String("key", redisKey),
-						slog.String("error", delErr.Error()),
-					)
-				}
-				return resp, handlerErr
-			}
 
-			// Serialize and replace sentinel with the actual response.
-			var data []byte
-			var marshalErr error
-			if pm, ok := resp.(proto.Message); ok {
-				data, marshalErr = protojson.Marshal(pm)
-			} else {
-				data, marshalErr = json.Marshal(resp)
-			}
-			if marshalErr != nil {
-				i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to marshal response",
+			// Remove the key after handler completes (success or failure) so
+			// subsequent retries are processed normally by the handler.
+			if delErr := i.redisClient.Delete(ctx, redisKey); delErr != nil {
+				i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to delete key after handler completion",
 					slog.String("key", redisKey),
-					slog.String("error", marshalErr.Error()),
-				)
-				return resp, nil
-			}
-
-			if setErr := i.redisClient.Set(ctx, redisKey, string(data), cfg.TTL); setErr != nil {
-				i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: redis SET failed",
-					slog.String("key", redisKey),
-					slog.String("error", setErr.Error()),
+					slog.String("error", delErr.Error()),
 				)
 			}
 
-			return resp, nil
+			return resp, handlerErr
 		}
 
-		// Another request owns the key — poll until the response is ready.
-		return i.pollForCachedResponse(ctx, redisKey)
+		// Another request owns the key — wait briefly to confirm it's still
+		// in-flight, then reject the duplicate.
+		return nil, i.waitAndRejectDuplicate(ctx, redisKey)
 	}
 }
 
-// pollForCachedResponse waits for the sentinel value to be replaced with the
-// actual serialized response. It polls Redis at short intervals and returns
-// the deserialized response once available.
-func (i *Interceptors) pollForCachedResponse(ctx context.Context, redisKey string) (interface{}, error) {
+// waitAndRejectDuplicate polls Redis briefly to distinguish between a
+// genuinely in-flight request and a key that was already cleaned up. If the
+// key disappears (handler completed), it tells the caller to retry. If the
+// key is still held, it rejects the duplicate request.
+func (i *Interceptors) waitAndRejectDuplicate(ctx context.Context, redisKey string) error {
 	for attempt := 0; attempt < idempotencyMaxPollAttempts; attempt++ {
 		select {
 		case <-ctx.Done():
-			return nil, status.Errorf(codes.DeadlineExceeded, "context cancelled while waiting for idempotent response")
+			return status.Errorf(codes.DeadlineExceeded, "context cancelled while waiting for idempotent response")
 		case <-time.After(idempotencyPollInterval):
 		}
 
 		cached, err := i.redisClient.Get(ctx, redisKey)
 		if errors.Is(err, redis.Nil) {
-			// Key was deleted (handler error) — let the caller retry.
-			return nil, status.Errorf(codes.Aborted, "concurrent request failed, please retry")
+			// Key was deleted — the original request completed. The caller
+			// can safely retry and the handler's own idempotency (e.g. DB
+			// constraints) will ensure correctness.
+			return status.Errorf(codes.Aborted, "concurrent request completed, please retry")
 		}
 		if err != nil {
 			i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: redis GET failed during poll",
 				slog.String("key", redisKey),
 				slog.String("error", err.Error()),
 			)
-			return nil, status.Errorf(codes.Internal, "internal server error")
+			return status.Errorf(codes.Internal, "internal server error")
 		}
 
 		// Still processing — keep polling.
@@ -155,28 +136,11 @@ func (i *Interceptors) pollForCachedResponse(ctx context.Context, redisKey strin
 			continue
 		}
 
-		// Real response available — deserialize into structpb.Struct which is
-		// a valid proto.Message that gRPC can serialize back to the client.
-		var respMap map[string]interface{}
-		if unmarshalErr := json.Unmarshal([]byte(cached), &respMap); unmarshalErr != nil {
-			i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to unmarshal cached response",
-				slog.String("key", redisKey),
-				slog.String("error", unmarshalErr.Error()),
-			)
-			return nil, status.Errorf(codes.Internal, "internal server error")
-		}
-		structResp, convErr := structpb.NewStruct(respMap)
-		if convErr != nil {
-			i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to convert to struct",
-				slog.String("key", redisKey),
-				slog.String("error", convErr.Error()),
-			)
-			return nil, status.Errorf(codes.Internal, "internal server error")
-		}
-		return structResp, nil
+		// Unexpected value — treat as completed.
+		return status.Errorf(codes.Aborted, "concurrent request completed, please retry")
 	}
 
-	return nil, status.Errorf(codes.DeadlineExceeded, "timed out waiting for idempotent response")
+	return status.Errorf(codes.DeadlineExceeded, "timed out waiting for concurrent request to complete")
 }
 
 // extractIdempotencyKey reads the "x-idempotency-key" value from gRPC

@@ -122,11 +122,10 @@ func TestCalculateFee_ShouldComputeCorrectly_WhenStandardSession(t *testing.T) {
 func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoicePreservation(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		// Arrange
-		idempotencyKey := rapid.StringMatching(`[a-z0-9]{16}`).Draw(t, "idempotencyKey")
+		_ = rapid.StringMatching(`[a-z0-9]{16}`).Draw(t, "idempotencyKey")
 
 		repo := new(MockRepository)
 
-		repo.On("GetByIdempotencyKey", mock.Anything, idempotencyKey).Return(nil, repository.ErrNotFound)
 		existingRecord := &model.BillingRecord{
 			ID:            "billing-inv",
 			ReservationID: "res-inv",
@@ -143,7 +142,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoicePreservation(t *testin
 		// Act
 		result, err := uc.GenerateInvoice(t.Context(), &model.GenerateInvoiceRequest{
 			ReservationID:  "res-inv",
-			IdempotencyKey: idempotencyKey,
+			IdempotencyKey: "any-key",
 		})
 
 		// Assert

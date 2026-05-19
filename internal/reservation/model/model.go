@@ -14,6 +14,7 @@ const (
 	StatusConfirmed      = "confirmed"
 	StatusCheckedIn      = "checked_in"
 	StatusCheckedOut     = "checked_out"
+	StatusCompleted      = "completed"
 	StatusExpired        = "expired"
 	StatusCancelled      = "cancelled"
 	StatusFailed         = "failed"
@@ -68,12 +69,13 @@ type Driver struct {
 }
 
 // allowedTransitions defines the valid reservation state transitions.
-// Terminal states (checked_out, expired, cancelled) have no outgoing transitions.
+// Terminal states (completed, expired, cancelled, failed) have no outgoing transitions.
 var allowedTransitions = map[string][]string{
 	StatusPending:        {StatusConfirmed},
 	StatusWaitingPayment: {StatusConfirmed, StatusFailed, StatusCancelled},
 	StatusConfirmed:      {StatusCheckedIn, StatusExpired, StatusCancelled},
 	StatusCheckedIn:      {StatusCheckedOut},
+	StatusCheckedOut:     {StatusCompleted},
 }
 
 // ValidateTransition checks if a reservation status transition is allowed.

@@ -103,7 +103,7 @@ func main() {
 
 		readModelRepo := searchrepo.NewReadModelRepository(tracedPG.GetDB())
 		spotSync := searchsync.NewSpotSync(readModelRepo)
-		natsHandler := searchhandler.NewNATSHandler(spotSync, tracedRedis, natsClient)
+		natsHandler := searchhandler.NewNATSHandler(spotSync, tracedRedis, natsClient, 0)
 		cc, err := natsHandler.InitConsumers()
 		if err != nil {
 			log.Error("nats consumer init failed", slog.Any("error", err))

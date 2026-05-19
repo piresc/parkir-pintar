@@ -205,6 +205,16 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("cannot refund payment in status %q", payment.Status)
 	}
 
+	// Atomically transition status from "success" to "refunded" BEFORE calling
+	// the gateway to prevent double-refund from concurrent requests.
+	payment.Status = model.PaymentStatusRefunded
+	payment.UpdatedAt = time.Now()
+
+	if err := uc.repo.UpdatePaymentWithStatusCheck(ctx, payment, model.PaymentStatusSuccess); err != nil {
+		return nil, fmt.Errorf("refund payment status lock: %w", err)
+	}
+
+	// Call the gateway refund with retries now that we hold the DB lock.
 	var refundErr error
 	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
 	for i := range 3 {
@@ -220,19 +230,30 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 			select {
 			case <-time.After(backoffs[i]):
 			case <-ctx.Done():
+				// Revert status back to success since gateway was not called successfully.
+				payment.Status = model.PaymentStatusSuccess
+				payment.UpdatedAt = time.Now()
+				revertCtx, revertCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if revertErr := uc.repo.UpdatePayment(revertCtx, payment); revertErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
+					slog.Error("failed to revert payment status after context cancel",
+						slog.String("payment_id", payment.ID),
+						slog.Any("error", revertErr))
+				}
+				revertCancel()
 				return nil, fmt.Errorf("refund payment cancelled: %w", ctx.Err())
 			}
 		}
 	}
 	if refundErr != nil {
+		// All retries exhausted — revert status back to success.
+		payment.Status = model.PaymentStatusSuccess
+		payment.UpdatedAt = time.Now()
+		if revertErr := uc.repo.UpdatePayment(ctx, payment); revertErr != nil {
+			slog.Error("failed to revert payment status after gateway failure",
+				slog.String("payment_id", payment.ID),
+				slog.Any("error", revertErr))
+		}
 		return nil, fmt.Errorf("refund payment gateway (all retries exhausted): %w", refundErr)
-	}
-
-	payment.Status = model.PaymentStatusRefunded
-	payment.UpdatedAt = time.Now()
-
-	if err := uc.repo.UpdatePaymentWithStatusCheck(ctx, payment, model.PaymentStatusSuccess); err != nil {
-		return nil, fmt.Errorf("refund payment update: %w", err)
 	}
 
 	return payment, nil

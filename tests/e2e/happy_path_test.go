@@ -108,10 +108,10 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		ReservationID: reservation.ID,
 	})
 
-	// Assert — Step 6: Payment processed, spot available
+	// Assert — Step 6: Payment processed, spot available, status completed
 	require.NoError(t, err)
 	require.NotNil(t, completeResp)
-	assert.Equal(t, model.StatusCheckedOut, completeResp.Reservation.Status)
+	assert.Equal(t, model.StatusCompleted, completeResp.Reservation.Status)
 
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)

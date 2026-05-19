@@ -457,7 +457,7 @@ func TestIdempotencyUnaryInterceptor_ShouldCacheResponse_WhenFirstCall(t *testin
 	assert.Equal(t, 1, callCount, "handler must be invoked on first call")
 }
 
-func TestIdempotencyUnaryInterceptor_ShouldReturnCached_WhenSecondCall(t *testing.T) {
+func TestIdempotencyUnaryInterceptor_ShouldAllowSecondCall_WhenFirstCompleted(t *testing.T) {
 	// Arrange
 	rc, _ := newTestRedisClient(t)
 	interceptors := NewInterceptors("", nil, nil, rc)
@@ -479,18 +479,21 @@ func TestIdempotencyUnaryInterceptor_ShouldReturnCached_WhenSecondCall(t *testin
 		return map[string]interface{}{"order_id": "ord-2"}, nil
 	}
 
-	// First call — caches the response.
-	_, err := interceptor(ctx, nil, info, handler)
+	// First call — acquires and releases the deduplication key.
+	resp1, err := interceptor(ctx, nil, info, handler)
 	require.NoError(t, err)
+	assert.NotNil(t, resp1)
 	assert.Equal(t, 1, callCount)
 
-	// Act — second call with same key.
-	resp, err := interceptor(ctx, nil, info, handler)
+	// Act — second call with same key after first completed (key released).
+	// The deduplication-only approach allows retries after completion;
+	// the handler's own idempotency (DB constraints) handles deduplication.
+	resp2, err := interceptor(ctx, nil, info, handler)
 
 	// Assert
 	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, 1, callCount, "handler must NOT be invoked on second call")
+	assert.NotNil(t, resp2)
+	assert.Equal(t, 2, callCount, "handler should be invoked again after first call completed (deduplication-only mode)")
 }
 
 func TestIdempotencyUnaryInterceptor_ShouldReturnInvalidArgument_WhenKeyMissing(t *testing.T) {

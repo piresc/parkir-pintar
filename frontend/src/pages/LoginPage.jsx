@@ -21,8 +21,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await api.login(trimmed);
-      login(data.token, trimmed);
+      const res = await api.login(trimmed);
+      login(res.data.token, trimmed);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed');

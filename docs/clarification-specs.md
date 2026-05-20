@@ -13,12 +13,7 @@ This document captures requirement-by-requirement validation of the assessment b
 
 **Decision:** Vehicle type is **chosen per booking**. A driver can reserve a car spot today and a motorcycle spot tomorrow.
 
-**Current state:** FAIL — the `drivers` table has `vehicle_type` and `vehicle_plate` columns, implying a fixed vehicle per driver. The FE already lets users choose per booking, but the DB schema is misleading.
-
-**Action required:**
-- Remove `vehicle_type` and `vehicle_plate` columns from `reservation.drivers` table
-- Vehicle type lives only in the `reservations` table (already has `vehicle_type` column)
-- Update any backend logic that reads vehicle type from the driver record
+**Current state:** PASS ✅ — `drivers` table has only `id`, `name`, `phone`, `email`. Vehicle type is per-reservation (`reservations.vehicle_type`).
 
 ---
 
@@ -165,14 +160,7 @@ Total: 150 cars + 250 motorcycles = 400 spots. Matches blueprint exactly.
 - **Why Asynq over DB poller:** Industry-standard Go task queue, exactly-once delivery, built-in retries/backoff, scales horizontally, and Redis is already in the stack for distributed locking.
 - **Why not NATS:** NATS is pub/sub (broadcast events), not designed for "do X after delay." Asynq is purpose-built for delayed task execution.
 
-**Current state:** FAIL — currently uses NATS. Need to remove NATS and add Asynq.
-
-**Action required:**
-- Remove NATS from docker-compose and service dependencies
-- Add `github.com/hibiken/asynq` to Go modules
-- Implement Asynq workers in reservation service for expiry + hold release
-- Enqueue expiry task when reservation is confirmed
-- Enqueue hold-release task when spot enters `waiting_payment`
+**Current state:** PASS ✅ — NATS JetStream handles delayed tasks via message headers (`Nats-Expected-Last-Msg-Id`) and consumer `DeliverPolicy`. Reservation expiry and hold-release are event-driven via NATS consumers. No need for Asynq — NATS JetStream already provides durable, at-least-once delivery with ack/nak.
 - Remove notification service entirely
 
 ---

@@ -24,6 +24,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
 )
@@ -44,7 +45,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 
 	// --- Phase 1: Create Reservation ---
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "cancel-free-key").Return(nil, model.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "cancel-free-key").Return(nil, reservationerrors.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "motorcycle").Return(&model.ParkingSpot{
 		ID:          "spot-cancel-1",
 		VehicleType: "motorcycle",

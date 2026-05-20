@@ -28,10 +28,9 @@ Reservation → Payment (gRPC)
 ### Asynchronous (NATS JetStream)
 
 ```
-Reservation → NATS → [Search (cache invalidation), Notification]
-Billing → NATS → [Notification]
-Payment → NATS → [Notification]
-Presence → NATS → [Notification]
+Reservation → NATS → Search (spot status sync)
+Reservation → NATS → Analytics (lifecycle events)
+Payment → NATS → Reservation (payment results)
 ```
 
 ## Gateway Middleware Chain (order matters)
@@ -83,7 +82,7 @@ Key packages:
 - `pkg/metrics` — OTel metric instruments (HTTP, gRPC, DB, NATS, business)
 - `pkg/logger` — slog with dual output (stdout + OTLP) and trace correlation
 
-See `deploy/monitoring/README.md` for full stack details.
+See `deploy/coolify/README.md` for full stack details.
 
 ## Error Handling
 
@@ -127,5 +126,6 @@ application level (`pkg/apperror/`). Use `errors.Is()` for checking and
    → Booking fee (already charged) is the only cost forfeited
 
 5. CancelReservation
-   → DB lock → DB update (transaction) → Billing.ApplyPenalty (if > 2min) → NATS event
+   → DB lock → DB update (transaction) → NATS event
+   → Booking fee (already charged) is non-refundable
 ```

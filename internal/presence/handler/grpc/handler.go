@@ -1,8 +1,9 @@
-package handler
+package grpc
 
 import (
 	"context"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -17,6 +18,10 @@ type Handler struct {
 
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
+}
+
+func (h *Handler) RegisterService(s *grpc.Server) {
+	presencev1.RegisterPresenceServiceServer(s, h)
 }
 
 func (h *Handler) VerifyPresence(ctx context.Context, req *presencev1.VerifyPresenceRequest) (*presencev1.VerifyPresenceResponse, error) {

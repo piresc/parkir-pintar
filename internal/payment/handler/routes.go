@@ -1,12 +1,14 @@
 package handler
 
 import (
-	"google.golang.org/grpc"
-
-	paymentv1 "parkir-pintar/proto/payment/v1"
+	grpchandler "parkir-pintar/internal/payment/handler/grpc"
+	"parkir-pintar/internal/payment/usecase"
 )
 
-// RegisterService registers the payment gRPC handler with the given server.
-func (h *Handler) RegisterService(s *grpc.Server) {
-	paymentv1.RegisterPaymentServiceServer(s, h)
+// GRPCHandler is a type alias for backward compatibility with bootstrap.
+type GRPCHandler = grpchandler.Handler
+
+// NewHandler creates a new gRPC handler for the payment service.
+func NewHandler(uc usecase.Usecase) *GRPCHandler {
+	return grpchandler.NewHandler(uc)
 }

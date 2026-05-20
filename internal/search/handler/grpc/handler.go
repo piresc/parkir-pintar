@@ -1,8 +1,9 @@
-package handler
+package grpc
 
 import (
 	"context"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -25,6 +26,10 @@ type Handler struct {
 
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
+}
+
+func (h *Handler) RegisterService(s *grpc.Server) {
+	searchv1.RegisterSearchServiceServer(s, h)
 }
 
 func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabilityRequest) (*searchv1.AvailabilityResponse, error) {

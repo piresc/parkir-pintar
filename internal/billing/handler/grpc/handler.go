@@ -1,8 +1,9 @@
-package handler
+package grpc
 
 import (
 	"context"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -19,6 +20,10 @@ type Handler struct {
 
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
+}
+
+func (h *Handler) RegisterService(s *grpc.Server) {
+	billingv1.RegisterBillingServiceServer(s, h)
 }
 
 func (h *Handler) StartBilling(ctx context.Context, req *billingv1.StartBillingRequest) (*billingv1.BillingResponse, error) {

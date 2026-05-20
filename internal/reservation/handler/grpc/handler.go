@@ -1,11 +1,12 @@
-// Package handler provides gRPC handlers for the reservation domain module.
+// Package grpc provides gRPC handlers for the reservation domain module.
 // Handlers validate request fields, delegate to the usecase layer, and map
 // domain errors to gRPC status codes.
-package handler
+package grpc
 
 import (
 	"context"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -26,6 +27,11 @@ type Handler struct {
 // NewHandler creates a new reservation gRPC Handler with the given usecase.
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
+}
+
+// RegisterService registers the reservation gRPC handler with the given server.
+func (h *Handler) RegisterService(s *grpc.Server) {
+	reservationv1.RegisterReservationServiceServer(s, h)
 }
 
 // getUserIDFromContext extracts the user ID from incoming gRPC metadata.

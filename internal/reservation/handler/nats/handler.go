@@ -1,5 +1,5 @@
-// Package handler provides gRPC and NATS handlers for the reservation domain module.
-package handler
+// Package nats provides NATS JetStream handlers for the reservation domain module.
+package nats
 
 import (
 	"context"
@@ -25,17 +25,17 @@ type ReservationConfirmer interface {
 // PaymentResultEvent is the canonical event from pkg/events.
 type PaymentResultEvent = events.PaymentResultEvent
 
-// NATSHandler consumes payment result messages from NATS JetStream and
+// Handler consumes payment result messages from NATS JetStream and
 // delegates to the reservation usecase.
-type NATSHandler struct {
+type Handler struct {
 	uc     ReservationConfirmer
 	client *pkgnats.Client
 	cc     jetstream.ConsumeContext
 }
 
-// NewNATSHandler creates a new NATSHandler.
-func NewNATSHandler(uc ReservationConfirmer, client *pkgnats.Client) *NATSHandler {
-	return &NATSHandler{
+// NewHandler creates a new NATS Handler.
+func NewHandler(uc ReservationConfirmer, client *pkgnats.Client) *Handler {
+	return &Handler{
 		uc:     uc,
 		client: client,
 	}
@@ -43,7 +43,7 @@ func NewNATSHandler(uc ReservationConfirmer, client *pkgnats.Client) *NATSHandle
 
 // Start begins consuming messages from the reservation-payment-consumer.
 // It returns an error if the consumer cannot be started.
-func (h *NATSHandler) Start() error {
+func (h *Handler) Start() error {
 	cc, err := h.client.Consume(pkgnats.ConsumerReservationPayment, h.handleMessage)
 	if err != nil {
 		return err
@@ -53,13 +53,13 @@ func (h *NATSHandler) Start() error {
 }
 
 // Stop gracefully stops the NATS consumer.
-func (h *NATSHandler) Stop() {
+func (h *Handler) Stop() {
 	if h.cc != nil {
 		h.cc.Stop()
 	}
 }
 
-func (h *NATSHandler) handleMessage(msg jetstream.Msg) {
+func (h *Handler) handleMessage(msg jetstream.Msg) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

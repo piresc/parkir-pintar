@@ -1,4 +1,4 @@
-package handler
+package nats
 
 import (
 	"context"
@@ -22,25 +22,25 @@ type RedisCache interface {
 
 const DefaultFloorCount = 5
 
-type NATSHandler struct {
+type Handler struct {
 	spotSync   *sync.SpotSync
 	redis      RedisCache
 	client     *pkgnats.Client
 	floorCount int
 }
 
-func NewNATSHandler(spotSync *sync.SpotSync, redis RedisCache, client *pkgnats.Client, floorCount int) *NATSHandler {
+func NewHandler(spotSync *sync.SpotSync, redis RedisCache, client *pkgnats.Client, floorCount int) *Handler {
 	if floorCount <= 0 {
 		floorCount = DefaultFloorCount
 	}
-	return &NATSHandler{spotSync: spotSync, redis: redis, client: client, floorCount: floorCount}
+	return &Handler{spotSync: spotSync, redis: redis, client: client, floorCount: floorCount}
 }
 
-func (h *NATSHandler) InitConsumers() (jetstream.ConsumeContext, error) {
+func (h *Handler) InitConsumers() (jetstream.ConsumeContext, error) {
 	return h.client.Consume(pkgnats.ConsumerSearchSpot, h.handleSpotUpdated)
 }
 
-func (h *NATSHandler) handleSpotUpdated(msg jetstream.Msg) {
+func (h *Handler) handleSpotUpdated(msg jetstream.Msg) {
 	var event SpotUpdatedEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.Error("failed to unmarshal spot updated event", slog.String("error", err.Error()))
@@ -72,7 +72,7 @@ func (h *NATSHandler) handleSpotUpdated(msg jetstream.Msg) {
 	slog.Info("processed spot updated event", slog.String("spot_id", event.SpotID), slog.String("status", event.Status))
 }
 
-func (h *NATSHandler) invalidateCache(ctx context.Context) {
+func (h *Handler) invalidateCache(ctx context.Context) {
 	keys := []string{"availability:car", "availability:motorcycle"}
 	for floor := 1; floor <= h.floorCount; floor++ {
 		keys = append(keys, fmt.Sprintf("floormap:%d", floor))

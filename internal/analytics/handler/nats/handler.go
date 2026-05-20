@@ -1,4 +1,4 @@
-package handler
+package nats
 
 import (
 	"context"
@@ -13,20 +13,20 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-type NATSHandler struct {
+type Handler struct {
 	uc     usecase.Usecase
 	client *pkgnats.Client
 }
 
-func NewNATSHandler(uc usecase.Usecase, client *pkgnats.Client) *NATSHandler {
-	return &NATSHandler{uc: uc, client: client}
+func NewHandler(uc usecase.Usecase, client *pkgnats.Client) *Handler {
+	return &Handler{uc: uc, client: client}
 }
 
-func (h *NATSHandler) InitConsumers() (jetstream.ConsumeContext, error) {
+func (h *Handler) InitConsumers() (jetstream.ConsumeContext, error) {
 	return h.client.Consume(pkgnats.ConsumerAnalytics, h.handleReservationEvent)
 }
 
-func (h *NATSHandler) handleReservationEvent(msg jetstream.Msg) {
+func (h *Handler) handleReservationEvent(msg jetstream.Msg) {
 	var event model.ReservationEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.Error("failed to unmarshal reservation event (terminating poison message)",

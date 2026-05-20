@@ -1,4 +1,4 @@
-package handler
+package nats
 
 import (
 	"context"
@@ -148,7 +148,7 @@ func TestHandleReservationEvent_Success(t *testing.T) {
 	})).Return(nil)
 	msg.On("Ack").Return(nil)
 
-	handler := &NATSHandler{uc: uc}
+	handler := &Handler{uc: uc}
 	handler.handleReservationEvent(msg)
 
 	uc.AssertExpectations(t)
@@ -161,7 +161,7 @@ func TestHandleReservationEvent_InvalidJSON(t *testing.T) {
 	msg := &MockMsg{data: []byte("invalid json"), subject: "reservation.analytics.confirmed"}
 	msg.On("Term").Return(nil)
 
-	handler := &NATSHandler{uc: uc}
+	handler := &Handler{uc: uc}
 	handler.handleReservationEvent(msg)
 
 	msg.AssertCalled(t, "Term")
@@ -189,7 +189,7 @@ func TestHandleReservationEvent_UsecaseError(t *testing.T) {
 	})).Return(assert.AnError)
 	msg.On("Nak").Return(nil)
 
-	handler := &NATSHandler{uc: uc}
+	handler := &Handler{uc: uc}
 	handler.handleReservationEvent(msg)
 
 	uc.AssertExpectations(t)
@@ -218,7 +218,7 @@ func TestHandleReservationEvent_AckError(t *testing.T) {
 	})).Return(nil)
 	msg.On("Ack").Return(assert.AnError)
 
-	handler := &NATSHandler{uc: uc}
+	handler := &Handler{uc: uc}
 	handler.handleReservationEvent(msg)
 
 	uc.AssertExpectations(t)

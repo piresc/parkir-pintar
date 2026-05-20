@@ -84,7 +84,7 @@ func (uc *reservationUsecase) GetReservation(ctx context.Context, id string, cal
 		return nil, fmt.Errorf("get reservation: %w", err)
 	}
 	if callerID != "" && reservation.DriverID != callerID {
-		return nil, apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+		return nil, apperror.Forbidden("reservation belongs to another driver")
 	}
 	return reservation, nil
 }
@@ -112,7 +112,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	case string(constants.AssignmentSystemAssigned):
 		spot, err := uc.repo.FindAvailableSpot(ctx, req.VehicleType)
 		if err != nil {
-			return nil, apperror.New("CONFLICT", "no available spots for vehicle type", 409)
+			return nil, apperror.Conflict("no available spots for vehicle type")
 		}
 		spotID = spot.ID
 	case string(constants.AssignmentUserSelected):
@@ -126,7 +126,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	lock, err := uc.locker.Acquire(ctx, lockKey)
 	if err != nil {
 		if errors.Is(err, redislock.ErrLockUnavailable) {
-			return nil, apperror.New("CONFLICT", "spot is being reserved by another driver", 409)
+			return nil, apperror.Conflict("spot is being reserved by another driver")
 		}
 		return nil, fmt.Errorf("acquire lock: %w", err)
 	}
@@ -156,7 +156,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		// Double-check spot availability under DB row lock (within transaction)
 		spot, err := uc.repo.GetSpotForUpdateTx(ctx, tx, spotID)
 		if err != nil || spot.Status != string(constants.SpotStatusAvailable) {
-			return apperror.New("CONFLICT", "spot no longer available", 409)
+			return apperror.Conflict("spot no longer available")
 		}
 		if req.AssignmentMode == string(constants.AssignmentUserSelected) && spot.VehicleType != req.VehicleType {
 			return apperror.BadRequest("spot vehicle type does not match requested vehicle type")
@@ -164,7 +164,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 		if err := uc.repo.CreateReservationTx(ctx, tx, reservation); err != nil {
 			if database.IsUniqueViolationOn(err, "idx_reservations_one_active_per_driver") {
-				return apperror.New("CONFLICT", "driver already has an active reservation", 409)
+				return apperror.Conflict("driver already has an active reservation")
 			}
 			return fmt.Errorf("create reservation: %w", err)
 		}
@@ -184,7 +184,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey); err != nil {
 		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		uc.failReservationInternal(ctx, reservation)
-		return nil, apperror.New("PAYMENT_FAILED", "unable to create billing record", 402)
+		return nil, apperror.PaymentFailed("unable to create billing record")
 	}
 
 	// Step 7: Enqueue expiry task (non-critical, best-effort)
@@ -228,7 +228,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		}
 
 		if req.CallerID != "" && reservation.DriverID != req.CallerID {
-			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+			return apperror.Forbidden("reservation belongs to another driver")
 		}
 
 		if reservation.Status != string(constants.StatusWaitingPayment) {
@@ -245,7 +245,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey)
 	if err != nil {
 		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), logger.Err(err))
-		return nil, apperror.New("PAYMENT_FAILED", "unable to retrieve billing record", 402)
+		return nil, apperror.PaymentFailed("unable to retrieve billing record")
 	}
 
 	// Process payment for booking fee
@@ -257,7 +257,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 			slog.String("reservation_id", reservation.ID),
 			logger.Err(payErr))
 		uc.failReservationInternal(ctx, reservation)
-		return nil, apperror.New("PAYMENT_FAILED", "booking fee payment failed", 402)
+		return nil, apperror.PaymentFailed("booking fee payment failed")
 	}
 
 	// Payment succeeded — confirm the reservation
@@ -277,7 +277,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 					slog.String("reservation_id", reservation.ID),
 					logger.Err(refundErr))
 			}
-			return apperror.New("CONFLICT", "reservation status changed concurrently", 409)
+			return apperror.Conflict("reservation status changed concurrently")
 		}
 
 		confirmedAt := time.Now()
@@ -360,7 +360,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		}
 
 		if req.CallerID != "" && reservation.DriverID != req.CallerID {
-			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+			return apperror.Forbidden("reservation belongs to another driver")
 		}
 
 		if err := model.ValidateTransition(reservation.Status, string(constants.StatusCancelled)); err != nil {
@@ -405,7 +405,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		}
 
 		if req.CallerID != "" && reservation.DriverID != req.CallerID {
-			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+			return apperror.Forbidden("reservation belongs to another driver")
 		}
 
 		if err := model.ValidateTransition(reservation.Status, string(constants.StatusCheckedIn)); err != nil {
@@ -482,7 +482,7 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 		}
 
 		if req.CallerID != "" && reservation.DriverID != req.CallerID {
-			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+			return apperror.Forbidden("reservation belongs to another driver")
 		}
 
 		if err := model.ValidateTransition(reservation.Status, string(constants.StatusCheckedOut)); err != nil {
@@ -501,7 +501,7 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 
 	// Phase 2: Calculate fee and generate invoice (outside the row lock)
 	if reservation.CheckedInAt == nil || reservation.CheckedOutAt == nil {
-		return nil, apperror.New("INTERNAL", "reservation missing check-in/check-out timestamps", 500)
+		return nil, apperror.Internal("reservation missing check-in/check-out timestamps")
 	}
 	_, err := uc.billingClient.CalculateFee(ctx, reservation.ID, *reservation.CheckedInAt, *reservation.CheckedOutAt)
 	if err != nil {
@@ -541,7 +541,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		}
 
 		if req.CallerID != "" && reservation.DriverID != req.CallerID {
-			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
+			return apperror.Forbidden("reservation belongs to another driver")
 		}
 
 		if reservation.Status != string(constants.StatusCheckedOut) {

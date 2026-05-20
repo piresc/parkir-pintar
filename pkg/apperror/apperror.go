@@ -57,3 +57,23 @@ func BadRequest(message string) *AppError {
 func NotFound(message string) *AppError {
 	return New("NOT_FOUND", message, http.StatusNotFound)
 }
+
+func Forbidden(message string) *AppError {
+	return New("FORBIDDEN", message, http.StatusForbidden)
+}
+
+func Conflict(message string) *AppError {
+	return New("CONFLICT", message, http.StatusConflict)
+}
+
+func ServiceUnavailable(message string) *AppError {
+	return New("SERVICE_UNAVAILABLE", message, http.StatusServiceUnavailable)
+}
+
+func PaymentFailed(message string) *AppError {
+	return New("PAYMENT_FAILED", message, http.StatusPaymentRequired)
+}
+
+func UnprocessableEntity(message string) *AppError {
+	return New("UNPROCESSABLE_ENTITY", message, http.StatusUnprocessableEntity)
+}

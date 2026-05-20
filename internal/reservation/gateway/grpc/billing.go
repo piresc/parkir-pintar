@@ -37,7 +37,7 @@ func (c *BillingClient) StartBilling(ctx context.Context, reservationID string, 
 		return err
 	})
 	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
-		return nil, apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+		return nil, apperror.ServiceUnavailable("billing service temporarily unavailable")
 	}
 	return result, err
 }
@@ -62,7 +62,7 @@ func (c *BillingClient) CalculateFee(ctx context.Context, reservationID string, 
 		return err
 	})
 	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
-		return nil, apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+		return nil, apperror.ServiceUnavailable("billing service temporarily unavailable")
 	}
 	return result, err
 }
@@ -87,7 +87,7 @@ func (c *BillingClient) GenerateInvoice(ctx context.Context, reservationID strin
 		return err
 	})
 	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
-		return nil, apperror.New("SERVICE_UNAVAILABLE", "billing service temporarily unavailable", 503)
+		return nil, apperror.ServiceUnavailable("billing service temporarily unavailable")
 	}
 	return result, err
 }

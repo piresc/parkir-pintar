@@ -22,6 +22,8 @@ type RedisCache interface {
 
 const DefaultFloorCount = 5
 
+const natsHandlerTimeout = 15 * time.Second
+
 type Handler struct {
 	spotSync   *sync.SpotSync
 	redis      RedisCache
@@ -49,7 +51,7 @@ func (h *Handler) handleSpotUpdated(msg jetstream.Msg) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), natsHandlerTimeout)
 	defer cancel()
 
 	spotData := sync.SpotData{

@@ -28,6 +28,8 @@ type PaymentResultEvent = events.PaymentResultEvent
 
 // Handler consumes payment result messages from NATS JetStream and
 // delegates to the reservation usecase.
+const natsHandlerTimeout = 30 * time.Second
+
 type Handler struct {
 	uc     ReservationConfirmer
 	client *pkgnats.Client
@@ -61,7 +63,7 @@ func (h *Handler) Stop() {
 }
 
 func (h *Handler) handleMessage(msg jetstream.Msg) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), natsHandlerTimeout)
 	defer cancel()
 
 	var event PaymentResultEvent

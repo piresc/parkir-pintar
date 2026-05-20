@@ -34,7 +34,7 @@ func (c *PaymentClient) ProcessPayment(ctx context.Context, billingID string, am
 		return err
 	})
 	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
-		return "", apperror.New("SERVICE_UNAVAILABLE", "payment service temporarily unavailable", 503)
+		return "", apperror.ServiceUnavailable("payment service temporarily unavailable")
 	}
 	return result, err
 }
@@ -60,7 +60,7 @@ func (c *PaymentClient) RefundPayment(ctx context.Context, paymentID string) err
 		return err
 	})
 	if errors.Is(err, circuitbreaker.ErrCircuitOpen) {
-		return apperror.New("SERVICE_UNAVAILABLE", "payment service temporarily unavailable", 503)
+		return apperror.ServiceUnavailable("payment service temporarily unavailable")
 	}
 	return err
 }

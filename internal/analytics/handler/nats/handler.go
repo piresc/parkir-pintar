@@ -13,6 +13,8 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
+const natsHandlerTimeout = 15 * time.Second
+
 type Handler struct {
 	uc     analytics.Usecase
 	client *pkgnats.Client
@@ -36,7 +38,7 @@ func (h *Handler) handleReservationEvent(msg jetstream.Msg) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), natsHandlerTimeout)
 	defer cancel()
 
 	if err := h.uc.RecordEvent(ctx, event); err != nil {

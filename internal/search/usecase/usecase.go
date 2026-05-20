@@ -13,6 +13,7 @@ import (
 )
 
 const cacheTTL = 5 * time.Second
+const singleflightTimeout = 10 * time.Second
 
 //go:generate mockgen -destination=../mocks/mock_redis_client.go -package=mocks parkir-pintar/internal/search/usecase RedisClient
 type RedisClient interface {
@@ -38,7 +39,7 @@ func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvai
 
 	// Use detached context to prevent first-caller cancellation from affecting
 	result, err, _ := uc.sf.Do(cacheKey, func() (interface{}, error) {
-		sfCtx, sfCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		sfCtx, sfCancel := context.WithTimeout(context.WithoutCancel(ctx), singleflightTimeout)
 		defer sfCancel()
 
 		floors, err := uc.repo.GetAvailabilityByVehicleType(sfCtx, req.VehicleType)
@@ -80,7 +81,7 @@ func (uc *searchUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMap
 
 	// Use detached context to prevent first-caller cancellation from affecting
 	result, err, _ := uc.sf.Do(cacheKey, func() (interface{}, error) {
-		sfCtx, sfCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		sfCtx, sfCancel := context.WithTimeout(context.WithoutCancel(ctx), singleflightTimeout)
 		defer sfCancel()
 
 		spots, err := uc.repo.GetFloorSpots(sfCtx, req.FloorNumber)

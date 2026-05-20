@@ -16,6 +16,8 @@ type PostgresClient struct {
 	db *sqlx.DB
 }
 
+const pingTimeout = 10 * time.Second
+
 func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
@@ -53,7 +55,7 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	}
 	db.SetConnMaxIdleTime(5 * time.Minute)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {

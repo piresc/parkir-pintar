@@ -85,8 +85,7 @@ func (uc *analyticsUsecase) PredictResources(ctx context.Context, horizon time.D
 	}
 
 	if len(dailyOccupancy) < 2 {
-		return nil, apperror.New("INSUFFICIENT_DATA",
-			"at least 2 days of historical data required for prediction", 422)
+		return nil, apperror.UnprocessableEntity("at least 2 days of historical data required for prediction")
 	}
 
 	slope, intercept := linearRegression(dailyOccupancy)

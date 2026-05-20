@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/events"
 	"parkir-pintar/pkg/logger"
@@ -82,11 +83,11 @@ func (h *Handler) handleMessage(msg jetstream.Msg) {
 
 	var err error
 	switch event.Status {
-	case "success":
+	case string(constants.PaymentEventSuccess):
 		_, err = h.uc.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
 			ReservationID: event.ReservationID,
 		})
-	case "failed":
+	case string(constants.PaymentEventFailed):
 		err = h.uc.FailReservation(ctx, &model.FailReservationRequest{
 			ReservationID: event.ReservationID,
 		})

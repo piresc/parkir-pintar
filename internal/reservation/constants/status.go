@@ -38,9 +38,19 @@ const (
 )
 
 // PaymentMethod represents a payment method type.
-type PaymentMethod string
+
+// PaymentEventStatus represents the status field in payment NATS events.
+type PaymentEventStatus string
+
+// Payment event status constants (published by payment service).
+const (
+	PaymentEventSuccess PaymentEventStatus = "success"
+	PaymentEventFailed  PaymentEventStatus = "failed"
+)
 
 // Payment method constants.
+type PaymentMethod string
+
 const (
 	PaymentMethodQRIS PaymentMethod = "qris"
 )

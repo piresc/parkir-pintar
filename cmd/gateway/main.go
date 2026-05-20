@@ -35,7 +35,7 @@ import (
 
 func main() {
 	// 1. Load configuration
-	cfg, err := config.Load("config/.env")
+	cfg, err := config.LoadConfig("gateway")
 	if err != nil {
 		slog.Error("failed to load config", slog.Any("error", err))
 		os.Exit(1)

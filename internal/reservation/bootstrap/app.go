@@ -36,7 +36,7 @@ type App struct {
 }
 
 func New() (*App, error) {
-	cfg, err := config.Load("config/.env")
+	cfg, err := config.LoadConfig("reservation")
 	if err != nil {
 		return nil, err
 	}

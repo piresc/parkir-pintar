@@ -35,7 +35,7 @@ func getEnv(key, defaultValue string) string {
 }
 
 func main() {
-	cfg, err := config.Load("config/.env")
+	cfg, err := config.LoadConfig("payment")
 	if err != nil {
 		slog.Error("failed to load config", slog.Any("error", err))
 		os.Exit(1)

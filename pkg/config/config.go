@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -14,12 +13,8 @@ import (
 )
 
 const (
-	defaultEnv                 = "local"
-	testEnv                    = "test"
-	defaultAllowedOrigin       = "http://localhost:3000"
-	defaultHealthEndpoint      = "/health"
-	defaultHealthLiveEndpoint  = "/health/live"
-	defaultHealthReadyEndpoint = "/health/ready"
+	defaultEnv = "local"
+	testEnv    = "test"
 )
 
 type Config struct {
@@ -119,10 +114,10 @@ type JWTConfig struct {
 }
 
 type TracingConfig struct {
-	Enabled      bool                   `yaml:"enabled" mapstructure:"enabled"`
-	ServiceName  string                 `yaml:"service_name" mapstructure:"service_name"`
-	SampleRate   float64                `yaml:"sample_rate" mapstructure:"sample_rate"`
-	ExcludePaths []string               `yaml:"exclude_paths" mapstructure:"exclude_paths"`
+	Enabled      bool     `yaml:"enabled" mapstructure:"enabled"`
+	ServiceName  string   `yaml:"service_name" mapstructure:"service_name"`
+	SampleRate   float64  `yaml:"sample_rate" mapstructure:"sample_rate"`
+	ExcludePaths []string `yaml:"exclude_paths" mapstructure:"exclude_paths"`
 	Exporter     string   `yaml:"exporter" mapstructure:"exporter"`
 	OTLPEndpoint string   `yaml:"otlp_endpoint" mapstructure:"otlp_endpoint"`
 }
@@ -132,8 +127,8 @@ type LoggerConfig struct {
 	Format string `yaml:"format" mapstructure:"format"`
 }
 
-// LoadConfig loads configuration using Viper. YAML files provide all non-secret
-// config; environment variables provide secrets and can override any YAML value.
+// LoadConfig loads configuration from YAML + env var secrets.
+// YAML is the source of truth for all config. Env vars override secrets only.
 func LoadConfig(serviceName string) (*Config, error) {
 	env := getEnv("APP_ENV", defaultEnv)
 
@@ -145,8 +140,6 @@ func LoadConfig(serviceName string) (*Config, error) {
 
 	v := viper.New()
 
-	setDefaults(v)
-
 	// Load YAML config file: config/<service>.<env>.yaml
 	v.SetConfigName(fmt.Sprintf("%s.%s", serviceName, env))
 	v.SetConfigType("yaml")
@@ -154,13 +147,11 @@ func LoadConfig(serviceName string) (*Config, error) {
 	v.AddConfigPath(".")
 
 	if err := v.ReadInConfig(); err != nil {
-		var configNotFound viper.ConfigFileNotFoundError
-		if !errors.As(err, &configNotFound) {
-			return nil, fmt.Errorf("read config file: %w", err)
-		}
+		return nil, fmt.Errorf("read config file: %w", err)
 	}
 
-	bindEnvVars(v)
+	// Bind only secrets — these come from env vars, not YAML
+	bindSecrets(v)
 
 	v.AutomaticEnv()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -177,101 +168,9 @@ func LoadConfig(serviceName string) (*Config, error) {
 	return &cfg, nil
 }
 
-// setDefaults sets sensible defaults so services work without a YAML file.
-func setDefaults(v *viper.Viper) {
-	// App
-	v.SetDefault("app.name", "parkir-pintar")
-	v.SetDefault("app.environment", defaultEnv)
-	v.SetDefault("app.debug", false)
-	v.SetDefault("app.version", "0.0.1")
-
-	// Server
-	v.SetDefault("server.host", "0.0.0.0")
-	v.SetDefault("server.port", 8080)
-	v.SetDefault("server.read_timeout", 15)
-	v.SetDefault("server.write_timeout", 15)
-	v.SetDefault("server.shutdown_timeout", 30)
-	v.SetDefault("server.allowed_origins", []string{defaultAllowedOrigin})
-
-	// Database
-	v.SetDefault("database.host", "localhost")
-	v.SetDefault("database.port", 5432)
-	v.SetDefault("database.username", "")
-	v.SetDefault("database.password", "")
-	v.SetDefault("database.database", "")
-	v.SetDefault("database.schema", "public")
-	v.SetDefault("database.ssl_mode", "disable")
-	v.SetDefault("database.max_conns", 25)
-	v.SetDefault("database.idle_conns", 5)
-	v.SetDefault("database.max_lifetime", 15)
-
-	// Redis
-	v.SetDefault("redis.host", "localhost")
-	v.SetDefault("redis.port", 6379)
-	v.SetDefault("redis.password", "")
-	v.SetDefault("redis.db", 0)
-	v.SetDefault("redis.pool_size", 10)
-
-	// JWT
-	v.SetDefault("jwt.secret", "")
-	v.SetDefault("jwt.expiration", 60)
-	v.SetDefault("jwt.issuer", "parkir-pintar")
-
-	// Tracing
-	v.SetDefault("tracing.enabled", false)
-	v.SetDefault("tracing.service_name", "parkir-pintar")
-	v.SetDefault("tracing.sample_rate", 1.0)
-	v.SetDefault("tracing.exclude_paths", []string{defaultHealthEndpoint, defaultHealthLiveEndpoint, defaultHealthReadyEndpoint})
-	v.SetDefault("tracing.exporter", "noop")
-	v.SetDefault("tracing.otlp_endpoint", "")
-
-	// Logger
-	v.SetDefault("logger.level", "info")
-	v.SetDefault("logger.format", "json")
-
-	// GRPC
-	v.SetDefault("grpc.server.port", 9090)
-	v.SetDefault("grpc.server.max_conn_age", time.Duration(0))
-	v.SetDefault("grpc.server.shutdown_timeout", 30*time.Second)
-	v.SetDefault("grpc.server.request_timeout", 30*time.Second)
-	v.SetDefault("grpc.client.dial_timeout", 5*time.Second)
-	v.SetDefault("grpc.client.keepalive_time", 30*time.Second)
-	v.SetDefault("grpc.client.keepalive_timeout", 10*time.Second)
-	v.SetDefault("grpc.rate_limit.requests_per_second", 100)
-	v.SetDefault("grpc.rate_limit.burst_size", 200)
-
-	// Reservation
-	v.SetDefault("reservation.payment_timeout_minutes", 10)
-	v.SetDefault("reservation.expiry_timeout_minutes", 60)
-	v.SetDefault("reservation.worker_poll_interval", 30*time.Second)
-
-	// Asynq
-	v.SetDefault("asynq.concurrency", 10)
-
-	// NATS
-	v.SetDefault("nats.url", "nats://localhost:4222")
-	v.SetDefault("nats.enabled", false)
-}
-
-// bindEnvVars binds environment variables to Viper keys.
-// This handles the mapping between env var names (e.g. DB_HOST)
-// and the Viper config path (e.g. database.host).
-func bindEnvVars(v *viper.Viper) {
-	// App
-	_ = v.BindEnv("app.name", "APP_NAME")
-	_ = v.BindEnv("app.environment", "APP_ENV")
-	_ = v.BindEnv("app.debug", "APP_DEBUG")
-	_ = v.BindEnv("app.version", "APP_VERSION")
-
-	// Server
-	_ = v.BindEnv("server.host", "SERVER_HOST")
-	_ = v.BindEnv("server.port", "SERVER_PORT")
-	_ = v.BindEnv("server.read_timeout", "SERVER_READ_TIMEOUT")
-	_ = v.BindEnv("server.write_timeout", "SERVER_WRITE_TIMEOUT")
-	_ = v.BindEnv("server.shutdown_timeout", "SERVER_SHUTDOWN_TIMEOUT")
-	_ = v.BindEnv("server.allowed_origins", "SERVER_ALLOWED_ORIGINS")
-
-	// Database
+// bindSecrets binds env vars that carry secrets or deployment-specific overrides.
+// Everything else comes from YAML.
+func bindSecrets(v *viper.Viper) {
 	_ = v.BindEnv("database.host", "DB_HOST")
 	_ = v.BindEnv("database.port", "DB_PORT")
 	_ = v.BindEnv("database.username", "DB_USERNAME")
@@ -279,69 +178,25 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("database.database", "DB_DATABASE")
 	_ = v.BindEnv("database.schema", "DB_SCHEMA")
 	_ = v.BindEnv("database.ssl_mode", "DB_SSL_MODE")
-	_ = v.BindEnv("database.max_conns", "DB_MAX_CONNS")
-	_ = v.BindEnv("database.idle_conns", "DB_IDLE_CONNS")
-	_ = v.BindEnv("database.max_lifetime", "DB_MAX_LIFETIME")
-
-	// Redis
 	_ = v.BindEnv("redis.host", "REDIS_HOST")
 	_ = v.BindEnv("redis.port", "REDIS_PORT")
 	_ = v.BindEnv("redis.password", "REDIS_PASSWORD")
-	_ = v.BindEnv("redis.db", "REDIS_DB")
-	_ = v.BindEnv("redis.pool_size", "REDIS_POOL_SIZE")
-
-	// JWT
 	_ = v.BindEnv("jwt.secret", "JWT_SECRET")
-	_ = v.BindEnv("jwt.expiration", "JWT_EXPIRATION")
-	_ = v.BindEnv("jwt.issuer", "JWT_ISSUER")
-
-	// Tracing
-	_ = v.BindEnv("tracing.enabled", "TRACING_ENABLED")
-	_ = v.BindEnv("tracing.service_name", "TRACING_SERVICE_NAME")
-	_ = v.BindEnv("tracing.sample_rate", "TRACING_SAMPLE_RATE")
-	_ = v.BindEnv("tracing.exclude_paths", "TRACING_EXCLUDE_PATHS")
-	_ = v.BindEnv("tracing.exporter", "TRACING_EXPORTER")
-	_ = v.BindEnv("tracing.otlp_endpoint", "TRACING_OTLP_ENDPOINT")
-
-	// Logger
-	_ = v.BindEnv("logger.level", "LOG_LEVEL")
-	_ = v.BindEnv("logger.format", "LOG_FORMAT")
-
-	// GRPC
-	_ = v.BindEnv("grpc.server.port", "GRPC_SERVER_PORT")
-	_ = v.BindEnv("grpc.server.max_conn_age", "GRPC_MAX_CONN_AGE")
-	_ = v.BindEnv("grpc.server.shutdown_timeout", "GRPC_SHUTDOWN_TIMEOUT")
-	_ = v.BindEnv("grpc.server.request_timeout", "GRPC_REQUEST_TIMEOUT")
-	_ = v.BindEnv("grpc.client.dial_timeout", "GRPC_DIAL_TIMEOUT")
-	_ = v.BindEnv("grpc.client.keepalive_time", "GRPC_KEEPALIVE_TIME")
-	_ = v.BindEnv("grpc.client.keepalive_timeout", "GRPC_KEEPALIVE_TIMEOUT")
-	_ = v.BindEnv("grpc.rate_limit.requests_per_second", "GRPC_RATE_LIMIT_RPS")
-	_ = v.BindEnv("grpc.rate_limit.burst_size", "GRPC_RATE_LIMIT_BURST")
-
-	// Reservation
-	_ = v.BindEnv("reservation.payment_timeout_minutes", "PAYMENT_TIMEOUT_MINUTES")
-	_ = v.BindEnv("reservation.expiry_timeout_minutes", "RESERVATION_EXPIRY_MINUTES")
-	_ = v.BindEnv("reservation.worker_poll_interval", "WORKER_POLL_INTERVAL")
-
-	// Asynq
-	_ = v.BindEnv("asynq.concurrency", "ASYNQ_CONCURRENCY")
-
-	// NATS
 	_ = v.BindEnv("nats.url", "NATS_URL")
-	_ = v.BindEnv("nats.enabled", "NATS_ENABLED")
+	_ = v.BindEnv("tracing.otlp_endpoint", "TRACING_OTLP_ENDPOINT")
 }
 
 func validate(cfg *Config) error {
 	if cfg.Server.Port <= 0 || cfg.Server.Port >= 65536 {
-		return fmt.Errorf("SERVER_PORT must be between 1 and 65535, got %d", cfg.Server.Port)
+		return fmt.Errorf("server.port must be between 1 and 65535, got %d", cfg.Server.Port)
 	}
 
 	if cfg.Tracing.SampleRate < 0.0 || cfg.Tracing.SampleRate > 1.0 {
-		return fmt.Errorf("TRACING_SAMPLE_RATE must be between 0.0 and 1.0, got %f", cfg.Tracing.SampleRate)
+		return fmt.Errorf("tracing.sample_rate must be between 0.0 and 1.0, got %f", cfg.Tracing.SampleRate)
 	}
 
 	if cfg.JWT.Secret == "" {
-		return fmt.Errorf("JWT_SECRET is required")
+		return fmt.Errorf("JWT_SECRET is required (set via env var)")
 	}
 
 	if cfg.App.Environment != defaultEnv && cfg.App.Environment != testEnv && len(cfg.JWT.Secret) < 32 {
@@ -358,8 +213,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// decoderConfigOption returns a viper.DecoderConfigOption that adds custom
-// decode hooks for duration parsing and string slice trimming.
 func decoderConfigOption() viper.DecoderConfigOption {
 	return func(dc *mapstructure.DecoderConfig) {
 		dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(
@@ -370,7 +223,6 @@ func decoderConfigOption() viper.DecoderConfigOption {
 	}
 }
 
-// trimStringSliceHookFunc trims whitespace from each element in a []string.
 func trimStringSliceHookFunc() mapstructure.DecodeHookFunc {
 	return func(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
 		if to != reflect.TypeOf([]string{}) {

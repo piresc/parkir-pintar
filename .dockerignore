@@ -6,10 +6,7 @@
 # Environment and secrets
 .env
 config/.env
-deploy/staging/.env
-infra/
 
-# Documentation
 # Documentation (except swagger)
 docs/**/*.md
 docs/requirements/
@@ -28,9 +25,6 @@ frontend/node_modules/
 # IDE
 .vscode/
 .idea/
-
-# Monitoring configs (not needed in app images)
-deploy/monitoring/
 
 # Temporary
 /tmp/

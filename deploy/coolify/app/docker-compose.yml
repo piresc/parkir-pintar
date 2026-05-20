@@ -4,9 +4,7 @@
 
 services:
   gateway:
-    image: ghcr.io/piresc/parkir-pintar:latest
-
-    command: ["/app/gateway"]
+    image: ghcr.io/piresc/parkir-pintar/gateway:latest
     ports:
       - "8082:8080"
     environment:
@@ -50,9 +48,7 @@ services:
       start_period: 15s
 
   search:
-    image: ghcr.io/piresc/parkir-pintar:latest
-
-    command: ["/app/search"]
+    image: ghcr.io/piresc/parkir-pintar/search:latest
     environment:
       APP_NAME: parkir-pintar-search
       APP_ENV: staging
@@ -87,9 +83,7 @@ services:
       start_period: 15s
 
   reservation:
-    image: ghcr.io/piresc/parkir-pintar:latest
-
-    command: ["/app/reservation"]
+    image: ghcr.io/piresc/parkir-pintar/reservation:latest
     environment:
       APP_NAME: parkir-pintar-reservation
       APP_ENV: staging
@@ -134,9 +128,7 @@ services:
       start_period: 15s
 
   billing:
-    image: ghcr.io/piresc/parkir-pintar:latest
-
-    command: ["/app/billing"]
+    image: ghcr.io/piresc/parkir-pintar/billing:latest
     environment:
       APP_NAME: parkir-pintar-billing
       APP_ENV: staging
@@ -166,9 +158,7 @@ services:
       start_period: 15s
 
   payment:
-    image: ghcr.io/piresc/parkir-pintar:latest
-
-    command: ["/app/payment"]
+    image: ghcr.io/piresc/parkir-pintar/payment:latest
     environment:
       APP_NAME: parkir-pintar-payment
       APP_ENV: staging
@@ -203,9 +193,7 @@ services:
       start_period: 15s
 
   presence:
-    image: ghcr.io/piresc/parkir-pintar:latest
-
-    command: ["/app/presence"]
+    image: ghcr.io/piresc/parkir-pintar/presence:latest
     environment:
       APP_NAME: parkir-pintar-presence
       APP_ENV: staging

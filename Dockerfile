@@ -1,5 +1,5 @@
-# DEPRECATED: Use per-service Dockerfiles in cmd/<service>/Dockerfile instead.
-# This file is kept for backward compatibility with existing CI pipelines.
+# Root Dockerfile — builds all service binaries into a single image.
+# Per-service Dockerfiles in cmd/<service>/Dockerfile are used by CI.
 
 # =============================================================================
 # Stage 1: Build

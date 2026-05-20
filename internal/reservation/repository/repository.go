@@ -8,7 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	reservationerrors "parkir-pintar/internal/reservation/errors"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 )
 

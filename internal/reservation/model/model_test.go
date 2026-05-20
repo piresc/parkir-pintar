@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/errors"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
 )
 
 func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) {

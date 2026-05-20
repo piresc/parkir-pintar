@@ -25,7 +25,7 @@ import (
 
 	resv "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/errors"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"

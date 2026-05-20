@@ -7,13 +7,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	billingerrors "parkir-pintar/internal/billing/errors"
+	billingerrors "parkir-pintar/internal/billing/constants"
 	billingrepo "parkir-pintar/internal/billing/repository"
-	paymenterrors "parkir-pintar/internal/payment/errors"
+	paymenterrors "parkir-pintar/internal/payment/constants"
 	paymentrepo "parkir-pintar/internal/payment/repository"
-	presenceerrors "parkir-pintar/internal/presence/errors"
-	reservationerrors "parkir-pintar/internal/reservation/errors"
-	searcherrors "parkir-pintar/internal/search/errors"
+	presenceerrors "parkir-pintar/internal/presence/constants"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
+	searcherrors "parkir-pintar/internal/search/constants"
 	searchrepo "parkir-pintar/internal/search/repository"
 	"parkir-pintar/pkg/apperror"
 )

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/errors"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
 )
 
 // Reservation represents a parking reservation domain entity.

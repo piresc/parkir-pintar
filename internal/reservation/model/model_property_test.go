@@ -19,7 +19,7 @@ import (
 	"pgregory.net/rapid"
 
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/errors"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
 )
 
 // allStatuses is the complete set of reservation statuses.

@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
-	billingerrors "parkir-pintar/internal/billing/errors"
+	billingerrors "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/pkg/idempotency"

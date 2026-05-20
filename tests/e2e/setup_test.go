@@ -130,12 +130,6 @@ func TestMain(m *testing.M) {
 
 	migrations := []string{
 		"../../db/migrations/000001_init.up.sql",
-		"../../db/migrations/000002_parkir_pintar.up.sql",
-		"../../db/migrations/000003_payment_flow.up.sql",
-		"../../db/migrations/000004_schema_per_service.up.sql",
-		"../../db/migrations/000011_remove_penalties.up.sql",
-		"../../db/migrations/000016_add_completed_status.up.sql",
-		"../../db/migrations/000017_billing_version_column.up.sql",
 	}
 	for _, path := range migrations {
 		sql, err := os.ReadFile(path)

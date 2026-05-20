@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	paymenterrors "parkir-pintar/internal/payment/errors"
+	paymenterrors "parkir-pintar/internal/payment/constants"
 	"parkir-pintar/internal/payment/gateway"
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"

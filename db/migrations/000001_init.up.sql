@@ -153,4 +153,24 @@ CREATE TABLE presence.presence_logs (
 
 CREATE INDEX idx_presence_reservation_time ON presence.presence_logs (reservation_id, recorded_at);
 
+-- Seed: 400 parking spots (5 floors × 30 car + 50 motorcycle per floor)
+-- spot_code format: F1-C-001 (car floor 1 spot 1), F3-M-025 (motorcycle floor 3 spot 25)
+INSERT INTO reservation.parking_spots (floor_number, spot_number, vehicle_type, spot_code)
+SELECT
+    floor,
+    spot,
+    'car',
+    'F' || floor || '-C-' || LPAD(spot::text, 3, '0')
+FROM generate_series(1, 5) AS floor,
+     generate_series(1, 30) AS spot;
+
+INSERT INTO reservation.parking_spots (floor_number, spot_number, vehicle_type, spot_code)
+SELECT
+    floor,
+    spot,
+    'motorcycle',
+    'F' || floor || '-M-' || LPAD(spot::text, 3, '0')
+FROM generate_series(1, 5) AS floor,
+     generate_series(1, 50) AS spot;
+
 COMMIT;

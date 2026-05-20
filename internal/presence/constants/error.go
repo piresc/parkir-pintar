@@ -1,5 +1,5 @@
 // Package errors defines domain-specific sentinel errors for the presence service.
-package errors
+package constants
 
 import "errors"
 

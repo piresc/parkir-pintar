@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/errors"
+	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 )

@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -60,7 +61,7 @@ func TestContention_ShouldSerializeAccess_WhenMultipleDriversSelectSameSpot(t *t
 			res, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "car",
-				AssignmentMode: model.AssignmentUserSelected,
+				AssignmentMode: constants.AssignmentUserSelected,
 				SpotID:         spotID,
 				IdempotencyKey: uuid.New().String(),
 			})

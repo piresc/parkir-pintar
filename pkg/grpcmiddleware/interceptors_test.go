@@ -1,13 +1,3 @@
-// Best practices applied from Go testing guidelines:
-// - Descriptive test names using ShouldXXX_WhenYYY pattern
-// - AAA (Arrange-Act-Assert) structure
-// - testify assertions (assert, require)
-// - Direct interceptor invocation with mock handlers (no bufconn needed)
-// - bytes.Buffer + slog.NewJSONHandler for capturing log output
-// - miniredis for Redis-backed interceptors (idempotency)
-// - spyTracer pattern from tracing_property_test.go for tracing tests
-// - mockServerStream from auth_test.go reused (same package)
-// - newTestRedisClient from idempotency_property_test.go reused (same package)
 
 package grpcmiddleware
 
@@ -30,12 +20,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ---------------------------------------------------------------------------
-// Recovery interceptor tests
-// ---------------------------------------------------------------------------
-
 func TestRecoveryUnaryInterceptor_ShouldReturnInternal_WhenPanicString(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors("", nil, nil, nil)
 	interceptor := interceptors.RecoveryUnaryInterceptor()
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Method"}
@@ -44,10 +29,8 @@ func TestRecoveryUnaryInterceptor_ShouldReturnInternal_WhenPanicString(t *testin
 		panic("something went wrong")
 	}
 
-	// Act
 	resp, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	assert.Nil(t, resp)
 	require.Error(t, err)
 	st, ok := status.FromError(err)
@@ -57,7 +40,6 @@ func TestRecoveryUnaryInterceptor_ShouldReturnInternal_WhenPanicString(t *testin
 }
 
 func TestRecoveryUnaryInterceptor_ShouldReturnInternal_WhenPanicError(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors("", nil, nil, nil)
 	interceptor := interceptors.RecoveryUnaryInterceptor()
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Method"}
@@ -66,10 +48,8 @@ func TestRecoveryUnaryInterceptor_ShouldReturnInternal_WhenPanicError(t *testing
 		panic(errors.New("error panic"))
 	}
 
-	// Act
 	resp, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	assert.Nil(t, resp)
 	require.Error(t, err)
 	st, ok := status.FromError(err)
@@ -79,7 +59,6 @@ func TestRecoveryUnaryInterceptor_ShouldReturnInternal_WhenPanicError(t *testing
 }
 
 func TestRecoveryUnaryInterceptor_ShouldPassThrough_WhenNoPanic(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors("", nil, nil, nil)
 	interceptor := interceptors.RecoveryUnaryInterceptor()
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Method"}
@@ -88,20 +67,13 @@ func TestRecoveryUnaryInterceptor_ShouldPassThrough_WhenNoPanic(t *testing.T) {
 		return "ok", nil
 	}
 
-	// Act
 	resp, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "ok", resp)
 }
 
-// ---------------------------------------------------------------------------
-// Tracing interceptor tests
-// ---------------------------------------------------------------------------
-
 func TestTracingUnaryInterceptor_ShouldStartSegment_WhenCalled(t *testing.T) {
-	// Arrange
 	spy := newSpyTracer()
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -114,15 +86,12 @@ func TestTracingUnaryInterceptor_ShouldStartSegment_WhenCalled(t *testing.T) {
 		return "ok", nil
 	}
 
-	// Act
 	resp, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "ok", resp)
 	assert.Equal(t, "/parking.ReservationService/CreateReservation", spy.lastSegmentName())
 
-	// Verify structured log fields.
 	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
 	require.GreaterOrEqual(t, len(lines), 1)
 
@@ -134,7 +103,6 @@ func TestTracingUnaryInterceptor_ShouldStartSegment_WhenCalled(t *testing.T) {
 }
 
 func TestTracingUnaryInterceptor_ShouldLogError_WhenHandlerFails(t *testing.T) {
-	// Arrange
 	spy := newSpyTracer()
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -147,13 +115,10 @@ func TestTracingUnaryInterceptor_ShouldLogError_WhenHandlerFails(t *testing.T) {
 		return nil, status.Errorf(codes.NotFound, "not found")
 	}
 
-	// Act
 	_, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	require.Error(t, err)
 
-	// Find the ERROR log line.
 	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
 	require.GreaterOrEqual(t, len(lines), 2, "expect at least 2 log lines (info + error)")
 
@@ -164,7 +129,6 @@ func TestTracingUnaryInterceptor_ShouldLogError_WhenHandlerFails(t *testing.T) {
 }
 
 func TestTracingStreamInterceptor_ShouldStartSegment_WhenCalled(t *testing.T) {
-	// Arrange
 	spy := newSpyTracer()
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -178,10 +142,8 @@ func TestTracingStreamInterceptor_ShouldStartSegment_WhenCalled(t *testing.T) {
 		return nil
 	}
 
-	// Act
 	err := interceptor(nil, ss, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "/test.Service/StreamMethod", spy.lastSegmentName())
 
@@ -195,12 +157,7 @@ func TestTracingStreamInterceptor_ShouldStartSegment_WhenCalled(t *testing.T) {
 	assert.Equal(t, "StreamMethod", entry["rpc.method"])
 }
 
-// ---------------------------------------------------------------------------
-// Rate limit interceptor tests
-// ---------------------------------------------------------------------------
-
 func TestRateLimitUnaryInterceptor_ShouldAllow_WhenUnderLimit(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors("", nil, nil, nil)
 	interceptor := interceptors.RateLimitUnaryInterceptor(RateLimitConfig{
 		RequestsPerSecond: 10,
@@ -217,18 +174,15 @@ func TestRateLimitUnaryInterceptor_ShouldAllow_WhenUnderLimit(t *testing.T) {
 		return "ok", nil
 	}
 
-	// Act — send 3 requests (under burst of 5)
 	for i := 0; i < 3; i++ {
 		resp, err := interceptor(ctx, nil, info, handler)
 
-		// Assert
 		require.NoError(t, err, "request %d should be allowed", i+1)
 		assert.Equal(t, "ok", resp)
 	}
 }
 
 func TestRateLimitUnaryInterceptor_ShouldReject_WhenOverLimit(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors("", nil, nil, nil)
 	interceptor := interceptors.RateLimitUnaryInterceptor(RateLimitConfig{
 		RequestsPerSecond: 1,
@@ -245,16 +199,13 @@ func TestRateLimitUnaryInterceptor_ShouldReject_WhenOverLimit(t *testing.T) {
 		return "ok", nil
 	}
 
-	// Exhaust the burst.
 	for i := 0; i < 2; i++ {
 		_, err := interceptor(ctx, nil, info, handler)
 		require.NoError(t, err)
 	}
 
-	// Act — next request should be rejected.
 	resp, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	assert.Nil(t, resp)
 	require.Error(t, err)
 	st, ok := status.FromError(err)
@@ -264,7 +215,6 @@ func TestRateLimitUnaryInterceptor_ShouldReject_WhenOverLimit(t *testing.T) {
 }
 
 func TestRateLimitUnaryInterceptor_ShouldTrackPerClient(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors("", nil, nil, nil)
 	interceptor := interceptors.RateLimitUnaryInterceptor(RateLimitConfig{
 		RequestsPerSecond: 1,
@@ -277,7 +227,6 @@ func TestRateLimitUnaryInterceptor_ShouldTrackPerClient(t *testing.T) {
 		return "ok", nil
 	}
 
-	// Client A — exhaust its single token.
 	addrA, err := net.ResolveTCPAddr("tcp", "10.0.0.1:1111")
 	require.NoError(t, err)
 	ctxA := peer.NewContext(context.Background(), &peer.Peer{Addr: addrA})
@@ -285,30 +234,22 @@ func TestRateLimitUnaryInterceptor_ShouldTrackPerClient(t *testing.T) {
 	_, err = interceptor(ctxA, nil, info, handler)
 	require.NoError(t, err)
 
-	// Client A should now be rate limited.
 	_, err = interceptor(ctxA, nil, info, handler)
 	require.Error(t, err)
 	st, _ := status.FromError(err)
 	assert.Equal(t, codes.ResourceExhausted, st.Code())
 
-	// Act — Client B should still be allowed (separate bucket).
 	addrB, err := net.ResolveTCPAddr("tcp", "10.0.0.2:2222")
 	require.NoError(t, err)
 	ctxB := peer.NewContext(context.Background(), &peer.Peer{Addr: addrB})
 
 	resp, err := interceptor(ctxB, nil, info, handler)
 
-	// Assert
 	require.NoError(t, err, "client B should have its own bucket")
 	assert.Equal(t, "ok", resp)
 }
 
-// ---------------------------------------------------------------------------
-// Logging interceptor tests
-// ---------------------------------------------------------------------------
-
 func TestLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
-	// Arrange
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -320,10 +261,8 @@ func TestLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 		return "ok", nil
 	}
 
-	// Act
 	resp, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "ok", resp)
 
@@ -342,7 +281,6 @@ func TestLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 }
 
 func TestLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) {
-	// Arrange
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -354,10 +292,8 @@ func TestLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) {
 		return nil, status.Errorf(codes.PermissionDenied, "forbidden")
 	}
 
-	// Act
 	_, err := interceptor(context.Background(), nil, info, handler)
 
-	// Assert
 	require.Error(t, err)
 
 	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
@@ -370,12 +306,7 @@ func TestLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) {
 	assert.Equal(t, "PermissionDenied", entry["grpc.code"])
 }
 
-// ---------------------------------------------------------------------------
-// Idempotency interceptor tests
-// ---------------------------------------------------------------------------
-
 func TestIdempotencyUnaryInterceptor_ShouldCacheResponse_WhenFirstCall(t *testing.T) {
-	// Arrange
 	rc, _ := newTestRedisClient(t)
 	interceptors := NewInterceptors("", nil, nil, rc)
 
@@ -396,17 +327,14 @@ func TestIdempotencyUnaryInterceptor_ShouldCacheResponse_WhenFirstCall(t *testin
 		return map[string]interface{}{"order_id": "ord-1"}, nil
 	}
 
-	// Act
 	resp, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, 1, callCount, "handler must be invoked on first call")
 }
 
 func TestIdempotencyUnaryInterceptor_ShouldAllowSecondCall_WhenFirstCompleted(t *testing.T) {
-	// Arrange
 	rc, _ := newTestRedisClient(t)
 	interceptors := NewInterceptors("", nil, nil, rc)
 
@@ -427,25 +355,19 @@ func TestIdempotencyUnaryInterceptor_ShouldAllowSecondCall_WhenFirstCompleted(t 
 		return map[string]interface{}{"order_id": "ord-2"}, nil
 	}
 
-	// First call — acquires and releases the deduplication key.
 	resp1, err := interceptor(ctx, nil, info, handler)
 	require.NoError(t, err)
 	assert.NotNil(t, resp1)
 	assert.Equal(t, 1, callCount)
 
-	// Act — second call with same key after first completed (key released).
-	// The deduplication-only approach allows retries after completion;
-	// the handler's own idempotency (DB constraints) handles deduplication.
 	resp2, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.NotNil(t, resp2)
 	assert.Equal(t, 2, callCount, "handler should be invoked again after first call completed (deduplication-only mode)")
 }
 
 func TestIdempotencyUnaryInterceptor_ShouldReturnInvalidArgument_WhenKeyMissing(t *testing.T) {
-	// Arrange
 	rc, _ := newTestRedisClient(t)
 	interceptors := NewInterceptors("", nil, nil, rc)
 
@@ -457,17 +379,14 @@ func TestIdempotencyUnaryInterceptor_ShouldReturnInvalidArgument_WhenKeyMissing(
 	interceptor := interceptors.IdempotencyUnaryInterceptor(cfg)
 	info := &grpc.UnaryServerInfo{FullMethod: method}
 
-	// Context without idempotency key metadata.
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.MD{})
 
 	handler := func(_ context.Context, _ interface{}) (interface{}, error) {
 		return "ok", nil
 	}
 
-	// Act
 	resp, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	assert.Nil(t, resp)
 	require.Error(t, err)
 	st, ok := status.FromError(err)
@@ -477,7 +396,6 @@ func TestIdempotencyUnaryInterceptor_ShouldReturnInvalidArgument_WhenKeyMissing(
 }
 
 func TestIdempotencyUnaryInterceptor_ShouldPassThrough_WhenMethodNotEnforced(t *testing.T) {
-	// Arrange
 	rc, _ := newTestRedisClient(t)
 	interceptors := NewInterceptors("", nil, nil, rc)
 
@@ -487,10 +405,8 @@ func TestIdempotencyUnaryInterceptor_ShouldPassThrough_WhenMethodNotEnforced(t *
 	}
 	interceptor := interceptors.IdempotencyUnaryInterceptor(cfg)
 
-	// Use a method NOT in the enforcement list.
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetOrder"}
 
-	// No idempotency key needed for non-enforced methods.
 	ctx := context.Background()
 
 	handlerCalled := false
@@ -499,10 +415,8 @@ func TestIdempotencyUnaryInterceptor_ShouldPassThrough_WhenMethodNotEnforced(t *
 		return "order-data", nil
 	}
 
-	// Act
 	resp, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "order-data", resp)
 	assert.True(t, handlerCalled, "handler must be called for non-enforced methods")

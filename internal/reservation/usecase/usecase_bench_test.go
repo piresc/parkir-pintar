@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 )
 
@@ -80,7 +81,7 @@ func BenchmarkCancelReservation(b *testing.B) {
 		DriverID:    "driver-1",
 		SpotID:      "spot-1",
 		VehicleType: "car",
-		Status:      model.StatusConfirmed,
+		Status:      constants.StatusConfirmed,
 		ExpiresAt:   timePtr(time.Now().Add(10 * time.Minute)),
 		CreatedAt:   time.Now().Add(-5 * time.Minute),
 	}

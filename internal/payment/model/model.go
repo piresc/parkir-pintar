@@ -1,5 +1,3 @@
-// Package model defines domain structs, status constants, sentinel errors,
-// and request types for the payment module.
 package model
 
 import (
@@ -7,7 +5,6 @@ import (
 	"time"
 )
 
-// Payment status constants.
 const (
 	PaymentStatusPending  = "pending"
 	PaymentStatusSuccess  = "success"
@@ -15,14 +12,12 @@ const (
 	PaymentStatusRefunded = "refunded"
 )
 
-// Sentinel errors for the payment domain.
 var (
 	ErrPaymentNotFound = errors.New("payment not found")
 	ErrPaymentConflict = errors.New("payment conflict")
 	ErrPaymentFailed   = errors.New("payment failed")
 )
 
-// Payment represents a payment domain entity.
 type Payment struct {
 	ID             string     `json:"id" db:"id"`
 	BillingID      string     `json:"billing_id" db:"billing_id"`
@@ -37,7 +32,6 @@ type Payment struct {
 	UpdatedAt      time.Time  `json:"updated_at,omitzero" db:"updated_at"`
 }
 
-// ProcessPaymentRequest is the payload for processing a payment.
 type ProcessPaymentRequest struct {
 	BillingID      string `json:"billing_id"`
 	Amount         int64  `json:"amount"`
@@ -45,20 +39,17 @@ type ProcessPaymentRequest struct {
 	IdempotencyKey string `json:"idempotency_key"`
 }
 
-// ProcessQRISRequest is the payload for processing a QRIS payment.
 type ProcessQRISRequest struct {
 	BillingID      string `json:"billing_id"`
 	Amount         int64  `json:"amount"`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 
-// RefundPaymentRequest is the payload for refunding a payment.
 type RefundPaymentRequest struct {
 	PaymentID      string `json:"payment_id"`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 
-// GetPaymentStatusRequest is the payload for querying payment status.
 type GetPaymentStatusRequest struct {
 	PaymentID string `json:"payment_id"`
 }

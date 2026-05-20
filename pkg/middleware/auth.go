@@ -10,15 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Context keys for authenticated user data.
 const (
 	KeyUserID = "user_id"
 	KeyRole   = "role"
 )
 
-// JWTAuth returns middleware that validates a JWT Bearer token from the
-// Authorization header. On success, user_id and role claims are set in
-// the gin.Context. Returns 401 on missing, malformed, or invalid tokens.
 func (m *Middleware) JWTAuth(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -44,7 +40,6 @@ func (m *Middleware) JWTAuth(secret string) gin.HandlerFunc {
 			return
 		}
 
-		// Extract user_id and role from validated claims
 		if claims.UserID == "" {
 			c.Abort()
 			response.Error(c, http.StatusUnauthorized, "token missing user identity")
@@ -58,5 +53,3 @@ func (m *Middleware) JWTAuth(secret string) gin.HandlerFunc {
 		c.Next()
 	}
 }
-
-

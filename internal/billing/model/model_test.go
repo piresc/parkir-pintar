@@ -1,12 +1,3 @@
-// Package model defines domain structs and request types for the billing module.
-//
-// Best practices applied (from coding standards KB):
-// - Table-driven tests with t.Run() subtests for comprehensive pricing coverage
-// - AAA pattern: Arrange → Act → Assert
-// - testify/assert for assertions
-// - t.Context() for context (Go 1.24+)
-// - WIB timezone (UTC+7) for all test times
-// - Each subtest is isolated and self-descriptive
 package model
 
 import (
@@ -18,7 +9,6 @@ import (
 	"parkir-pintar/pkg/pricing"
 )
 
-// wib returns the WIB (UTC+7) timezone used for all test times.
 func wib() *time.Location {
 	return time.FixedZone("WIB", 7*60*60)
 }
@@ -110,13 +100,10 @@ func TestCalculateSessionFee_ShouldComputeCorrectFees(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
 			_ = t.Context()
 
-			// Act
 			result := pricing.CalculateSessionFee(tt.checkIn, tt.checkOut)
 
-			// Assert
 			assert.Equal(t, tt.billedHours, result.BilledHours)
 			assert.Equal(t, tt.parkingFee, result.ParkingFee)
 			assert.Equal(t, tt.isOvernight, result.IsOvernight)
@@ -155,13 +142,10 @@ func TestCalculateTotal_ShouldSumAllFees(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Arrange
 			_ = t.Context()
 
-			// Act
 			total := pricing.CalculateTotal(tt.bookingFee, tt.parkingFee, tt.overnightFee)
 
-			// Assert
 			assert.Equal(t, tt.expectedTotal, total)
 			if tt.totalGEBooking {
 				assert.GreaterOrEqual(t, total, tt.bookingFee,

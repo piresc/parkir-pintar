@@ -10,12 +10,10 @@ import (
 )
 
 func TestNewMetrics_NoEndpoint(t *testing.T) {
-	// Empty endpoint should create a noop-export provider (no OTLP connection).
 	m, err := NewMetrics("test-service", "")
 	require.NoError(t, err)
 	require.NotNil(t, m)
 
-	// All instruments should be non-nil.
 	assert.NotNil(t, m.HTTPRequestsTotal)
 	assert.NotNil(t, m.HTTPRequestDuration)
 	assert.NotNil(t, m.HTTPResponseSize)
@@ -26,27 +24,21 @@ func TestNewMetrics_NoEndpoint(t *testing.T) {
 	assert.NotNil(t, m.OccupiedSpots)
 	assert.NotNil(t, m.ReservationsTotal)
 
-	// Shutdown should succeed.
 	err = m.Shutdown(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestNewMetrics_WithEndpoint(t *testing.T) {
-	// With an endpoint set, the exporter is created with lazy connection.
-	// NewMetrics should succeed even if the endpoint is unreachable.
 	m, err := NewMetrics("test-service", "localhost:0")
 	require.NoError(t, err)
 	require.NotNil(t, m)
 
-	// Shutdown may return an error due to unreachable endpoint flush;
-	// we only care that it doesn't panic and completes within timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = m.Shutdown(ctx)
 }
 
 func TestMetrics_Shutdown_NilProvider(t *testing.T) {
-	// A Metrics with nil provider should not panic on Shutdown.
 	m := &Metrics{provider: nil}
 	err := m.Shutdown(context.Background())
 	assert.NoError(t, err)
@@ -57,7 +49,6 @@ func TestMetrics_RecordDBQuery_NoPanic(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = m.Shutdown(context.Background()) }()
 
-	// Should not panic even though no exporter is configured.
 	assert.NotPanics(t, func() {
 		m.RecordDBQuery(context.Background(), "SELECT", "users", 0.042)
 	})

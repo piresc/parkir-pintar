@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -48,7 +49,7 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 		reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 			DriverID:       driverID,
 			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
+			AssignmentMode: constants.AssignmentSystemAssigned,
 			IdempotencyKey: uuid.New().String(),
 		})
 		require.NoError(t, err)
@@ -60,7 +61,7 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, reservation)
-		require.Equal(t, model.StatusConfirmed, reservation.Status)
+		require.Equal(t, constants.StatusConfirmed, reservation.Status)
 
 		// Move to a random terminal state
 		terminalOp := rapid.SampledFrom([]string{"expire", "cancel"}).Draw(rt, "terminalOp")

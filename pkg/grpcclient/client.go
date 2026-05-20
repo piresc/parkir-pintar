@@ -1,6 +1,3 @@
-// Package grpcclient provides reusable gRPC client dial helpers with default
-// interceptors for tracing and logging, mirroring the pattern from
-// pkg/httpclient for HTTP clients.
 package grpcclient
 
 import (
@@ -20,7 +17,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ClientConfig holds configuration for creating a gRPC client connection.
 type ClientConfig struct {
 	Target           string
 	DialTimeout      time.Duration
@@ -31,10 +27,6 @@ type ClientConfig struct {
 	Logger           *slog.Logger
 }
 
-// Dial creates a grpc.ClientConn with default tracing and logging client
-// interceptors. It respects the configured dial timeout and keep-alive
-// parameters. If Logger is nil, slog.Default() is used. If Tracer is nil,
-// tracing.NewNoOpTracer() is used.
 func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	logger := cfg.Logger
 	if logger == nil {
@@ -42,9 +34,6 @@ func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc
 	}
 
 	dialOpts := []grpc.DialOption{
-		// OTel gRPC stats handler: creates client spans AND propagates
-		// W3C traceparent via metadata so downstream services join the
-		// same trace (end-to-end distributed tracing).
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithChainUnaryInterceptor(
 			clientAuthForwardingInterceptor(),
@@ -69,7 +58,6 @@ func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc
 
 	dialOpts = append(dialOpts, opts...)
 
-	// Apply dial timeout via context if configured.
 	if cfg.DialTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, cfg.DialTimeout)
@@ -87,9 +75,6 @@ func Dial(ctx context.Context, cfg ClientConfig, opts ...grpc.DialOption) (*grpc
 	return conn, nil
 }
 
-// clientLoggingUnaryInterceptor returns a grpc.UnaryClientInterceptor that
-// logs the method name, gRPC status code, and duration for each outbound
-// unary RPC. INFO level for successful calls, ERROR level for failures.
 func clientLoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
@@ -126,9 +111,6 @@ func clientLoggingUnaryInterceptor(logger *slog.Logger) grpc.UnaryClientIntercep
 	}
 }
 
-// clientLoggingStreamInterceptor returns a grpc.StreamClientInterceptor that
-// logs the method name, gRPC status code, and duration for each outbound
-// streaming RPC.
 func clientLoggingStreamInterceptor(logger *slog.Logger) grpc.StreamClientInterceptor {
 	return func(
 		ctx context.Context,
@@ -165,10 +147,7 @@ func clientLoggingStreamInterceptor(logger *slog.Logger) grpc.StreamClientInterc
 	}
 }
 
-// clientAuthForwardingInterceptor returns a grpc.UnaryClientInterceptor that
-// forwards the "authorization" metadata from the incoming context (set by the
 // gateway's contextWithAuth) to the outgoing gRPC call. This ensures JWT tokens
-// are propagated across service-to-service calls (e.g. reservation → billing).
 func clientAuthForwardingInterceptor() grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
@@ -178,8 +157,6 @@ func clientAuthForwardingInterceptor() grpc.UnaryClientInterceptor {
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
 	) error {
-		// Try to extract authorization from incoming metadata first,
-		// then fall back to context values from the gRPC auth interceptor.
 		md, ok := metadata.FromIncomingContext(ctx)
 		if ok {
 			authVals := md.Get("authorization")
@@ -191,7 +168,6 @@ func clientAuthForwardingInterceptor() grpc.UnaryClientInterceptor {
 	}
 }
 
-// clientAuthForwardingStreamInterceptor does the same for streaming calls.
 func clientAuthForwardingStreamInterceptor() grpc.StreamClientInterceptor {
 	return func(
 		ctx context.Context,

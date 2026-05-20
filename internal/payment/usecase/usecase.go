@@ -1,13 +1,3 @@
-// Package usecase implements the business logic layer for the payment domain
-// module. It orchestrates payment processing, QRIS payments, refunds, and
-// status queries, coordinating with the repository and payment gateway.
-//
-// Best practices applied (from Go coding standards KB):
-// - Document all exported functions and types with proper Godoc format
-// - Use context.Context as first parameter for consistency
-// - Return errors as the last value from functions
-// - Wrap errors with context using fmt.Errorf with %w
-// - Keep interfaces small and define them where they're used
 // - Never ignore errors; always handle them explicitly
 package usecase
 
@@ -26,10 +16,8 @@ import (
 	"parkir-pintar/pkg/idempotency"
 )
 
-// paymentMethodQRIS is the constant for the QRIS payment method.
 const paymentMethodQRIS = "qris"
 
-// Usecase defines the business logic interface for payment operations.
 type Usecase interface {
 	ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error)
 	ProcessQRIS(ctx context.Context, req *model.ProcessQRISRequest) (*model.Payment, error)
@@ -37,20 +25,17 @@ type Usecase interface {
 	GetPaymentStatus(ctx context.Context, req *model.GetPaymentStatusRequest) (*model.Payment, error)
 }
 
-// EventPublisher defines the interface for publishing payment result events.
 type EventPublisher interface {
 	PublishPaymentSuccess(ctx context.Context, event gateway.PaymentResultEvent) error
 	PublishPaymentFailed(ctx context.Context, event gateway.PaymentResultEvent) error
 }
 
-// paymentUsecase is the concrete implementation of Usecase.
 type paymentUsecase struct {
 	repo           repository.Repository
 	gw             gateway.PaymentGateway
 	eventPublisher EventPublisher
 }
 
-// NewUsecase creates a new payment Usecase with all required dependencies.
 func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway, pub EventPublisher) Usecase {
 	return &paymentUsecase{
 		repo:           repo,
@@ -59,10 +44,7 @@ func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway, pub Event
 	}
 }
 
-// ProcessPayment processes a payment with idempotency check and circuit breaker
-// pattern (retry 3x with exponential backoff 100ms/200ms/400ms).
 func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error) {
-	// Idempotency check
 	res, err := idempotency.Check(ctx, req.IdempotencyKey, uc.repo.GetByIdempotencyKey, repository.ErrNotFound, "process payment")
 	if err != nil {
 		return nil, err
@@ -95,7 +77,6 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		return nil, fmt.Errorf("process payment create: %w", err)
 	}
 
-	// Circuit breaker: retry gateway.Charge up to 3 times with exponential backoff
 	var txnRef string
 	var chargeErr error
 	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
@@ -127,13 +108,11 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	}
 
 	if chargeErr != nil {
-		// All retries exhausted — mark payment as failed
 		payment.Status = model.PaymentStatusFailed
 		payment.UpdatedAt = time.Now()
 		if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
 			slog.Error("failed to update payment status to failed", slog.Any("error", updateErr))
 		}
-		// Publish payment failed event (best-effort)
 		if uc.eventPublisher != nil {
 			pubErr := uc.eventPublisher.PublishPaymentFailed(ctx, gateway.PaymentResultEvent{
 				PaymentID: payment.ID,
@@ -148,7 +127,6 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		return payment, nil
 	}
 
-	// Gateway succeeded
 	paidAt := time.Now()
 	payment.TransactionRef = txnRef
 	payment.Status = model.PaymentStatusSuccess
@@ -159,7 +137,6 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		return nil, fmt.Errorf("process payment update success: %w", err)
 	}
 
-	// Publish payment success event (best-effort)
 	if uc.eventPublisher != nil {
 		pubErr := uc.eventPublisher.PublishPaymentSuccess(ctx, gateway.PaymentResultEvent{
 			PaymentID: payment.ID,
@@ -175,7 +152,6 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	return payment, nil
 }
 
-// ProcessQRIS delegates to ProcessPayment with method="qris".
 func (uc *paymentUsecase) ProcessQRIS(ctx context.Context, req *model.ProcessQRISRequest) (*model.Payment, error) {
 	return uc.ProcessPayment(ctx, &model.ProcessPaymentRequest{
 		BillingID:      req.BillingID,
@@ -185,7 +161,6 @@ func (uc *paymentUsecase) ProcessQRIS(ctx context.Context, req *model.ProcessQRI
 	})
 }
 
-// RefundPayment refunds a previously completed payment via the gateway.
 func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPaymentRequest) (*model.Payment, error) {
 	if req.IdempotencyKey != "" {
 		res, err := idempotency.Check(ctx, req.IdempotencyKey, uc.repo.GetByIdempotencyKey, repository.ErrNotFound, "refund payment")
@@ -206,7 +181,6 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("cannot refund payment in status %q", payment.Status)
 	}
 
-	// Atomically transition status from "success" to "refunded" BEFORE calling
 	// the gateway to prevent double-refund from concurrent requests.
 	payment.Status = model.PaymentStatusRefunded
 	payment.UpdatedAt = time.Now()
@@ -215,7 +189,6 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("refund payment status lock: %w", err)
 	}
 
-	// Call the gateway refund with retries now that we hold the DB lock.
 	var refundErr error
 	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
 	for i := range 3 {
@@ -246,7 +219,6 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		}
 	}
 	if refundErr != nil {
-		// All retries exhausted — revert status back to success.
 		payment.Status = model.PaymentStatusSuccess
 		payment.UpdatedAt = time.Now()
 		if revertErr := uc.repo.UpdatePayment(ctx, payment); revertErr != nil {
@@ -260,7 +232,6 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 	return payment, nil
 }
 
-// GetPaymentStatus retrieves the current payment by ID.
 func (uc *paymentUsecase) GetPaymentStatus(ctx context.Context, req *model.GetPaymentStatusRequest) (*model.Payment, error) {
 	payment, err := uc.repo.GetByID(ctx, req.PaymentID)
 	if err != nil {

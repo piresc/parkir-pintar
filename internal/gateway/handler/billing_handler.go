@@ -1,5 +1,3 @@
-// Package handler — billing REST endpoint for the API Gateway.
-// Transcodes REST requests to gRPC calls to the billing microservice.
 package handler
 
 import (
@@ -14,18 +12,15 @@ import (
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 )
 
-// BillingHandler provides the reservation billing breakdown endpoint via gRPC.
 type BillingHandler struct {
 	billing     billingv1.BillingServiceClient
 	reservation reservationv1.ReservationServiceClient
 }
 
-// NewBillingHandler creates a new BillingHandler with the given billing and reservation gRPC clients.
 func NewBillingHandler(billing billingv1.BillingServiceClient, reservation reservationv1.ReservationServiceClient) *BillingHandler {
 	return &BillingHandler{billing: billing, reservation: reservation}
 }
 
-// RegisterRoutes registers billing REST routes on the Gin engine with JWT auth.
 func (bh *BillingHandler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, jwtSecret string) {
 	api := engine.Group("/api/v1")
 	api.Use(mw.JWTAuth(jwtSecret))
@@ -33,9 +28,6 @@ func (bh *BillingHandler) RegisterRoutes(engine *gin.Engine, mw *middleware.Midd
 	api.GET("/reservations/:id/billing", bh.GetReservationBilling)
 }
 
-// GetReservationBilling handles GET /api/v1/reservations/:id/billing.
-// Returns the billing breakdown for a given reservation via the billing gRPC service.
-// Verifies the caller owns the reservation before fetching billing data.
 func (bh *BillingHandler) GetReservationBilling(c *gin.Context) {
 	reservationID := c.Param("id")
 	if reservationID == "" {
@@ -43,7 +35,6 @@ func (bh *BillingHandler) GetReservationBilling(c *gin.Context) {
 		return
 	}
 
-	// Verify caller owns this reservation (GetReservation enforces ownership via x-user-id)
 	_, err := bh.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
 		ReservationId: reservationID,
 	})

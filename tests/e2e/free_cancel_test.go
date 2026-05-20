@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -40,12 +41,12 @@ func TestCancelReservation_ShouldReleaseSpot_WhenCancelledBeforeConfirmation(t *
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, model.StatusWaitingPayment, reservation.Status)
+	assert.Equal(t, constants.StatusWaitingPayment, reservation.Status)
 
 	// Count billing records before cancellation
 	var billingCountBefore int
@@ -62,7 +63,7 @@ func TestCancelReservation_ShouldReleaseSpot_WhenCancelledBeforeConfirmation(t *
 	// Assert — CANCELLED status
 	require.NoError(t, err)
 	require.NotNil(t, cancelled)
-	assert.Equal(t, model.StatusCancelled, cancelled.Status)
+	assert.Equal(t, constants.StatusCancelled, cancelled.Status)
 
 	// Assert — Spot back to "available"
 	var spotStatus string

@@ -1,4 +1,3 @@
-// Package handler provides gRPC handlers for the presence domain module.
 package handler
 
 import (
@@ -11,18 +10,15 @@ import (
 	presencev1 "parkir-pintar/proto/presence/v1"
 )
 
-// Handler implements the presencev1.PresenceServiceServer gRPC interface.
 type Handler struct {
 	presencev1.UnimplementedPresenceServiceServer
 	uc usecase.Usecase
 }
 
-// NewHandler creates a new presence gRPC Handler with the given usecase.
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 
-// VerifyPresence validates request fields and delegates to the usecase.
 func (h *Handler) VerifyPresence(ctx context.Context, req *presencev1.VerifyPresenceRequest) (*presencev1.VerifyPresenceResponse, error) {
 	if req.GetDriverId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "driver_id is required")

@@ -10,7 +10,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-// Client wraps a NATS connection and JetStream context for publishing and consuming.
 type Client struct {
 	conn *nats.Conn
 	js   jetstream.JetStream
@@ -20,7 +19,6 @@ type Client struct {
 	consumers map[string]jetstream.Consumer
 }
 
-// NewClient connects to NATS and initializes a JetStream client.
 func NewClient(url string, opts ...nats.Option) (*Client, error) {
 	nc, err := nats.Connect(url, opts...)
 	if err != nil {
@@ -43,17 +41,14 @@ func NewClient(url string, opts ...nats.Option) (*Client, error) {
 	}, nil
 }
 
-// JetStream returns the underlying JetStream interface.
 func (c *Client) JetStream() jetstream.JetStream {
 	return c.js
 }
 
-// Conn returns the underlying NATS connection.
 func (c *Client) Conn() *nats.Conn {
 	return c.conn
 }
 
-// CreateStream creates or updates a stream with the given config.
 func (c *Client) CreateStream(ctx context.Context, cfg jetstream.StreamConfig) (jetstream.Stream, error) {
 	stream, err := c.js.CreateOrUpdateStream(ctx, cfg)
 	if err != nil {
@@ -68,14 +63,12 @@ func (c *Client) CreateStream(ctx context.Context, cfg jetstream.StreamConfig) (
 	return stream, nil
 }
 
-// CreateConsumer creates or updates a durable consumer on the given stream.
 func (c *Client) CreateConsumer(ctx context.Context, streamName string, cfg jetstream.ConsumerConfig) (jetstream.Consumer, error) {
 	c.mu.RLock()
 	stream, ok := c.streams[streamName]
 	c.mu.RUnlock()
 
 	if !ok {
-		// Try to get the stream from the server
 		var err error
 		stream, err = c.js.Stream(ctx, streamName)
 		if err != nil {
@@ -99,7 +92,6 @@ func (c *Client) CreateConsumer(ctx context.Context, streamName string, cfg jets
 	return consumer, nil
 }
 
-// Publish publishes a message to a JetStream subject with deduplication via msgID.
 func (c *Client) Publish(ctx context.Context, subject string, data []byte, msgID string) (*jetstream.PubAck, error) {
 	opts := []jetstream.PublishOpt{}
 	if msgID != "" {
@@ -114,8 +106,6 @@ func (c *Client) Publish(ctx context.Context, subject string, data []byte, msgID
 	return ack, nil
 }
 
-// Consume starts consuming messages from a named consumer with the given handler.
-// It returns a ConsumeContext that can be used to stop consumption.
 func (c *Client) Consume(consumerName string, handler func(jetstream.Msg)) (jetstream.ConsumeContext, error) {
 	c.mu.RLock()
 	consumer, ok := c.consumers[consumerName]
@@ -134,7 +124,6 @@ func (c *Client) Consume(consumerName string, handler func(jetstream.Msg)) (jets
 	return cc, nil
 }
 
-// Close drains the connection and closes it gracefully.
 func (c *Client) Close(ctx context.Context) {
 	if c.conn != nil {
 		_ = c.conn.FlushWithContext(ctx)

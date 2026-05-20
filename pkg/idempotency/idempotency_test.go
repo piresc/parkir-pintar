@@ -63,7 +63,6 @@ func TestCheck_UnexpectedError(t *testing.T) {
 }
 
 func TestCheck_NilRecordNoError(t *testing.T) {
-	// Edge case: lookup returns (nil, nil) — treat as not found.
 	lookup := func(_ context.Context, _ string) (*record, error) {
 		return nil, nil
 	}

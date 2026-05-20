@@ -1,6 +1,3 @@
-// Package metrics provides an OpenTelemetry-based metrics abstraction with
-// OTLP gRPC push exporter for the ParkirPintar platform. It exposes HTTP, gRPC,
-// database, and business-domain metric instruments.
 package metrics
 
 import (
@@ -17,31 +14,23 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Metrics holds all OTel metric instruments used across the application.
 type Metrics struct {
 	provider *sdkmetric.MeterProvider
 
-	// HTTP metrics
 	HTTPRequestsTotal   otelmetric.Int64Counter
 	HTTPRequestDuration otelmetric.Float64Histogram
 	HTTPResponseSize    otelmetric.Int64Histogram
 
-	// gRPC metrics
 	GRPCRequestsTotal   otelmetric.Int64Counter
 	GRPCRequestDuration otelmetric.Float64Histogram
 
-	// Database metrics
 	DBQueryDuration otelmetric.Float64Histogram
 
-	// Business metrics
 	ActiveParkingSessions otelmetric.Int64Gauge
 	OccupiedSpots         otelmetric.Int64Gauge
 	ReservationsTotal     otelmetric.Int64Counter
 }
 
-// NewMetrics creates a new Metrics instance with an OTLP gRPC periodic reader
-// that pushes metrics to the given endpoint. If otlpEndpoint is empty, a noop
-// meter provider is used (metrics are recorded but not exported).
 func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 	res, err := resource.New(
 		context.Background(),
@@ -71,7 +60,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 			sdkmetric.WithResource(res),
 		)
 	} else {
-		// No endpoint configured — use a provider with no reader (noop export).
 		provider = sdkmetric.NewMeterProvider(
 			sdkmetric.WithResource(res),
 		)
@@ -82,8 +70,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 	m := &Metrics{
 		provider: provider,
 	}
-
-	// --- HTTP metrics ---
 
 	m.HTTPRequestsTotal, err = meter.Int64Counter("http_requests_total",
 		otelmetric.WithDescription("Total number of HTTP requests"),
@@ -108,8 +94,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 		return nil, err
 	}
 
-	// --- gRPC metrics ---
-
 	m.GRPCRequestsTotal, err = meter.Int64Counter("grpc_requests_total",
 		otelmetric.WithDescription("Total number of gRPC requests"),
 	)
@@ -125,8 +109,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 		return nil, err
 	}
 
-	// --- Database metrics ---
-
 	m.DBQueryDuration, err = meter.Float64Histogram("db_query_duration_seconds",
 		otelmetric.WithDescription("Database query duration in seconds"),
 		otelmetric.WithUnit("s"),
@@ -134,8 +116,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// --- Business metrics ---
 
 	m.ActiveParkingSessions, err = meter.Int64Gauge("parking_active_sessions",
 		otelmetric.WithDescription("Number of currently active parking sessions"),
@@ -161,7 +141,6 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 	return m, nil
 }
 
-// Shutdown gracefully shuts down the MeterProvider, flushing any pending metrics.
 func (m *Metrics) Shutdown(ctx context.Context) error {
 	if m.provider == nil {
 		return nil
@@ -169,7 +148,6 @@ func (m *Metrics) Shutdown(ctx context.Context) error {
 	return m.provider.Shutdown(ctx)
 }
 
-// RecordDBQuery is a convenience method to record a database query duration.
 func (m *Metrics) RecordDBQuery(ctx context.Context, operation, table string, durationSeconds float64) {
 	m.DBQueryDuration.Record(ctx, durationSeconds,
 		otelmetric.WithAttributes(
@@ -179,17 +157,14 @@ func (m *Metrics) RecordDBQuery(ctx context.Context, operation, table string, du
 	)
 }
 
-// SetActiveParkingSessions sets the current number of active parking sessions.
 func (m *Metrics) SetActiveParkingSessions(ctx context.Context, count int64) {
 	m.ActiveParkingSessions.Record(ctx, count)
 }
 
-// SetOccupiedSpots sets the current number of occupied parking spots.
 func (m *Metrics) SetOccupiedSpots(ctx context.Context, count int64) {
 	m.OccupiedSpots.Record(ctx, count)
 }
 
-// IncReservations increments the reservations counter with the given status.
 func (m *Metrics) IncReservations(ctx context.Context, status string) {
 	m.ReservationsTotal.Add(ctx, 1,
 		otelmetric.WithAttributes(

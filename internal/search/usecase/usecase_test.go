@@ -1,15 +1,3 @@
-// Package usecase implements the business logic layer for the search domain.
-//
-// Best practices applied (from Go testify coding standards KB):
-// - Test naming: Test[FunctionName]_Should[ExpectedResult]_When[Condition]
-// - AAA pattern: Arrange → Act → Assert
-// - testify/mock for mock implementations of all dependency interfaces
-// - testify/assert and testify/require for assertions
-// - Each test is isolated with its own mock setup
-// - AssertExpectations(t) called on all mocks to verify interactions
-// - Use t.Context() for Go 1.24+ context in tests
-// - Mock at interface boundaries rather than concrete implementations
-// - Keep mocks simple and focused on the behavior being tested
 package usecase
 
 import (
@@ -26,9 +14,6 @@ import (
 	"parkir-pintar/internal/search/model"
 )
 
-// --- Mock Implementations ---
-
-// MockRepository implements repository.Repository using testify/mock.
 type MockRepository struct {
 	mock.Mock
 }
@@ -57,7 +42,6 @@ func (m *MockRepository) GetSpotByID(ctx context.Context, spotID string) (*model
 	return args.Get(0).(*model.SpotDetails), args.Error(1)
 }
 
-// MockRedisClient implements RedisClient using testify/mock.
 type MockRedisClient struct {
 	mock.Mock
 }
@@ -77,12 +61,7 @@ func (m *MockRedisClient) Delete(ctx context.Context, key string) error {
 	return args.Error(0)
 }
 
-// --- Test Cases ---
-
-// TestGetAvailability_ShouldReturnCachedData_WhenCacheHit verifies that
-// GetAvailability returns data from Redis cache without querying the database.
 func TestGetAvailability_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
 
@@ -96,22 +75,16 @@ func TestGetAvailability_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
 
 	uc := NewUsecase(repo, redis)
 
-	// Act
 	result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{VehicleType: "car"})
 
-	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
 	assert.Equal(t, 25, result[0].AvailableCar)
-	// Repository should NOT have been called — cache hit
 	repo.AssertNotCalled(t, "GetAvailabilityByVehicleType")
 	redis.AssertExpectations(t)
 }
 
-// TestGetAvailability_ShouldQueryDB_WhenCacheMiss verifies that
-// GetAvailability falls through to PostgreSQL when Redis returns an error.
 func TestGetAvailability_ShouldQueryDB_WhenCacheMiss(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
 
@@ -125,10 +98,8 @@ func TestGetAvailability_ShouldQueryDB_WhenCacheMiss(t *testing.T) {
 
 	uc := NewUsecase(repo, redis)
 
-	// Act
 	result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{VehicleType: "car"})
 
-	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
 	assert.Equal(t, 20, result[0].AvailableCar)
@@ -136,11 +107,7 @@ func TestGetAvailability_ShouldQueryDB_WhenCacheMiss(t *testing.T) {
 	redis.AssertExpectations(t)
 }
 
-// TestGetAvailability_ShouldGracefullyDegrade_WhenRedisFailure verifies that
-// GetAvailability still returns data from DB when Redis Get fails, and does
-// not panic even if Redis Set also fails.
 func TestGetAvailability_ShouldGracefullyDegrade_WhenRedisFailure(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
 
@@ -154,10 +121,8 @@ func TestGetAvailability_ShouldGracefullyDegrade_WhenRedisFailure(t *testing.T) 
 
 	uc := NewUsecase(repo, redis)
 
-	// Act
 	result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{VehicleType: "motorcycle"})
 
-	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
 	assert.Equal(t, 10, result[0].AvailableCar)
@@ -165,10 +130,7 @@ func TestGetAvailability_ShouldGracefullyDegrade_WhenRedisFailure(t *testing.T) 
 	redis.AssertExpectations(t)
 }
 
-// TestGetFloorMap_ShouldReturnCachedData_WhenCacheHit verifies that
-// GetFloorMap returns data from Redis cache without querying the database.
 func TestGetFloorMap_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
 
@@ -182,10 +144,8 @@ func TestGetFloorMap_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
 
 	uc := NewUsecase(repo, redis)
 
-	// Act
 	result, err := uc.GetFloorMap(t.Context(), &model.GetFloorMapRequest{FloorNumber: 1})
 
-	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 1)
 	assert.Equal(t, "F1-C-001", result[0].SpotCode)
@@ -193,10 +153,8 @@ func TestGetFloorMap_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
 	redis.AssertExpectations(t)
 }
 
-// TestGetSpotDetails_ShouldQueryDB_WhenCalled verifies that
 // GetSpotDetails always queries the database directly (no cache).
 func TestGetSpotDetails_ShouldQueryDB_WhenCalled(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
 
@@ -208,22 +166,16 @@ func TestGetSpotDetails_ShouldQueryDB_WhenCalled(t *testing.T) {
 
 	uc := NewUsecase(repo, redis)
 
-	// Act
 	result, err := uc.GetSpotDetails(t.Context(), &model.GetSpotDetailsRequest{SpotID: "spot-1"})
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "F2-M-010", result.SpotCode)
 	repo.AssertExpectations(t)
-	// Redis should NOT have been called for spot details
 	redis.AssertNotCalled(t, "Get")
 	redis.AssertNotCalled(t, "Set")
 }
 
-// TestCacheInvalidation_ShouldDeleteCorrectKeys verifies that
-// InvalidateCache deletes all known availability and floor map cache keys.
 func TestCacheInvalidation_ShouldDeleteCorrectKeys(t *testing.T) {
-	// Arrange
 	redis := new(MockRedisClient)
 
 	redis.On("Delete", mock.Anything, "availability:car").Return(nil)
@@ -234,19 +186,14 @@ func TestCacheInvalidation_ShouldDeleteCorrectKeys(t *testing.T) {
 	redis.On("Delete", mock.Anything, "floormap:4").Return(nil)
 	redis.On("Delete", mock.Anything, "floormap:5").Return(nil)
 
-	// Use the subscriber to test cache invalidation
 	sub := &cacheInvalidator{redis: redis}
 
-	// Act
 	sub.invalidate(t.Context())
 
-	// Assert
 	redis.AssertExpectations(t)
 	redis.AssertNumberOfCalls(t, "Delete", 7) // 2 availability + 5 floor maps
 }
 
-// cacheInvalidator is a test helper that replicates the subscriber's cache
-// invalidation logic to test it without importing the subscriber package.
 type cacheInvalidator struct {
 	redis RedisClient
 }

@@ -5,25 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"time"
-)
 
-// Reservation status constants.
-const (
-	StatusPending        = "pending"
-	StatusWaitingPayment = "waiting_payment"
-	StatusConfirmed      = "confirmed"
-	StatusCheckedIn      = "checked_in"
-	StatusCheckedOut     = "checked_out"
-	StatusCompleted      = "completed"
-	StatusExpired        = "expired"
-	StatusCancelled      = "cancelled"
-	StatusFailed         = "failed"
-)
-
-// Assignment mode constants.
-const (
-	AssignmentSystemAssigned = "system_assigned"
-	AssignmentUserSelected   = "user_selected"
+	"parkir-pintar/internal/reservation/constants"
 )
 
 // Reservation represents a parking reservation domain entity.
@@ -71,11 +54,11 @@ type Driver struct {
 // allowedTransitions defines the valid reservation state transitions.
 // Terminal states (completed, expired, cancelled, failed) have no outgoing transitions.
 var allowedTransitions = map[string][]string{
-	StatusPending:        {StatusConfirmed},
-	StatusWaitingPayment: {StatusConfirmed, StatusFailed, StatusCancelled},
-	StatusConfirmed:      {StatusCheckedIn, StatusExpired, StatusCancelled},
-	StatusCheckedIn:      {StatusCheckedOut},
-	StatusCheckedOut:     {StatusCompleted},
+	constants.StatusPending:        {constants.StatusConfirmed},
+	constants.StatusWaitingPayment: {constants.StatusConfirmed, constants.StatusFailed, constants.StatusCancelled},
+	constants.StatusConfirmed:      {constants.StatusCheckedIn, constants.StatusExpired, constants.StatusCancelled},
+	constants.StatusCheckedIn:      {constants.StatusCheckedOut},
+	constants.StatusCheckedOut:     {constants.StatusCompleted},
 }
 
 // ValidateTransition checks if a reservation status transition is allowed.

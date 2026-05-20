@@ -1,8 +1,3 @@
-// Best practices applied from Go testing guidelines:
-// - Descriptive test names using ShouldXXX_WhenYYY pattern
-// - AAA (Arrange-Act-Assert) structure
-// - testify assertions (assert, require)
-// - Direct interceptor invocation with mock handlers (no bufconn needed)
 
 package grpcmiddleware
 
@@ -33,7 +28,6 @@ func unitTestJWTConfig() config.JWTConfig {
 	}
 }
 
-// ctxCapturingHandler returns a handler that captures the context it receives.
 func ctxCapturingHandler() (grpc.UnaryHandler, *context.Context) {
 	var captured context.Context
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -44,7 +38,6 @@ func ctxCapturingHandler() (grpc.UnaryHandler, *context.Context) {
 }
 
 func TestAuthUnaryInterceptor_ShouldInjectClaims_WhenValidToken(t *testing.T) {
-	// Arrange
 	cfg := unitTestJWTConfig()
 	token, _, err := auth.GenerateToken("user-123", "admin", cfg)
 	require.NoError(t, err)
@@ -57,19 +50,15 @@ func TestAuthUnaryInterceptor_ShouldInjectClaims_WhenValidToken(t *testing.T) {
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 	handler, captured := ctxCapturingHandler()
 
-	// Act
 	resp, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "ok", resp)
 
-	// Verify context was enriched (claims injected).
 	assert.NotNil(t, *captured)
 }
 
 func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenTokenExpired(t *testing.T) {
-	// Arrange
 	cfg := unitTestJWTConfig()
 	now := time.Now()
 	claims := auth.Claims{
@@ -92,10 +81,8 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenTokenExpired(t *te
 	ctx := metadata.NewIncomingContext(context.Background(), md)
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 
-	// Act
 	_, err = interceptor(ctx, nil, info, noopHandler)
 
-	// Assert
 	require.Error(t, err)
 	st, ok := status.FromError(err)
 	require.True(t, ok)
@@ -104,18 +91,14 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenTokenExpired(t *te
 }
 
 func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenMetadataMissing(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors(unitTestSecret, nil, nil, nil)
 	interceptor := interceptors.AuthUnaryInterceptor(nil)
 
-	// Context without any metadata.
 	ctx := context.Background()
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 
-	// Act
 	_, err := interceptor(ctx, nil, info, noopHandler)
 
-	// Assert
 	require.Error(t, err)
 	st, ok := status.FromError(err)
 	require.True(t, ok)
@@ -124,19 +107,15 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenMetadataMissing(t 
 }
 
 func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenAuthorizationHeaderEmpty(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors(unitTestSecret, nil, nil, nil)
 	interceptor := interceptors.AuthUnaryInterceptor(nil)
 
-	// Metadata present but no authorization key.
 	md := metadata.Pairs("other-key", "some-value")
 	ctx := metadata.NewIncomingContext(context.Background(), md)
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 
-	// Act
 	_, err := interceptor(ctx, nil, info, noopHandler)
 
-	// Assert
 	require.Error(t, err)
 	st, ok := status.FromError(err)
 	require.True(t, ok)
@@ -145,19 +124,15 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenAuthorizationHeade
 }
 
 func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenMalformedBearer(t *testing.T) {
-	// Arrange
 	interceptors := NewInterceptors(unitTestSecret, nil, nil, nil)
 	interceptor := interceptors.AuthUnaryInterceptor(nil)
 
-	// Malformed: no "Bearer " prefix.
 	md := metadata.Pairs("authorization", "Basic some-token")
 	ctx := metadata.NewIncomingContext(context.Background(), md)
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 
-	// Act
 	_, err := interceptor(ctx, nil, info, noopHandler)
 
-	// Assert
 	require.Error(t, err)
 	st, ok := status.FromError(err)
 	require.True(t, ok)
@@ -166,7 +141,6 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenMalformedBearer(t 
 }
 
 func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenTokenOnlyBearer(t *testing.T) {
-	// Arrange — "Bearer" with no token part.
 	interceptors := NewInterceptors(unitTestSecret, nil, nil, nil)
 	interceptor := interceptors.AuthUnaryInterceptor(nil)
 
@@ -174,10 +148,8 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenTokenOnlyBearer(t 
 	ctx := metadata.NewIncomingContext(context.Background(), md)
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 
-	// Act
 	_, err := interceptor(ctx, nil, info, noopHandler)
 
-	// Assert
 	require.Error(t, err)
 	st, ok := status.FromError(err)
 	require.True(t, ok)
@@ -186,12 +158,10 @@ func TestAuthUnaryInterceptor_ShouldReturnUnauthenticated_WhenTokenOnlyBearer(t 
 }
 
 func TestAuthUnaryInterceptor_ShouldBypassAuth_WhenPublicMethod(t *testing.T) {
-	// Arrange
 	publicMethods := []string{"/test.Service/Health", "/test.Service/Ping"}
 	interceptors := NewInterceptors(unitTestSecret, nil, nil, nil)
 	interceptor := interceptors.AuthUnaryInterceptor(publicMethods)
 
-	// No authorization metadata — should still succeed for public methods.
 	ctx := context.Background()
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Health"}
 
@@ -201,36 +171,29 @@ func TestAuthUnaryInterceptor_ShouldBypassAuth_WhenPublicMethod(t *testing.T) {
 		return "healthy", nil
 	}
 
-	// Act
 	resp, err := interceptor(ctx, nil, info, handler)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "healthy", resp)
 	assert.True(t, handlerCalled)
 }
 
 func TestAuthUnaryInterceptor_ShouldRequireAuth_WhenMethodNotPublic(t *testing.T) {
-	// Arrange
 	publicMethods := []string{"/test.Service/Health"}
 	interceptors := NewInterceptors(unitTestSecret, nil, nil, nil)
 	interceptor := interceptors.AuthUnaryInterceptor(publicMethods)
 
-	// Non-public method without auth.
 	ctx := context.Background()
 	info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/GetUser"}
 
-	// Act
 	_, err := interceptor(ctx, nil, info, noopHandler)
 
-	// Assert
 	require.Error(t, err)
 	st, ok := status.FromError(err)
 	require.True(t, ok)
 	assert.Equal(t, codes.Unauthenticated, st.Code())
 }
 
-// mockServerStream is a minimal grpc.ServerStream implementation for testing.
 type mockServerStream struct {
 	grpc.ServerStream
 	ctx context.Context

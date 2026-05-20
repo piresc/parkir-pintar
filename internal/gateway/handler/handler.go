@@ -1,6 +1,3 @@
-// Package handler provides REST handlers for the API Gateway service.
-// It transcodes REST requests to gRPC calls to downstream microservices
-// and maps gRPC status codes to HTTP status codes in responses.
 package handler
 
 import (
@@ -26,8 +23,6 @@ import (
 	searchv1 "parkir-pintar/proto/search/v1"
 )
 
-// Handler holds gRPC client connections for downstream services and
-// provides REST endpoint handlers that transcode to gRPC.
 type Handler struct {
 	reservation reservationv1.ReservationServiceClient
 	search      searchv1.SearchServiceClient
@@ -36,7 +31,6 @@ type Handler struct {
 	jwtCfg      config.JWTConfig
 }
 
-// NewHandler creates a new gateway Handler with gRPC clients for each service.
 func NewHandler(
 	reservation reservationv1.ReservationServiceClient,
 	search searchv1.SearchServiceClient,
@@ -53,17 +47,13 @@ func NewHandler(
 	}
 }
 
-// RegisterRoutes registers all REST API routes on the Gin engine with JWT auth.
 func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, jwtSecret string) {
-	// Public routes (no auth required)
 	public := engine.Group("/api/v1")
 	public.POST("/auth/login", h.Login)
 
-	// Protected routes (JWT auth required)
 	api := engine.Group("/api/v1")
 	api.Use(mw.JWTAuth(jwtSecret))
 
-	// Reservation routes
 	api.POST("/reservations", h.CreateReservation)
 	api.GET("/reservations", h.ListByDriver)
 	api.GET("/reservations/:id", h.GetReservation)
@@ -73,25 +63,20 @@ func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, 
 	api.POST("/reservations/:id/confirm", h.ConfirmReservation)
 	api.POST("/reservations/:id/complete", h.CompleteCheckout)
 
-	// Search routes
 	api.GET("/availability", h.GetAvailability)
 	api.GET("/floors/:floor", h.GetFloorMap)
 	api.GET("/spots/:id", h.GetSpotDetails)
 
-	// Payment routes
 	api.GET("/payments/:id/status", h.GetPaymentStatus)
 
-	// Presence routes
 	api.POST("/presence/stream", h.StreamPresence)
 }
 
-// getUserID extracts the authenticated user's ID from the Gin context.
 // The JWT middleware guarantees this is always set for authenticated routes.
 func getUserID(c *gin.Context) string {
 	return c.GetString(middleware.KeyUserID)
 }
 
-// Login handles POST /api/v1/auth/login — accepts a driver_id and returns a signed JWT.
 func (h *Handler) Login(c *gin.Context) {
 	var req struct {
 		DriverID string `json:"driver_id"`
@@ -118,8 +103,6 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
-// contextWithAuth extracts the Authorization header from the Gin context
-// and attaches it as gRPC metadata so downstream services can authenticate.
 func contextWithAuth(c *gin.Context) context.Context {
 	ctx := c.Request.Context()
 	authHeader := c.GetHeader("Authorization")
@@ -140,7 +123,6 @@ func contextWithAuth(c *gin.Context) context.Context {
 	return ctx
 }
 
-// CreateReservation transcodes POST /api/v1/reservations to ReservationService.CreateReservation.
 func (h *Handler) CreateReservation(c *gin.Context) {
 	var req struct {
 		DriverID       string `json:"driver_id"`
@@ -180,7 +162,6 @@ func (h *Handler) CreateReservation(c *gin.Context) {
 	response.Success(c, http.StatusCreated, resp)
 }
 
-// GetReservation transcodes GET /api/v1/reservations/:id to ReservationService.GetReservation.
 func (h *Handler) GetReservation(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -199,10 +180,7 @@ func (h *Handler) GetReservation(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// ListByDriver transcodes GET /api/v1/reservations to ReservationService.ListByDriver.
-// Uses the authenticated user's ID — ignores client-supplied driver_id.
 func (h *Handler) ListByDriver(c *gin.Context) {
-	// Use authenticated user's ID — ignore client-supplied driver_id (fail closed)
 	driverID := getUserID(c)
 	if driverID == "" {
 		response.Error(c, http.StatusUnauthorized, "user identity not found")
@@ -222,7 +200,6 @@ func (h *Handler) ListByDriver(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// CancelReservation transcodes DELETE /api/v1/reservations/:id to ReservationService.CancelReservation.
 func (h *Handler) CancelReservation(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -241,7 +218,6 @@ func (h *Handler) CancelReservation(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// CheckIn transcodes POST /api/v1/reservations/:id/checkin to ReservationService.CheckIn.
 func (h *Handler) CheckIn(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -260,7 +236,6 @@ func (h *Handler) CheckIn(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// CheckOut transcodes POST /api/v1/reservations/:id/checkout to ReservationService.CheckOut.
 func (h *Handler) CheckOut(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -279,7 +254,6 @@ func (h *Handler) CheckOut(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// ConfirmReservation transcodes POST /api/v1/reservations/:id/confirm to ReservationService.ConfirmReservation.
 func (h *Handler) ConfirmReservation(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -298,7 +272,6 @@ func (h *Handler) ConfirmReservation(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// CompleteCheckout transcodes POST /api/v1/reservations/:id/complete to ReservationService.CompleteCheckout.
 func (h *Handler) CompleteCheckout(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -317,7 +290,6 @@ func (h *Handler) CompleteCheckout(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// GetAvailability transcodes GET /api/v1/availability to SearchService.GetAvailability.
 func (h *Handler) GetAvailability(c *gin.Context) {
 	vehicleType := c.Query("vehicle_type")
 
@@ -332,7 +304,6 @@ func (h *Handler) GetAvailability(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// GetFloorMap transcodes GET /api/v1/floors/:floor to SearchService.GetFloorMap.
 func (h *Handler) GetFloorMap(c *gin.Context) {
 	floorStr := c.Param("floor")
 	floor, err := strconv.Atoi(floorStr)
@@ -356,7 +327,6 @@ func (h *Handler) GetFloorMap(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// GetSpotDetails transcodes GET /api/v1/spots/:id to SearchService.GetSpotDetails.
 func (h *Handler) GetSpotDetails(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -375,7 +345,6 @@ func (h *Handler) GetSpotDetails(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// GetPaymentStatus transcodes GET /api/v1/payments/:id/status to PaymentService.GetPaymentStatus.
 func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -394,7 +363,6 @@ func (h *Handler) GetPaymentStatus(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp)
 }
 
-// streamPresenceRequest is the JSON body for POST /api/v1/presence/stream.
 type streamPresenceRequest struct {
 	ReservationID string  `json:"reservation_id" binding:"required"`
 	Latitude      float64 `json:"latitude"`
@@ -402,9 +370,6 @@ type streamPresenceRequest struct {
 	Accuracy      float64 `json:"accuracy"`
 }
 
-// StreamPresence transcodes POST /api/v1/presence/stream to PresenceService.VerifyPresence.
-// The frontend sends GPS coordinates; the backend uses sensor-based verification (stub).
-// Returns {is_geofenced: true} to allow check-in flow.
 func (h *Handler) StreamPresence(c *gin.Context) {
 	var req streamPresenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -429,7 +394,6 @@ func (h *Handler) StreamPresence(c *gin.Context) {
 	})
 }
 
-// grpcCodeToHTTP maps gRPC status codes to HTTP status codes.
 func grpcCodeToHTTP(code codes.Code) int {
 	switch code {
 	case codes.OK:
@@ -457,8 +421,6 @@ func grpcCodeToHTTP(code codes.Code) int {
 	}
 }
 
-// writeGRPCError extracts the gRPC status from an error and writes the
-// corresponding HTTP error response using pkg/response.
 func writeGRPCError(c *gin.Context, err error) {
 	st, ok := status.FromError(err)
 	if !ok {

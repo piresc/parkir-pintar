@@ -1,5 +1,3 @@
-// Package usecase implements the business logic for the presence domain.
-// It verifies driver presence at an assigned parking spot using sensor data.
 package usecase
 
 import (
@@ -9,33 +7,25 @@ import (
 	"parkir-pintar/internal/presence/repository"
 )
 
-// VerifyResult holds the outcome of a presence verification check.
 type VerifyResult struct {
 	Verified bool
 	Message  string
 }
 
-// Usecase defines the business logic interface for presence operations.
 type Usecase interface {
 	VerifyPresence(ctx context.Context, reservationID string, floorNumber int, spotNumber int) (*VerifyResult, error)
 }
 
-// presenceUsecase is the concrete implementation of Usecase.
 type presenceUsecase struct {
 	sensor repository.SensorGateway
 }
 
-// NewUsecase creates a new presence Usecase with the given sensor gateway.
 func NewUsecase(sensor repository.SensorGateway) Usecase {
 	return &presenceUsecase{
 		sensor: sensor,
 	}
 }
 
-// VerifyPresence checks if the assigned parking spot is occupied using sensor data.
-//
-// Graceful degradation: if the sensor call fails, the driver is considered
-// verified (benefit of the doubt) and a warning is logged.
 func (uc *presenceUsecase) VerifyPresence(ctx context.Context, reservationID string, floorNumber int, spotNumber int) (*VerifyResult, error) {
 	reading, err := uc.sensor.CheckSpotOccupancy(ctx, floorNumber, spotNumber)
 	if err != nil {

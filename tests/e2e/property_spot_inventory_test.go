@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -54,7 +55,7 @@ func TestProperty1_SpotInventoryConservation(t *testing.T) {
 				res, createErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 					DriverID:       driverID,
 					VehicleType:    vt,
-					AssignmentMode: model.AssignmentSystemAssigned,
+					AssignmentMode: constants.AssignmentSystemAssigned,
 					IdempotencyKey: uuid.New().String(),
 				})
 				if createErr == nil && res != nil {

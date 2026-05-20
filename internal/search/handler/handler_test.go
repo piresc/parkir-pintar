@@ -15,7 +15,6 @@ import (
 	searchv1 "parkir-pintar/proto/search/v1"
 )
 
-// mockUsecase is a testify mock for the search usecase.Usecase interface.
 type mockUsecase struct {
 	mock.Mock
 }
@@ -97,7 +96,6 @@ func TestGetAvailability(t *testing.T) {
 				assert.NotNil(t, resp)
 				assert.Len(t, resp.GetFloors(), len(tt.mockResult))
 				assert.NotNil(t, resp.GetTotal())
-				// For "car" type, total should sum AvailableCar
 				assert.Equal(t, int32(18), resp.GetTotal().GetTotalAvailable())
 				assert.Equal(t, int32(40), resp.GetTotal().GetTotalCapacity())
 			} else {

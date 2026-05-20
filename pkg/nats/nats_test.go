@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- Constants ---
-
 func TestSubjectConstants_ShouldHaveExpectedValues(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -47,8 +45,6 @@ func TestConsumerNameConstants_ShouldHaveExpectedValues(t *testing.T) {
 	assert.Equal(t, "analytics-consumer", ConsumerAnalytics)
 	assert.Equal(t, "reservation-payment-consumer", ConsumerReservationPayment)
 }
-
-// --- DefaultStreamConfigs ---
 
 func TestDefaultStreamConfigs_ShouldReturnThreeStreams(t *testing.T) {
 	configs := DefaultStreamConfigs()
@@ -103,8 +99,6 @@ func TestDefaultStreamConfigs_ShouldHaveCorrectPaymentReservationConfig(t *testi
 	assert.True(t, found, "expected to find PAYMENT_RESERVATION stream config")
 }
 
-// --- DefaultConsumerConfigs ---
-
 func TestDefaultConsumerConfigs_ShouldReturnThreeConsumers(t *testing.T) {
 	configs := DefaultConsumerConfigs()
 	require.Len(t, configs, 3)
@@ -155,8 +149,6 @@ func TestDefaultConsumerConfigs_ShouldHaveCorrectReservationPaymentConfig(t *tes
 	assert.Equal(t, jetstream.DeliverNewPolicy, cfg.DeliverPolicy)
 }
 
-// --- StreamConfig.toJetStreamConfig ---
-
 func TestStreamConfig_toJetStreamConfig_ShouldConvertCorrectly(t *testing.T) {
 	sc := StreamConfig{
 		Name:      "TEST_STREAM",
@@ -174,8 +166,6 @@ func TestStreamConfig_toJetStreamConfig_ShouldConvertCorrectly(t *testing.T) {
 	assert.Equal(t, jetstream.MemoryStorage, jsCfg.Storage)
 	assert.Equal(t, 2*time.Hour, jsCfg.MaxAge)
 }
-
-// --- ConsumerConfig.toJetStreamConfig ---
 
 func TestConsumerConfig_toJetStreamConfig_ShouldConvertCorrectly(t *testing.T) {
 	cc := ConsumerConfig{
@@ -199,19 +189,13 @@ func TestConsumerConfig_toJetStreamConfig_ShouldConvertCorrectly(t *testing.T) {
 	assert.Equal(t, jetstream.DeliverAllPolicy, jsCfg.DeliverPolicy)
 }
 
-// --- NewPublisher ---
-
 func TestNewPublisher_ShouldReturnNonNil(t *testing.T) {
 	// We can't create a real Client without a NATS connection,
-	// but we can verify the constructor doesn't panic with a nil client.
 	publisher := NewPublisher(nil)
 	require.NotNil(t, publisher)
 }
 
-// --- Client.Consume error path ---
-
 func TestClient_Consume_ShouldReturnError_WhenConsumerNotFound(t *testing.T) {
-	// Create a Client with empty consumers map to test the error path.
 	client := &Client{
 		streams:   make(map[string]jetstream.Stream),
 		consumers: make(map[string]jetstream.Consumer),

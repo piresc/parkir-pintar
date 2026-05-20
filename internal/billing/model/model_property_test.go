@@ -1,14 +1,3 @@
-// Package model defines domain structs and request types for the billing module.
-//
-// Property-based tests for the billing pricing engine using pgregory.net/rapid.
-// These tests verify Properties 1, 2, and 6 from the design document.
-//
-// Best practices applied (from coding standards KB):
-// - rapid.Custom generators for constrained time inputs in WIB timezone
-// - AAA pattern: Arrange → Act → Assert
-// - testify/assert for assertions
-// - t.Context() for context (Go 1.24+)
-// - No mocks — tests exercise pure functions directly
 package model
 
 import (
@@ -20,19 +9,16 @@ import (
 	"pgregory.net/rapid"
 
 	"parkir-pintar/pkg/pricing"
+	"parkir-pintar/internal/reservation/constants"
 )
 
-// wibLoc returns the WIB (UTC+7) timezone location.
 func wibLoc() *time.Location {
 	return time.FixedZone("WIB", 7*60*60)
 }
 
-// genCheckInCheckOut generates a random (checkIn, checkOut) pair in WIB timezone
-// where checkIn is strictly before checkOut, with duration between 1 minute and 48 hours.
 func genCheckInCheckOut() *rapid.Generator[[2]time.Time] {
 	return rapid.Custom[[2]time.Time](func(t *rapid.T) [2]time.Time {
 		loc := wibLoc()
-		// Base time: random year 2020-2030, month, day, hour, minute
 		year := rapid.IntRange(2020, 2030).Draw(t, "year")
 		month := rapid.IntRange(1, 12).Draw(t, "month")
 		day := rapid.IntRange(1, 28).Draw(t, "day") // safe for all months
@@ -41,7 +27,6 @@ func genCheckInCheckOut() *rapid.Generator[[2]time.Time] {
 
 		checkIn := time.Date(year, time.Month(month), day, hour, minute, 0, 0, loc)
 
-		// Duration between 1 minute and 48 hours (in seconds)
 		durationSec := rapid.Int64Range(60, 48*3600).Draw(t, "durationSec")
 		checkOut := checkIn.Add(time.Duration(durationSec) * time.Second)
 
@@ -49,25 +34,20 @@ func genCheckInCheckOut() *rapid.Generator[[2]time.Time] {
 	})
 }
 
-// genSameDaySession generates a (checkIn, checkOut) pair guaranteed to be on the same
-// calendar day in WIB, so no midnight crossing occurs.
 func genSameDaySession() *rapid.Generator[[2]time.Time] {
 	return rapid.Custom[[2]time.Time](func(t *rapid.T) [2]time.Time {
 		loc := wibLoc()
 		year := rapid.IntRange(2020, 2030).Draw(t, "year")
 		month := rapid.IntRange(1, 12).Draw(t, "month")
 		day := rapid.IntRange(1, 28).Draw(t, "day")
-		// Start hour 0-22 so there's room for at least 1 minute on the same day
 		startHour := rapid.IntRange(0, 22).Draw(t, "startHour")
 		startMin := rapid.IntRange(0, 59).Draw(t, "startMin")
 
 		checkIn := time.Date(year, time.Month(month), day, startHour, startMin, 0, 0, loc)
 
-		// End of day in seconds from checkIn
 		endOfDay := time.Date(year, time.Month(month), day, 23, 59, 59, 0, loc)
 		maxDuration := endOfDay.Sub(checkIn)
 		if maxDuration < time.Minute {
-			// If less than 1 minute to end of day, just use 1 minute
 			return [2]time.Time{checkIn, checkIn.Add(time.Minute)}
 		}
 
@@ -78,23 +58,18 @@ func genSameDaySession() *rapid.Generator[[2]time.Time] {
 	})
 }
 
-// genCrossDaySession generates a (checkIn, checkOut) pair guaranteed to cross midnight
-// in WIB timezone.
 func genCrossDaySession() *rapid.Generator[[2]time.Time] {
 	return rapid.Custom[[2]time.Time](func(t *rapid.T) [2]time.Time {
 		loc := wibLoc()
 		year := rapid.IntRange(2020, 2030).Draw(t, "year")
 		month := rapid.IntRange(1, 12).Draw(t, "month")
 		day := rapid.IntRange(1, 27).Draw(t, "day") // leave room for next day
-		// Start in the evening so we cross midnight
 		startHour := rapid.IntRange(0, 23).Draw(t, "startHour")
 		startMin := rapid.IntRange(0, 59).Draw(t, "startMin")
 
 		checkIn := time.Date(year, time.Month(month), day, startHour, startMin, 0, 0, loc)
 
-		// checkOut is on the next calendar day (or later)
 		nextDay := time.Date(year, time.Month(month), day+1, 0, 0, 0, 0, loc)
-		// Add 1 minute to 24 hours past midnight
 		minAfterMidnight := nextDay.Sub(checkIn)
 		if minAfterMidnight < time.Minute {
 			minAfterMidnight = time.Minute
@@ -107,28 +82,15 @@ func genCrossDaySession() *rapid.Generator[[2]time.Time] {
 	})
 }
 
-// --- Property 1: Pricing Correctness ---
-
-// TestProperty1_PricingCorrectness verifies that for any checkIn before checkOut
-// (duration 1min to 48h):
-//   - billedHours == ceil(duration_in_hours)
-//   - billedHours >= 1
-//   - parkingFee == billedHours * 5000
-//   - durationMinutes == int(checkOut.Sub(checkIn).Minutes())
-//
-// **Validates: Requirements 8.1, 8.2, 8.5**
 func TestProperty1_PricingCorrectness(t *testing.T) {
 	_ = t.Context()
 
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		times := genCheckInCheckOut().Draw(t, "session")
 		checkIn, checkOut := times[0], times[1]
 
-		// Act
 		result := pricing.CalculateSessionFee(checkIn, checkOut)
 
-		// Assert — billedHours == ceil(duration_in_hours)
 		duration := checkOut.Sub(checkIn)
 		expectedBilledHours := int(math.Ceil(duration.Hours()))
 		if expectedBilledHours < 1 {
@@ -137,39 +99,27 @@ func TestProperty1_PricingCorrectness(t *testing.T) {
 		assert.Equal(t, expectedBilledHours, result.BilledHours,
 			"billedHours should be ceil(duration_in_hours) for duration %v", duration)
 
-		// Assert — billedHours >= 1
 		assert.GreaterOrEqual(t, result.BilledHours, 1,
 			"billedHours must be at least 1")
 
-		// Assert — parkingFee == billedHours * HourlyRate
-		assert.Equal(t, int64(result.BilledHours)*pricing.HourlyRate, result.ParkingFee,
-			"parkingFee should be billedHours * %d", pricing.HourlyRate)
+		assert.Equal(t, int64(result.BilledHours)*constants.HourlyRate, result.ParkingFee,
+			"parkingFee should be billedHours * %d", constants.HourlyRate)
 
-		// Assert — durationMinutes == int(duration.Minutes())
 		expectedMinutes := int(duration.Minutes())
 		assert.Equal(t, expectedMinutes, result.DurationMinutes,
 			"durationMinutes should match actual minutes")
 	})
 }
 
-// --- Property 2: Overnight Detection ---
-
-// TestProperty2_OvernightDetection_SameDay verifies that for any session that stays
-// within the same calendar day in WIB, overnightFee is 0.
-//
-// **Validates: Requirements 8.3, 8.4**
 func TestProperty2_OvernightDetection_SameDay(t *testing.T) {
 	_ = t.Context()
 
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		times := genSameDaySession().Draw(t, "sameDaySession")
 		checkIn, checkOut := times[0], times[1]
 
-		// Act
 		result := pricing.CalculateSessionFee(checkIn, checkOut)
 
-		// Assert
 		assert.False(t, result.IsOvernight,
 			"same-day session should not be overnight: checkIn=%v checkOut=%v", checkIn, checkOut)
 		assert.Equal(t, int64(0), result.OvernightFee,
@@ -177,22 +127,15 @@ func TestProperty2_OvernightDetection_SameDay(t *testing.T) {
 	})
 }
 
-// TestProperty2_OvernightDetection_CrossDay verifies that for any session that crosses
-// midnight in WIB, overnightFee > 0.
-//
-// **Validates: Requirements 8.3, 8.4**
 func TestProperty2_OvernightDetection_CrossDay(t *testing.T) {
 	_ = t.Context()
 
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		times := genCrossDaySession().Draw(t, "crossDaySession")
 		checkIn, checkOut := times[0], times[1]
 
-		// Act
 		result := pricing.CalculateSessionFee(checkIn, checkOut)
 
-		// Assert
 		assert.True(t, result.IsOvernight,
 			"cross-day session should be overnight: checkIn=%v checkOut=%v", checkIn, checkOut)
 		assert.Greater(t, result.OvernightFee, int64(0),
@@ -200,9 +143,6 @@ func TestProperty2_OvernightDetection_CrossDay(t *testing.T) {
 	})
 }
 
-// --- Property 6: Billing Total Invariant ---
-
-// genBillingRecord generates a BillingRecord with random non-negative fee fields.
 func genBillingRecord() *rapid.Generator[*BillingRecord] {
 	return rapid.Custom[*BillingRecord](func(t *rapid.T) *BillingRecord {
 		return &BillingRecord{
@@ -213,23 +153,14 @@ func genBillingRecord() *rapid.Generator[*BillingRecord] {
 	})
 }
 
-// TestProperty6_BillingTotalInvariant verifies that for any BillingRecord with random
-// non-negative fee fields:
-//   - pricing.CalculateTotal == sum of all fee fields
-//   - total >= bookingFee (when bookingFee > 0 and other fees >= 0)
-//
-// **Validates: Requirements 10.3, 13.3**
 func TestProperty6_BillingTotalInvariant(t *testing.T) {
 	_ = t.Context()
 
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		record := genBillingRecord().Draw(t, "record")
 
-		// Act
 		total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
-		// Assert — total == sum of all fee fields
 		expectedTotal := record.BookingFee + record.ParkingFee + record.OvernightFee
 		assert.Equal(t, expectedTotal, total,
 			"total should equal sum of all fee fields")

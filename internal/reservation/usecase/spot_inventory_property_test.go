@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 )
 
@@ -86,8 +87,8 @@ func (inv *spotInventory) createReservation(vehicleType string) *model.Reservati
 		DriverID:       uuid.New().String(),
 		SpotID:         spot.ID,
 		VehicleType:    vehicleType,
-		AssignmentMode: model.AssignmentSystemAssigned,
-		Status:         model.StatusConfirmed,
+		AssignmentMode: constants.AssignmentSystemAssigned,
+		Status:         constants.StatusConfirmed,
 		IdempotencyKey: uuid.New().String(),
 		ConfirmedAt:    &now,
 		ExpiresAt:      &expiresAt,
@@ -99,13 +100,13 @@ func (inv *spotInventory) createReservation(vehicleType string) *model.Reservati
 // checkIn simulates CheckIn: spot → "occupied".
 func (inv *spotInventory) checkIn(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != model.StatusConfirmed {
+	if !ok || r.Status != constants.StatusConfirmed {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, model.StatusCheckedIn); err != nil {
+	if err := model.ValidateTransition(r.Status, constants.StatusCheckedIn); err != nil {
 		return false
 	}
-	r.Status = model.StatusCheckedIn
+	r.Status = constants.StatusCheckedIn
 	now := time.Now()
 	r.CheckedInAt = &now
 	inv.spots[r.SpotID].Status = "occupied"
@@ -115,13 +116,13 @@ func (inv *spotInventory) checkIn(reservationID string) bool {
 // checkOut simulates CheckOut: spot → "available".
 func (inv *spotInventory) checkOut(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != model.StatusCheckedIn {
+	if !ok || r.Status != constants.StatusCheckedIn {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, model.StatusCheckedOut); err != nil {
+	if err := model.ValidateTransition(r.Status, constants.StatusCheckedOut); err != nil {
 		return false
 	}
-	r.Status = model.StatusCheckedOut
+	r.Status = constants.StatusCheckedOut
 	now := time.Now()
 	r.CheckedOutAt = &now
 	inv.spots[r.SpotID].Status = "available"
@@ -131,13 +132,13 @@ func (inv *spotInventory) checkOut(reservationID string) bool {
 // cancel simulates CancelReservation: spot → "available".
 func (inv *spotInventory) cancel(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != model.StatusConfirmed {
+	if !ok || r.Status != constants.StatusConfirmed {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, model.StatusCancelled); err != nil {
+	if err := model.ValidateTransition(r.Status, constants.StatusCancelled); err != nil {
 		return false
 	}
-	r.Status = model.StatusCancelled
+	r.Status = constants.StatusCancelled
 	now := time.Now()
 	r.CancelledAt = &now
 	inv.spots[r.SpotID].Status = "available"
@@ -147,13 +148,13 @@ func (inv *spotInventory) cancel(reservationID string) bool {
 // expire simulates ExpireReservation: spot → "available".
 func (inv *spotInventory) expire(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != model.StatusConfirmed {
+	if !ok || r.Status != constants.StatusConfirmed {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, model.StatusExpired); err != nil {
+	if err := model.ValidateTransition(r.Status, constants.StatusExpired); err != nil {
 		return false
 	}
-	r.Status = model.StatusExpired
+	r.Status = constants.StatusExpired
 	inv.spots[r.SpotID].Status = "available"
 	return true
 }
@@ -184,7 +185,7 @@ func (inv *spotInventory) verifyInvariants(t *testing.T) {
 	activeBySpot := make(map[string]*model.Reservation)
 	for _, r := range inv.reservations {
 		switch r.Status {
-		case model.StatusConfirmed, model.StatusCheckedIn:
+		case constants.StatusConfirmed, constants.StatusCheckedIn:
 			activeBySpot[r.SpotID] = r
 		}
 	}
@@ -192,10 +193,10 @@ func (inv *spotInventory) verifyInvariants(t *testing.T) {
 	for spotID, r := range activeBySpot {
 		spot := inv.spots[spotID]
 		switch r.Status {
-		case model.StatusConfirmed:
+		case constants.StatusConfirmed:
 			require.Equal(t, "reserved", spot.Status,
 				"spot %s should be reserved for confirmed reservation %s", spot.ID, r.ID)
-		case model.StatusCheckedIn:
+		case constants.StatusCheckedIn:
 			require.Equal(t, "occupied", spot.Status,
 				"spot %s should be occupied for checked_in reservation %s", spot.ID, r.ID)
 		}

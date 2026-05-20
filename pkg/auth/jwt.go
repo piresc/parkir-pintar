@@ -10,15 +10,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims represents the JWT claims payload with user identity fields.
 type Claims struct {
 	UserID string `json:"user_id"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// GenerateToken creates a signed JWT token for the given user with HS256.
-// It sets user_id, role, exp (from cfg.Expiration minutes), iss (from cfg.Issuer), and iat.
 func GenerateToken(userID, role string, cfg config.JWTConfig) (token string, expiresAt int64, err error) {
 	if cfg.Secret == "" {
 		return "", 0, errors.New("jwt secret is required")
@@ -50,8 +47,6 @@ func GenerateToken(userID, role string, cfg config.JWTConfig) (token string, exp
 	return signed, exp.Unix(), nil
 }
 
-// ValidateToken parses and validates a JWT token string using the provided secret.
-// It verifies the signing method is HMAC and returns the extracted Claims.
 func ValidateToken(tokenString, secret string) (*Claims, error) {
 	if tokenString == "" {
 		return nil, errors.New("token string is required")

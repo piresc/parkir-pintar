@@ -261,5 +261,3 @@ func reservationToProto(r *model.Reservation) *reservationv1.ReservationResponse
 
 	return resp
 }
-
-

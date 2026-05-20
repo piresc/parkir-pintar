@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved verifies that when
@@ -51,7 +51,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "overlap-key",
 	}
 
@@ -97,13 +97,13 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-a", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "diff-spot-key",
 	}
 
@@ -112,10 +112,10 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusWaitingPayment, result.Status)
+	assert.Equal(t, constants.StatusWaitingPayment, result.Status)
 	assert.Equal(t, "spot-a", result.SpotID)
 	assert.Equal(t, "driver-1", result.DriverID)
-	assert.Equal(t, model.AssignmentSystemAssigned, result.AssignmentMode)
+	assert.Equal(t, constants.AssignmentSystemAssigned, result.AssignmentMode)
 	assert.Nil(t, result.ConfirmedAt)
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
@@ -151,13 +151,13 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-boundary", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "motorcycle",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "boundary-key",
 	}
 
@@ -166,10 +166,10 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusWaitingPayment, result.Status)
+	assert.Equal(t, constants.StatusWaitingPayment, result.Status)
 	assert.Equal(t, "spot-boundary", result.SpotID)
 	assert.Equal(t, "motorcycle", result.VehicleType)
-	assert.Equal(t, model.AssignmentSystemAssigned, result.AssignmentMode)
+	assert.Equal(t, constants.AssignmentSystemAssigned, result.AssignmentMode)
 	assert.Nil(t, result.ConfirmedAt)
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)

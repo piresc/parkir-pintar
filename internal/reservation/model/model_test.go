@@ -14,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"parkir-pintar/internal/reservation/constants"
 )
 
 func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) {
@@ -22,12 +24,12 @@ func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) 
 		from string
 		to   string
 	}{
-		{name: "pending to confirmed", from: StatusPending, to: StatusConfirmed},
-		{name: "confirmed to checked_in", from: StatusConfirmed, to: StatusCheckedIn},
-		{name: "confirmed to expired", from: StatusConfirmed, to: StatusExpired},
-		{name: "confirmed to cancelled", from: StatusConfirmed, to: StatusCancelled},
-		{name: "checked_in to checked_out", from: StatusCheckedIn, to: StatusCheckedOut},
-		{name: "checked_out to completed", from: StatusCheckedOut, to: StatusCompleted},
+		{name: "pending to confirmed", from: constants.StatusPending, to: constants.StatusConfirmed},
+		{name: "confirmed to checked_in", from: constants.StatusConfirmed, to: constants.StatusCheckedIn},
+		{name: "confirmed to expired", from: constants.StatusConfirmed, to: constants.StatusExpired},
+		{name: "confirmed to cancelled", from: constants.StatusConfirmed, to: constants.StatusCancelled},
+		{name: "checked_in to checked_out", from: constants.StatusCheckedIn, to: constants.StatusCheckedOut},
+		{name: "checked_out to completed", from: constants.StatusCheckedOut, to: constants.StatusCompleted},
 	}
 
 	for _, tt := range tests {
@@ -50,17 +52,17 @@ func TestValidateTransition_ShouldReturnError_WhenTransitionIsInvalid(t *testing
 		from string
 		to   string
 	}{
-		{name: "pending to checked_in", from: StatusPending, to: StatusCheckedIn},
-		{name: "pending to checked_out", from: StatusPending, to: StatusCheckedOut},
-		{name: "pending to expired", from: StatusPending, to: StatusExpired},
-		{name: "pending to cancelled", from: StatusPending, to: StatusCancelled},
-		{name: "confirmed to pending", from: StatusConfirmed, to: StatusPending},
-		{name: "confirmed to confirmed", from: StatusConfirmed, to: StatusConfirmed},
-		{name: "confirmed to checked_out", from: StatusConfirmed, to: StatusCheckedOut},
-		{name: "checked_in to pending", from: StatusCheckedIn, to: StatusPending},
-		{name: "checked_in to confirmed", from: StatusCheckedIn, to: StatusConfirmed},
-		{name: "checked_in to expired", from: StatusCheckedIn, to: StatusExpired},
-		{name: "checked_in to cancelled", from: StatusCheckedIn, to: StatusCancelled},
+		{name: "pending to checked_in", from: constants.StatusPending, to: constants.StatusCheckedIn},
+		{name: "pending to checked_out", from: constants.StatusPending, to: constants.StatusCheckedOut},
+		{name: "pending to expired", from: constants.StatusPending, to: constants.StatusExpired},
+		{name: "pending to cancelled", from: constants.StatusPending, to: constants.StatusCancelled},
+		{name: "confirmed to pending", from: constants.StatusConfirmed, to: constants.StatusPending},
+		{name: "confirmed to confirmed", from: constants.StatusConfirmed, to: constants.StatusConfirmed},
+		{name: "confirmed to checked_out", from: constants.StatusConfirmed, to: constants.StatusCheckedOut},
+		{name: "checked_in to pending", from: constants.StatusCheckedIn, to: constants.StatusPending},
+		{name: "checked_in to confirmed", from: constants.StatusCheckedIn, to: constants.StatusConfirmed},
+		{name: "checked_in to expired", from: constants.StatusCheckedIn, to: constants.StatusExpired},
+		{name: "checked_in to cancelled", from: constants.StatusCheckedIn, to: constants.StatusCancelled},
 	}
 
 	for _, tt := range tests {
@@ -79,10 +81,10 @@ func TestValidateTransition_ShouldReturnError_WhenTransitionIsInvalid(t *testing
 }
 
 func TestValidateTransition_ShouldReturnError_WhenFromTerminalState(t *testing.T) {
-	terminalStates := []string{StatusCompleted, StatusExpired, StatusCancelled, StatusFailed}
+	terminalStates := []string{constants.StatusCompleted, constants.StatusExpired, constants.StatusCancelled, constants.StatusFailed}
 	allStatuses := []string{
-		StatusPending, StatusConfirmed, StatusCheckedIn,
-		StatusCheckedOut, StatusCompleted, StatusExpired, StatusCancelled, StatusFailed,
+		constants.StatusPending, constants.StatusConfirmed, constants.StatusCheckedIn,
+		constants.StatusCheckedOut, constants.StatusCompleted, constants.StatusExpired, constants.StatusCancelled, constants.StatusFailed,
 	}
 
 	for _, terminal := range terminalStates {

@@ -1,13 +1,5 @@
-// Package repository provides the data access layer for the payment domain
 // module using sqlx with parameterized queries for SQL injection prevention.
-//
-// Best practices applied (from Go coding standards KB):
-// - Document all exported functions and types with proper Godoc format
-// - Use specific error types for different error conditions
-// - Return errors as the last value from functions
-// - Wrap errors with context using fmt.Errorf with %w
 // - Use keyed fields in struct literals to prevent breakages during refactors
-// - Use context.Context as first parameter for consistency
 package repository
 
 import (
@@ -22,16 +14,12 @@ import (
 	"parkir-pintar/pkg/database"
 )
 
-// ErrNotFound is returned when a payment record is not found.
 var ErrNotFound = errors.New("payment not found")
 
-// ErrConflict is returned when a unique constraint violation occurs (e.g. duplicate idempotency key).
 var ErrConflict = errors.New("conflict: duplicate record")
 
-// ErrStatusMismatch is returned when an optimistic update fails due to unexpected current status.
 var ErrStatusMismatch = errors.New("status mismatch: concurrent modification")
 
-// Repository defines the data access interface for payment records.
 type Repository interface {
 	CreatePayment(ctx context.Context, payment *model.Payment) error
 	GetByIdempotencyKey(ctx context.Context, key string) (*model.Payment, error)
@@ -41,17 +29,14 @@ type Repository interface {
 	GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error)
 }
 
-// sqlxRepository is the sqlx-backed implementation of Repository.
 type sqlxRepository struct {
 	db *sqlx.DB
 }
 
-// NewRepository creates a new Repository backed by the given sqlx.DB.
 func NewRepository(db *sqlx.DB) Repository {
 	return &sqlxRepository{db: db}
 }
 
-// CreatePayment inserts a new payment record.
 func (r *sqlxRepository) CreatePayment(ctx context.Context, payment *model.Payment) error {
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO payments (id, billing_id, amount, payment_method, payment_gateway,
@@ -69,7 +54,6 @@ func (r *sqlxRepository) CreatePayment(ctx context.Context, payment *model.Payme
 	return nil
 }
 
-// GetByIdempotencyKey retrieves a payment by its idempotency key.
 func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*model.Payment, error) {
 	var payment model.Payment
 	err := r.db.GetContext(ctx, &payment, "SELECT * FROM payments WHERE idempotency_key = $1", key)
@@ -82,7 +66,6 @@ func (r *sqlxRepository) GetByIdempotencyKey(ctx context.Context, key string) (*
 	return &payment, nil
 }
 
-// UpdatePayment updates an existing payment record's mutable fields.
 func (r *sqlxRepository) UpdatePayment(ctx context.Context, payment *model.Payment) error {
 	result, err := r.db.NamedExecContext(ctx,
 		`UPDATE payments SET status = :status, transaction_ref = :transaction_ref,
@@ -103,7 +86,6 @@ func (r *sqlxRepository) UpdatePayment(ctx context.Context, payment *model.Payme
 	return nil
 }
 
-// UpdatePaymentWithStatusCheck performs an optimistic update that only succeeds
 // if the payment's current status matches expectedStatus. This prevents double-refund
 // and other race conditions.
 func (r *sqlxRepository) UpdatePaymentWithStatusCheck(ctx context.Context, payment *model.Payment, expectedStatus string) error {
@@ -127,7 +109,6 @@ func (r *sqlxRepository) UpdatePaymentWithStatusCheck(ctx context.Context, payme
 	return nil
 }
 
-// GetByID retrieves a payment by its primary key.
 func (r *sqlxRepository) GetByID(ctx context.Context, id string) (*model.Payment, error) {
 	var payment model.Payment
 	err := r.db.GetContext(ctx, &payment, "SELECT * FROM payments WHERE id = $1", id)
@@ -140,7 +121,6 @@ func (r *sqlxRepository) GetByID(ctx context.Context, id string) (*model.Payment
 	return &payment, nil
 }
 
-// GetByBillingID retrieves a payment by its billing ID.
 func (r *sqlxRepository) GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error) {
 	var payment model.Payment
 	err := r.db.GetContext(ctx, &payment, "SELECT * FROM payments WHERE billing_id = $1", billingID)

@@ -1,9 +1,3 @@
-// Best practices applied from Go testing guidelines:
-// - Descriptive test names using Test[FunctionName]_Should[Result]_When[Condition] pattern
-// - AAA (Arrange-Act-Assert) structure
-// - testify assertions (assert, require)
-// - bufconn for in-memory gRPC connections
-// - bytes.Buffer + slog.NewJSONHandler for capturing log output
 
 package grpcclient
 
@@ -26,8 +20,6 @@ import (
 
 const bufSize = 1024 * 1024
 
-// startBufconnServer starts a gRPC server on an in-memory bufconn listener
-// and returns the listener and a cleanup function.
 func startBufconnServer(t *testing.T) *bufconn.Listener {
 	t.Helper()
 	lis := bufconn.Listen(bufSize)
@@ -44,24 +36,17 @@ func startBufconnServer(t *testing.T) *bufconn.Listener {
 	return lis
 }
 
-// bufconnDialer returns a grpc.DialOption that dials via the given bufconn listener.
 func bufconnDialer(lis *bufconn.Listener) grpc.DialOption {
 	return grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
 		return lis.Dial()
 	})
 }
 
-// spyTracer records segment names for verification.
 func newTestLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
-// ---------------------------------------------------------------------------
-// Dial tests
-// ---------------------------------------------------------------------------
-
 func TestDial_ShouldReturnConn_WhenBufconnServerRunning(t *testing.T) {
-	// Arrange
 	lis := startBufconnServer(t)
 
 	cfg := ClientConfig{
@@ -70,7 +55,6 @@ func TestDial_ShouldReturnConn_WhenBufconnServerRunning(t *testing.T) {
 		Logger:      newTestLogger(),
 	}
 
-	// Act
 	conn, err := Dial(
 		context.Background(),
 		cfg,
@@ -78,14 +62,12 @@ func TestDial_ShouldReturnConn_WhenBufconnServerRunning(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
-	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	assert.NoError(t, conn.Close())
 }
 
 func TestDial_ShouldUseDefaultLogger_WhenLoggerIsNil(t *testing.T) {
-	// Arrange
 	lis := startBufconnServer(t)
 
 	cfg := ClientConfig{
@@ -94,7 +76,6 @@ func TestDial_ShouldUseDefaultLogger_WhenLoggerIsNil(t *testing.T) {
 		Logger:      nil, // should default to slog.Default()
 	}
 
-	// Act
 	conn, err := Dial(
 		context.Background(),
 		cfg,
@@ -102,14 +83,12 @@ func TestDial_ShouldUseDefaultLogger_WhenLoggerIsNil(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
-	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	assert.NoError(t, conn.Close())
 }
 
 func TestDial_ShouldUseNoOpTracer_WhenTracerIsNil(t *testing.T) {
-	// Arrange
 	lis := startBufconnServer(t)
 
 	cfg := ClientConfig{
@@ -119,7 +98,6 @@ func TestDial_ShouldUseNoOpTracer_WhenTracerIsNil(t *testing.T) {
 		Logger:      newTestLogger(),
 	}
 
-	// Act
 	conn, err := Dial(
 		context.Background(),
 		cfg,
@@ -127,14 +105,12 @@ func TestDial_ShouldUseNoOpTracer_WhenTracerIsNil(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
-	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	assert.NoError(t, conn.Close())
 }
 
 func TestDial_ShouldApplyInsecureCredentials_WhenTLSDisabled(t *testing.T) {
-	// Arrange
 	lis := startBufconnServer(t)
 
 	cfg := ClientConfig{
@@ -144,21 +120,18 @@ func TestDial_ShouldApplyInsecureCredentials_WhenTLSDisabled(t *testing.T) {
 		Logger:      newTestLogger(),
 	}
 
-	// Act — TLSEnabled=false should auto-apply insecure credentials
 	conn, err := Dial(
 		context.Background(),
 		cfg,
 		bufconnDialer(lis),
 	)
 
-	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	assert.NoError(t, conn.Close())
 }
 
 func TestDial_ShouldApplyKeepaliveParams_WhenConfigured(t *testing.T) {
-	// Arrange
 	lis := startBufconnServer(t)
 
 	cfg := ClientConfig{
@@ -169,7 +142,6 @@ func TestDial_ShouldApplyKeepaliveParams_WhenConfigured(t *testing.T) {
 		Logger:           newTestLogger(),
 	}
 
-	// Act
 	conn, err := Dial(
 		context.Background(),
 		cfg,
@@ -177,18 +149,12 @@ func TestDial_ShouldApplyKeepaliveParams_WhenConfigured(t *testing.T) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
-	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	assert.NoError(t, conn.Close())
 }
 
-// ---------------------------------------------------------------------------
-// Interceptor application tests
-// ---------------------------------------------------------------------------
-
 func TestDial_ShouldApplyLoggingInterceptor_WhenLoggerProvided(t *testing.T) {
-	// Arrange
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -198,25 +164,18 @@ func TestDial_ShouldApplyLoggingInterceptor_WhenLoggerProvided(t *testing.T) {
 		Logger:      logger,
 	}
 
-	// Act — Dial creates the connection with logging interceptor wired in.
 	conn, err := Dial(
 		context.Background(),
 		cfg,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 
-	// Assert
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	assert.NoError(t, conn.Close())
 }
 
-// ---------------------------------------------------------------------------
-// Client interceptor unit tests
-// ---------------------------------------------------------------------------
-
 func TestClientLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
-	// Arrange
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	interceptor := clientLoggingUnaryInterceptor(logger)
@@ -226,10 +185,8 @@ func TestClientLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 		return nil
 	}
 
-	// Act
 	err := interceptor(context.Background(), method, nil, nil, nil, invoker)
 
-	// Assert
 	require.NoError(t, err)
 
 	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
@@ -245,7 +202,6 @@ func TestClientLoggingUnaryInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
 }
 
 func TestClientLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) {
-	// Arrange
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	interceptor := clientLoggingUnaryInterceptor(logger)
@@ -255,10 +211,8 @@ func TestClientLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) 
 		return grpc.ErrServerStopped
 	}
 
-	// Act
 	err := interceptor(context.Background(), method, nil, nil, nil, invoker)
 
-	// Assert
 	require.Error(t, err)
 
 	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))

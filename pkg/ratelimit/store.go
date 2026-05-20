@@ -1,5 +1,3 @@
-// Package ratelimit provides a shared per-key rate limiter store backed by
-// golang.org/x/time/rate. Used by both HTTP (gin) and gRPC middleware.
 package ratelimit
 
 import (
@@ -9,17 +7,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Config holds configuration for the rate limiter.
 type Config struct {
-	// RequestsPerSecond is the token refill rate per second per key.
 	RequestsPerSecond int
-	// BurstSize is the maximum token bucket capacity (max burst).
 	BurstSize int
-	// CleanupInterval is how often stale per-key entries are removed.
 	CleanupInterval time.Duration
 }
 
-// DefaultConfig returns sensible defaults: 100 req/s, burst of 200.
 func DefaultConfig() Config {
 	return Config{
 		RequestsPerSecond: 100,
@@ -28,7 +21,6 @@ func DefaultConfig() Config {
 	}
 }
 
-// entry holds a per-client rate limiter and its last access time.
 type entry struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
@@ -42,7 +34,6 @@ type Store struct {
 	stopCh   chan struct{}
 }
 
-// NewStore creates a rate limit store with background cleanup.
 func NewStore(cfg Config) *Store {
 	s := &Store{
 		limiters: make(map[string]*entry),
@@ -57,7 +48,6 @@ func NewStore(cfg Config) *Store {
 	return s
 }
 
-// Allow checks whether a request identified by key is allowed.
 func (s *Store) Allow(key string) bool {
 	s.mu.Lock()
 	e, exists := s.limiters[key]
@@ -96,7 +86,6 @@ func (s *Store) cleanup(interval time.Duration) {
 	}
 }
 
-// Stop terminates the background cleanup goroutine.
 func (s *Store) Stop() {
 	close(s.stopCh)
 }

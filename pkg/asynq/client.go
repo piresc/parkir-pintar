@@ -9,13 +9,11 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-// Client wraps the asynq client for enqueuing tasks.
 type Client struct {
 	client    *asynq.Client
 	inspector *asynq.Inspector
 }
 
-// NewClient creates a new Asynq client connected to the given Redis address.
 func NewClient(redisAddr, redisPassword string) *Client {
 	redisOpt := asynq.RedisClientOpt{Addr: redisAddr, Password: redisPassword}
 	return &Client{
@@ -24,12 +22,10 @@ func NewClient(redisAddr, redisPassword string) *Client {
 	}
 }
 
-// Close closes the underlying asynq client.
 func (c *Client) Close() error {
 	return c.client.Close()
 }
 
-// EnqueueReservationExpiry schedules a reservation expiry task after the given delay.
 func (c *Client) EnqueueReservationExpiry(ctx context.Context, reservationID string, delay time.Duration) (string, error) {
 	payload, err := json.Marshal(ReservationExpiryPayload{
 		ReservationID: reservationID,
@@ -46,7 +42,6 @@ func (c *Client) EnqueueReservationExpiry(ctx context.Context, reservationID str
 	return info.ID, nil
 }
 
-// EnqueuePaymentHoldTimeout schedules a payment hold timeout task after the given delay.
 func (c *Client) EnqueuePaymentHoldTimeout(ctx context.Context, reservationID string, paymentID string, delay time.Duration) (string, error) {
 	payload, err := json.Marshal(PaymentHoldTimeoutPayload{
 		ReservationID: reservationID,
@@ -65,7 +60,6 @@ func (c *Client) EnqueuePaymentHoldTimeout(ctx context.Context, reservationID st
 	return info.ID, nil
 }
 
-// CancelTask cancels a scheduled task by its ID.
 func (c *Client) CancelTask(ctx context.Context, taskID string) error {
 	if err := c.inspector.DeleteTask("default", taskID); err != nil {
 		return fmt.Errorf("cancel task %s: %w", taskID, err)

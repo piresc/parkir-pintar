@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"parkir-pintar/pkg/pricing"
+	"parkir-pintar/internal/reservation/constants"
 )
 
 // TestPricing_ShouldHaveCorrectBookingFee verifies that the booking fee
@@ -22,7 +22,7 @@ import (
 // Validates: Requirement 3.1
 func TestPricing_ShouldHaveCorrectBookingFee(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(5000), pricing.BookingFee,
+	assert.Equal(t, int64(5000), constants.BookingFee,
 		"BookingFee should be 5000 IDR")
 }
 
@@ -32,7 +32,7 @@ func TestPricing_ShouldHaveCorrectBookingFee(t *testing.T) {
 // Validates: Requirement 3.2
 func TestPricing_ShouldHaveCorrectHourlyRate(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(5000), pricing.HourlyRate,
+	assert.Equal(t, int64(5000), constants.HourlyRate,
 		"HourlyRate should be 5000 IDR")
 }
 
@@ -42,6 +42,6 @@ func TestPricing_ShouldHaveCorrectHourlyRate(t *testing.T) {
 // Validates: Requirement 3.3
 func TestPricing_ShouldHaveCorrectOvernightFlatFee(t *testing.T) {
 	// Assert
-	assert.Equal(t, int64(20000), pricing.OvernightPerNight,
+	assert.Equal(t, int64(20000), constants.OvernightPerNight,
 		"OvernightPerNight should be 20000 IDR")
 }

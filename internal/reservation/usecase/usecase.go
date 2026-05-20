@@ -15,25 +15,15 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/gateway"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/pkg/apperror"
 	"parkir-pintar/pkg/database"
 	pkgnats "parkir-pintar/pkg/nats"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
-
-// Spot status constants.
-const (
-	spotStatusAvailable = "available"
-	spotStatusReserved  = "reserved"
-	spotStatusOccupied  = "occupied"
-)
-
-// paymentMethodQRIS is the constant for the QRIS payment method.
-const paymentMethodQRIS = "qris"
 
 // BillingClient defines the interface for billing service operations.
 //
@@ -149,11 +139,11 @@ func NewUsecase(
 ) Usecase {
 	timeout := time.Duration(expiryTimeoutMinutes) * time.Minute
 	if timeout <= 0 {
-		timeout = 60 * time.Minute
+		timeout = constants.DefaultExpiryTimeout
 	}
 	paymentTimeout := time.Duration(paymentTimeoutMinutes) * time.Minute
 	if paymentTimeout <= 0 {
-		paymentTimeout = 10 * time.Minute
+		paymentTimeout = constants.DefaultPaymentTimeout
 	}
 	return &reservationUsecase{
 		repo:           repo,
@@ -203,13 +193,13 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	// Step 2: Find available spot
 	var spotID string
 	switch req.AssignmentMode {
-	case model.AssignmentSystemAssigned:
+	case constants.AssignmentSystemAssigned:
 		spot, err := uc.repo.FindAvailableSpot(ctx, req.VehicleType)
 		if err != nil {
 			return nil, apperror.New("CONFLICT", "no available spots for vehicle type", 409)
 		}
 		spotID = spot.ID
-	case model.AssignmentUserSelected:
+	case constants.AssignmentUserSelected:
 		spotID = req.SpotID
 	default:
 		return nil, apperror.BadRequest("invalid assignment mode")
@@ -240,7 +230,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		SpotID:         spotID,
 		VehicleType:    req.VehicleType,
 		AssignmentMode: req.AssignmentMode,
-		Status:         model.StatusWaitingPayment,
+		Status:         constants.StatusWaitingPayment,
 		IdempotencyKey: req.IdempotencyKey,
 		CreatedAt:      now,
 		UpdatedAt:      now,
@@ -249,10 +239,10 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
 		// Double-check spot availability under DB row lock (within transaction)
 		spot, err := uc.repo.GetSpotForUpdateTx(ctx, tx, spotID)
-		if err != nil || spot.Status != spotStatusAvailable {
+		if err != nil || spot.Status != constants.SpotStatusAvailable {
 			return apperror.New("CONFLICT", "spot no longer available", 409)
 		}
-		if req.AssignmentMode == model.AssignmentUserSelected && spot.VehicleType != req.VehicleType {
+		if req.AssignmentMode == constants.AssignmentUserSelected && spot.VehicleType != req.VehicleType {
 			return apperror.BadRequest("spot vehicle type does not match requested vehicle type")
 		}
 
@@ -262,7 +252,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 			}
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, spotStatusReserved)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, constants.SpotStatusReserved)
 	}); err != nil {
 		if database.IsUniqueViolation(err) {
 			existing, findErr := uc.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
@@ -275,7 +265,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 	// Step 6: Create billing record with booking fee
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey); err != nil {
+	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey); err != nil {
 		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.New("PAYMENT_FAILED", "unable to create billing record", 402)
@@ -300,7 +290,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	}
 
 	// Step 8: Publish events (best-effort)
-	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusReserved)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, constants.SpotStatusReserved)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCreated, reservation, "created")
 
 	return reservation, nil
@@ -325,7 +315,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
-		if reservation.Status != model.StatusWaitingPayment {
+		if reservation.Status != constants.StatusWaitingPayment {
 			return apperror.BadRequest("reservation is not pending payment")
 		}
 
@@ -336,7 +326,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Re-call StartBilling (idempotent) to obtain billing record
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey)
+	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey)
 	if err != nil {
 		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
 		return nil, apperror.New("PAYMENT_FAILED", "unable to retrieve billing record", 402)
@@ -344,7 +334,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Process payment for booking fee
 	paymentIdempotencyKey := fmt.Sprintf("booking-payment-%s", reservation.ID)
-	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, paymentMethodQRIS, paymentIdempotencyKey)
+	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, constants.BookingFee, constants.PaymentMethodQRIS, paymentIdempotencyKey)
 
 	if payErr != nil {
 		slog.Error("booking fee payment failed",
@@ -362,7 +352,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 			return fmt.Errorf("confirm reservation re-fetch: %w", err)
 		}
 		// Verify status hasn't changed since our first check
-		if current.Status != model.StatusWaitingPayment {
+		if current.Status != constants.StatusWaitingPayment {
 			// Compensate: refund the payment we just processed
 			// Best-effort refund — log error if it fails for manual intervention
 			if refundErr := uc.paymentClient.RefundPayment(ctx, paymentID); refundErr != nil {
@@ -375,8 +365,8 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		}
 
 		confirmedAt := time.Now()
-		expiresAt := confirmedAt.Add(1 * time.Hour)
-		reservation.Status = model.StatusConfirmed
+		expiresAt := confirmedAt.Add(constants.DefaultConfirmationExpiry)
+		reservation.Status = constants.StatusConfirmed
 		reservation.ConfirmedAt = &confirmedAt
 		reservation.ExpiresAt = &expiresAt
 		reservation.UpdatedAt = confirmedAt
@@ -415,18 +405,18 @@ func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reser
 			return fmt.Errorf("fail reservation lock: %w", err)
 		}
 		// Only transition from waiting_payment
-		if locked.Status != model.StatusWaitingPayment {
+		if locked.Status != constants.StatusWaitingPayment {
 			return nil // Already transitioned by another path — no-op
 		}
 
 		now := time.Now()
-		locked.Status = model.StatusFailed
+		locked.Status = constants.StatusFailed
 		locked.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, locked); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, locked.SpotID, spotStatusAvailable)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, locked.SpotID, constants.SpotStatusAvailable)
 	}); txErr != nil {
 		slog.Error("failed to release spot on payment failure",
 			slog.String("reservation_id", reservation.ID),
@@ -457,25 +447,25 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
-		if err := model.ValidateTransition(reservation.Status, model.StatusCancelled); err != nil {
+		if err := model.ValidateTransition(reservation.Status, constants.StatusCancelled); err != nil {
 			return apperror.BadRequest(err.Error())
 		}
 
 		now := time.Now()
-		reservation.Status = model.StatusCancelled
+		reservation.Status = constants.StatusCancelled
 		reservation.CancelledAt = &now
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
 		return nil, err
 	}
 
 	// Publish events (best-effort)
-	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, constants.SpotStatusAvailable)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCancelled, reservation, "cancelled")
 
 	return reservation, nil
@@ -502,19 +492,19 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
-		if err := model.ValidateTransition(reservation.Status, model.StatusCheckedIn); err != nil {
+		if err := model.ValidateTransition(reservation.Status, constants.StatusCheckedIn); err != nil {
 			return apperror.BadRequest(err.Error())
 		}
 
 		now := time.Now()
-		reservation.Status = model.StatusCheckedIn
+		reservation.Status = constants.StatusCheckedIn
 		reservation.CheckedInAt = &now
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusOccupied)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusOccupied)
 	}); err != nil {
 		return nil, err
 	}
@@ -551,7 +541,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 	}
 
 	// Publish events (best-effort)
-	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusOccupied)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, constants.SpotStatusOccupied)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCheckedIn, reservation, "checked-in")
 
 	return response, nil
@@ -579,12 +569,12 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
-		if err := model.ValidateTransition(reservation.Status, model.StatusCheckedOut); err != nil {
+		if err := model.ValidateTransition(reservation.Status, constants.StatusCheckedOut); err != nil {
 			return apperror.BadRequest(err.Error())
 		}
 
 		now := time.Now()
-		reservation.Status = model.StatusCheckedOut
+		reservation.Status = constants.StatusCheckedOut
 		reservation.CheckedOutAt = &now
 		reservation.UpdatedAt = now
 
@@ -638,7 +628,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 			return apperror.New("FORBIDDEN", "reservation belongs to another driver", 403)
 		}
 
-		if reservation.Status != model.StatusCheckedOut {
+		if reservation.Status != constants.StatusCheckedOut {
 			return apperror.BadRequest("reservation is not checked out")
 		}
 
@@ -656,7 +646,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 
 	// Process payment for the total amount
 	paymentIdempotencyKey := fmt.Sprintf("payment-%s", reservation.ID)
-	paymentID, err := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingRecord.TotalAmount, paymentMethodQRIS, paymentIdempotencyKey)
+	paymentID, err := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, billingRecord.TotalAmount, constants.PaymentMethodQRIS, paymentIdempotencyKey)
 	if err != nil {
 		return nil, fmt.Errorf("complete checkout process payment: %w", err)
 	}
@@ -664,12 +654,12 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 	// Transition to completed and release spot atomically
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
 		now := time.Now()
-		reservation.Status = model.StatusCompleted
+		reservation.Status = constants.StatusCompleted
 		reservation.UpdatedAt = now
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
 		slog.Error("failed to complete reservation after payment",
 			slog.String("reservation_id", reservation.ID),
@@ -678,7 +668,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 	}
 
 	// Publish events (best-effort)
-	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, constants.SpotStatusAvailable)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCompleted, reservation, "completed")
 
 	return &model.CheckOutResponse{
@@ -707,18 +697,18 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 			return fmt.Errorf("expire reservation get: %w", err)
 		}
 
-		if err := model.ValidateTransition(reservation.Status, model.StatusExpired); err != nil {
+		if err := model.ValidateTransition(reservation.Status, constants.StatusExpired); err != nil {
 			return apperror.BadRequest(err.Error())
 		}
 
 		now := time.Now()
-		reservation.Status = model.StatusExpired
+		reservation.Status = constants.StatusExpired
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
 		return err
 	}
@@ -728,7 +718,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 	// driver forfeits when a reservation expires without check-in.
 
 	// Publish events (best-effort)
-	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, constants.SpotStatusAvailable)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsExpired, reservation, "expired")
 
 	return nil
@@ -750,24 +740,24 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 			return fmt.Errorf("fail reservation get: %w", err)
 		}
 
-		if err := model.ValidateTransition(reservation.Status, model.StatusFailed); err != nil {
+		if err := model.ValidateTransition(reservation.Status, constants.StatusFailed); err != nil {
 			return apperror.BadRequest(err.Error())
 		}
 
 		now := time.Now()
-		reservation.Status = model.StatusFailed
+		reservation.Status = constants.StatusFailed
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
 			return err
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, spotStatusAvailable)
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
 		return err
 	}
 
 	// Publish events (best-effort)
-	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusAvailable)
+	uc.publishSpotUpdated(ctx, reservation.SpotID, constants.SpotStatusAvailable)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsFailed, reservation, "failed")
 
 	return nil

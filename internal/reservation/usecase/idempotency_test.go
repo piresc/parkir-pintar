@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys verifies
@@ -40,7 +40,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-alpha", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
 
 	// Second call mocks (key-beta -> spot-beta)
 	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, model.ErrNotFound).Once()
@@ -58,21 +58,21 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-beta", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 
 	req1 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "key-alpha",
 	}
 
 	req2 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "key-beta",
 	}
 

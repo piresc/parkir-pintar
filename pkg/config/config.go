@@ -3,173 +3,272 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
 )
 
-// Config is the root configuration struct loaded from env vars.
 type Config struct {
-	App         AppConfig
-	Server      ServerConfig
-	Database    DatabaseConfig
-	Redis       RedisConfig
-	JWT         JWTConfig
-	Auth        AuthConfig
-	Tracing     TracingConfig
-	Logger      LoggerConfig
-	GRPC        GRPCConfig
-	Reservation ReservationConfig
-	Asynq       AsynqConfig
-	NATS        NATSConfig
+	App         AppConfig         `yaml:"app"`
+	Server      ServerConfig      `yaml:"server"`
+	Database    DatabaseConfig    `yaml:"database"`
+	Redis       RedisConfig       `yaml:"redis"`
+	JWT         JWTConfig         `yaml:"jwt"`
+	Auth        AuthConfig        `yaml:"auth"`
+	Tracing     TracingConfig     `yaml:"tracing"`
+	Logger      LoggerConfig      `yaml:"logger"`
+	GRPC        GRPCConfig        `yaml:"grpc"`
+	Reservation ReservationConfig `yaml:"reservation"`
+	Asynq       AsynqConfig       `yaml:"asynq"`
+	NATS        NATSConfig        `yaml:"nats"`
 }
 
-// ReservationConfig holds reservation service settings.
 type ReservationConfig struct {
-	PaymentTimeoutMinutes int           // default 10 — time allowed to complete payment before reservation fails
-	ExpiryTimeoutMinutes  int           // default 60 — time allowed to check in after confirmation before expiry
-	WorkerPollInterval    time.Duration // default 30s — polling interval for legacy fallback workers
+	PaymentTimeoutMinutes int           `yaml:"payment_timeout_minutes"` // default 10 — time allowed to complete payment before reservation fails
+	ExpiryTimeoutMinutes  int           `yaml:"expiry_timeout_minutes"`  // default 60 — time allowed to check in after confirmation before expiry
+	WorkerPollInterval    time.Duration `yaml:"worker_poll_interval"`    // default 30s — polling interval for legacy fallback workers
 }
 
-// AsynqConfig holds Redis-based task queue settings.
 type AsynqConfig struct {
-	Concurrency int // number of concurrent workers (default 10)
+	Concurrency int `yaml:"concurrency"` // number of concurrent workers (default 10)
 }
 
-// NATSConfig holds NATS JetStream connection settings.
 type NATSConfig struct {
-	URL     string // NATS server URL (default: nats://localhost:4222)
-	Enabled bool   // Enable NATS messaging (default: false)
+	URL     string `yaml:"url"`     // NATS server URL (default: nats://localhost:4222)
+	Enabled bool   `yaml:"enabled"` // Enable NATS messaging (default: false)
 }
 
-// GRPCServerConfig holds gRPC server settings.
 type GRPCServerConfig struct {
-	Port            int
-	TLSCertPath     string
-	TLSKeyPath      string
-	MaxConnAge      time.Duration
-	ShutdownTimeout time.Duration
-	RequestTimeout  time.Duration
+	Port            int           `yaml:"port"`
+	TLSCertPath     string        `yaml:"tls_cert_path"`
+	TLSKeyPath      string        `yaml:"tls_key_path"`
+	MaxConnAge      time.Duration `yaml:"max_conn_age"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+	RequestTimeout  time.Duration `yaml:"request_timeout"`
 }
 
-// GRPCRateLimitConfig holds gRPC rate limiting settings.
 type GRPCRateLimitConfig struct {
-	RequestsPerSecond int
-	BurstSize         int
+	RequestsPerSecond int `yaml:"requests_per_second"`
+	BurstSize         int `yaml:"burst_size"`
 }
 
-// GRPCClientConfig holds gRPC client settings.
 type GRPCClientConfig struct {
-	DialTimeout      time.Duration
-	KeepAliveTime    time.Duration
-	KeepAliveTimeout time.Duration
+	DialTimeout      time.Duration `yaml:"dial_timeout"`
+	KeepAliveTime    time.Duration `yaml:"keepalive_time"`
+	KeepAliveTimeout time.Duration `yaml:"keepalive_timeout"`
 }
 
-// GRPCConfig holds gRPC server and client configuration.
 type GRPCConfig struct {
-	Server    GRPCServerConfig
-	Client    GRPCClientConfig
-	RateLimit GRPCRateLimitConfig
+	Server    GRPCServerConfig    `yaml:"server"`
+	Client    GRPCClientConfig    `yaml:"client"`
+	RateLimit GRPCRateLimitConfig `yaml:"rate_limit"`
 }
 
-// AppConfig holds application-level settings.
 type AppConfig struct {
-	Name        string
-	Environment string // local, development, staging, production
-	Debug       bool
-	Version     string
+	Name        string `yaml:"name"`
+	Environment string `yaml:"environment"` // local, development, staging, production
+	Debug       bool   `yaml:"debug"`
+	Version     string `yaml:"version"`
 }
 
-// ServerConfig holds HTTP server settings.
 type ServerConfig struct {
-	Host            string
-	Port            int
-	ReadTimeout     int // seconds
-	WriteTimeout    int // seconds
-	ShutdownTimeout int // seconds
-	AllowedOrigins  []string
+	Host            string   `yaml:"host"`
+	Port            int      `yaml:"port"`
+	ReadTimeout     int      `yaml:"read_timeout"`  // seconds
+	WriteTimeout    int      `yaml:"write_timeout"` // seconds
+	ShutdownTimeout int      `yaml:"shutdown_timeout"` // seconds
+	AllowedOrigins  []string `yaml:"allowed_origins"`
 }
 
-// DatabaseConfig holds PostgreSQL connection settings.
 type DatabaseConfig struct {
-	Host        string
-	Port        int
-	Username    string
-	Password    string
-	Database    string
-	Schema      string
-	SSLMode     string
-	MaxConns    int
-	IdleConns   int
-	MaxLifetime int // minutes
+	Host        string `yaml:"host"`
+	Port        int    `yaml:"port"`
+	Username    string `yaml:"username"`
+	Password    string `yaml:"password"`
+	Database    string `yaml:"database"`
+	Schema      string `yaml:"schema"`
+	SSLMode     string `yaml:"ssl_mode"`
+	MaxConns    int    `yaml:"max_conns"`
+	IdleConns   int    `yaml:"idle_conns"`
+	MaxLifetime int    `yaml:"max_lifetime"` // minutes
 }
 
-// RedisConfig holds Redis connection settings.
 type RedisConfig struct {
-	Host     string
-	Port     int
-	Password string
-	DB       int
-	PoolSize int
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+	PoolSize int    `yaml:"pool_size"`
 }
 
-// JWTConfig holds JWT token settings.
 type JWTConfig struct {
-	Secret     string
-	Expiration int // minutes
-	Issuer     string
+	Secret     string `yaml:"secret"`
+	Expiration int    `yaml:"expiration"` // minutes
+	Issuer     string `yaml:"issuer"`
 }
 
-// AuthConfig holds API key authentication settings.
 type AuthConfig struct {
-	APIKeys map[string]string // service_name -> key
+	APIKeys map[string]string `yaml:"api_keys"` // service_name -> key
 }
 
-// TracingConfig holds tracing/observability settings.
 type TracingConfig struct {
-	Enabled      bool
-	ServiceName  string
-	SampleRate   float64
-	ExcludePaths []string
-	Exporter     string // "stdout", "otlp", "newrelic", "noop"
-	OTLPEndpoint string
-	NewRelic     NewRelicExporterConfig
+	Enabled      bool                   `yaml:"enabled"`
+	ServiceName  string                 `yaml:"service_name"`
+	SampleRate   float64                `yaml:"sample_rate"`
+	ExcludePaths []string               `yaml:"exclude_paths"`
+	Exporter     string                 `yaml:"exporter"` // "stdout", "otlp", "newrelic", "noop"
+	OTLPEndpoint string                 `yaml:"otlp_endpoint"`
+	NewRelic     NewRelicExporterConfig `yaml:"new_relic"`
 }
 
-// NewRelicExporterConfig holds New Relic OTEL exporter settings.
 type NewRelicExporterConfig struct {
-	LicenseKey string
-	Enabled    bool
+	LicenseKey string `yaml:"license_key"`
+	Enabled    bool   `yaml:"enabled"`
 }
 
-// LoggerConfig holds structured logging settings.
 type LoggerConfig struct {
-	Level  string // debug, info, warn, error
-	Format string // json, text
+	Level  string `yaml:"level"`  // debug, info, warn, error
+	Format string `yaml:"format"` // json, text
 }
 
-// Load reads .env in local mode, then populates Config from os env vars.
-// envPath is the path to the .env file (used only when APP_ENV is "local" or empty).
+func LoadConfig(serviceName string) (*Config, error) {
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "local"
+	}
+
+	if env == "local" {
+		_ = godotenv.Load(".env")
+	}
+
+	cfg := &Config{}
+
+	yamlLoaded := false
+	yamlPath := filepath.Join("config", fmt.Sprintf("%s.%s.yaml", serviceName, env))
+	data, err := os.ReadFile(yamlPath)
+	if err == nil {
+		if err := yaml.Unmarshal(data, cfg); err != nil {
+			return nil, fmt.Errorf("failed to parse config file %s: %w", yamlPath, err)
+		}
+		yamlLoaded = true
+	}
+
+	// If YAML was not loaded, this populates everything from env (backward compat).
+	overlayEnvSecrets(cfg, yamlLoaded)
+
+	if err := validate(cfg); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// Secrets always come from env. Non-secret fields are only applied from env
+// if YAML was not loaded (backward compat) or if the env var is explicitly set.
+func overlayEnvSecrets(cfg *Config, yamlLoaded bool) {
+	// --- Secrets: always overlay from env ---
+	cfg.Database.Host = getEnvOverlay("DB_HOST", cfg.Database.Host, "localhost", yamlLoaded)
+	cfg.Database.Port = getEnvAsIntOverlay("DB_PORT", cfg.Database.Port, 5432, yamlLoaded)
+	cfg.Database.Username = getEnvOverlay("DB_USERNAME", cfg.Database.Username, "", yamlLoaded)
+	cfg.Database.Password = getEnvOverlay("DB_PASSWORD", cfg.Database.Password, "", yamlLoaded)
+	cfg.Database.Database = getEnvOverlay("DB_DATABASE", cfg.Database.Database, "", yamlLoaded)
+
+	cfg.Redis.Host = getEnvOverlay("REDIS_HOST", cfg.Redis.Host, "localhost", yamlLoaded)
+	cfg.Redis.Port = getEnvAsIntOverlay("REDIS_PORT", cfg.Redis.Port, 6379, yamlLoaded)
+	cfg.Redis.Password = getEnvOverlay("REDIS_PASSWORD", cfg.Redis.Password, "", yamlLoaded)
+
+	cfg.NATS.URL = getEnvOverlay("NATS_URL", cfg.NATS.URL, "nats://localhost:4222", yamlLoaded)
+
+	cfg.JWT.Secret = getEnvOverlay("JWT_SECRET", cfg.JWT.Secret, "", yamlLoaded)
+
+	cfg.Tracing.OTLPEndpoint = getEnvOverlay("TRACING_OTLP_ENDPOINT", cfg.Tracing.OTLPEndpoint, "", yamlLoaded)
+	cfg.Tracing.NewRelic.LicenseKey = getEnvOverlay("NEW_RELIC_LICENSE_KEY", cfg.Tracing.NewRelic.LicenseKey, "", yamlLoaded)
+
+	// Auth API keys — always from env
+	if keys := getEnvAsMap("AUTH_API_KEYS"); len(keys) > 0 {
+		cfg.Auth.APIKeys = keys
+	} else if cfg.Auth.APIKeys == nil {
+		cfg.Auth.APIKeys = make(map[string]string)
+	}
+
+	// --- Non-secret fields: only overlay if YAML was NOT loaded (full backward compat) ---
+	if !yamlLoaded {
+		cfg.App.Name = getEnv("APP_NAME", "parkir-pintar")
+		cfg.App.Environment = getEnv("APP_ENV", "local")
+		cfg.App.Debug = getEnvAsBool("APP_DEBUG", false)
+		cfg.App.Version = getEnv("APP_VERSION", "0.0.1")
+
+		cfg.Server.Host = getEnv("SERVER_HOST", "0.0.0.0")
+		cfg.Server.Port = getEnvAsInt("SERVER_PORT", 8080)
+		cfg.Server.ReadTimeout = getEnvAsInt("SERVER_READ_TIMEOUT", 15)
+		cfg.Server.WriteTimeout = getEnvAsInt("SERVER_WRITE_TIMEOUT", 15)
+		cfg.Server.ShutdownTimeout = getEnvAsInt("SERVER_SHUTDOWN_TIMEOUT", 30)
+		cfg.Server.AllowedOrigins = getEnvAsSlice("SERVER_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
+
+		cfg.Database.Schema = getEnv("DB_SCHEMA", "public")
+		cfg.Database.SSLMode = getEnv("DB_SSL_MODE", "disable")
+		cfg.Database.MaxConns = getEnvAsInt("DB_MAX_CONNS", 25)
+		cfg.Database.IdleConns = getEnvAsInt("DB_IDLE_CONNS", 5)
+		cfg.Database.MaxLifetime = getEnvAsInt("DB_MAX_LIFETIME", 15)
+
+		cfg.Redis.DB = getEnvAsInt("REDIS_DB", 0)
+		cfg.Redis.PoolSize = getEnvAsInt("REDIS_POOL_SIZE", 10)
+
+		cfg.JWT.Expiration = getEnvAsInt("JWT_EXPIRATION", 60)
+		cfg.JWT.Issuer = getEnv("JWT_ISSUER", "parkir-pintar")
+
+		cfg.Tracing.Enabled = getEnvAsBool("TRACING_ENABLED", false)
+		cfg.Tracing.ServiceName = getEnv("TRACING_SERVICE_NAME", cfg.App.Name)
+		cfg.Tracing.SampleRate = getEnvAsFloat("TRACING_SAMPLE_RATE", 1.0)
+		cfg.Tracing.ExcludePaths = getEnvAsSlice("TRACING_EXCLUDE_PATHS", []string{"/health", "/health/live", "/health/ready"})
+		cfg.Tracing.Exporter = getEnv("TRACING_EXPORTER", "noop")
+		cfg.Tracing.NewRelic.Enabled = getEnvAsBool("NEW_RELIC_ENABLED", false)
+
+		cfg.GRPC.Server.Port = getEnvAsInt("GRPC_SERVER_PORT", 9090)
+		cfg.GRPC.Server.TLSCertPath = getEnv("GRPC_TLS_CERT_PATH", "")
+		cfg.GRPC.Server.TLSKeyPath = getEnv("GRPC_TLS_KEY_PATH", "")
+		cfg.GRPC.Server.MaxConnAge = getEnvAsDuration("GRPC_MAX_CONN_AGE", 0)
+		cfg.GRPC.Server.ShutdownTimeout = getEnvAsDuration("GRPC_SHUTDOWN_TIMEOUT", 30*time.Second)
+		cfg.GRPC.Server.RequestTimeout = getEnvAsDuration("GRPC_REQUEST_TIMEOUT", 30*time.Second)
+		cfg.GRPC.Client.DialTimeout = getEnvAsDuration("GRPC_DIAL_TIMEOUT", 5*time.Second)
+		cfg.GRPC.Client.KeepAliveTime = getEnvAsDuration("GRPC_KEEPALIVE_TIME", 30*time.Second)
+		cfg.GRPC.Client.KeepAliveTimeout = getEnvAsDuration("GRPC_KEEPALIVE_TIMEOUT", 10*time.Second)
+		cfg.GRPC.RateLimit.RequestsPerSecond = getEnvAsInt("GRPC_RATE_LIMIT_RPS", 100)
+		cfg.GRPC.RateLimit.BurstSize = getEnvAsInt("GRPC_RATE_LIMIT_BURST", 200)
+
+		cfg.Logger.Level = getEnv("LOG_LEVEL", "info")
+		cfg.Logger.Format = getEnv("LOG_FORMAT", "json")
+
+		cfg.Reservation.PaymentTimeoutMinutes = getEnvAsInt("PAYMENT_TIMEOUT_MINUTES", 10)
+		cfg.Reservation.ExpiryTimeoutMinutes = getEnvAsInt("RESERVATION_EXPIRY_MINUTES", 60)
+		cfg.Reservation.WorkerPollInterval = getEnvAsDuration("WORKER_POLL_INTERVAL", 30*time.Second)
+
+		cfg.Asynq.Concurrency = getEnvAsInt("ASYNQ_CONCURRENCY", 10)
+
+		cfg.NATS.Enabled = getEnvAsBool("NATS_ENABLED", false)
+	}
+}
+
+// Deprecated: Use LoadConfig(serviceName) for YAML-based configuration.
 func Load(envPath string) (*Config, error) {
 	env := os.Getenv("APP_ENV")
 	if env == "" || env == "local" {
 		if envPath != "" {
-			// Best-effort load; ignore error if file doesn't exist in local mode
 			_ = godotenv.Load(envPath)
 		}
 	}
 
 	cfg := &Config{}
 
-	// App
 	cfg.App.Name = getEnv("APP_NAME", "parkir-pintar")
 	cfg.App.Environment = getEnv("APP_ENV", "local")
 	cfg.App.Debug = getEnvAsBool("APP_DEBUG", false)
 	cfg.App.Version = getEnv("APP_VERSION", "0.0.1")
 
-	// Server
 	cfg.Server.Host = getEnv("SERVER_HOST", "0.0.0.0")
 	cfg.Server.Port = getEnvAsInt("SERVER_PORT", 8080)
 	cfg.Server.ReadTimeout = getEnvAsInt("SERVER_READ_TIMEOUT", 15)
@@ -177,7 +276,6 @@ func Load(envPath string) (*Config, error) {
 	cfg.Server.ShutdownTimeout = getEnvAsInt("SERVER_SHUTDOWN_TIMEOUT", 30)
 	cfg.Server.AllowedOrigins = getEnvAsSlice("SERVER_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
 
-	// Database
 	cfg.Database.Host = getEnv("DB_HOST", "localhost")
 	cfg.Database.Port = getEnvAsInt("DB_PORT", 5432)
 	cfg.Database.Username = getEnv("DB_USERNAME", "")
@@ -189,22 +287,18 @@ func Load(envPath string) (*Config, error) {
 	cfg.Database.IdleConns = getEnvAsInt("DB_IDLE_CONNS", 5)
 	cfg.Database.MaxLifetime = getEnvAsInt("DB_MAX_LIFETIME", 15)
 
-	// Redis
 	cfg.Redis.Host = getEnv("REDIS_HOST", "localhost")
 	cfg.Redis.Port = getEnvAsInt("REDIS_PORT", 6379)
 	cfg.Redis.Password = getEnv("REDIS_PASSWORD", "")
 	cfg.Redis.DB = getEnvAsInt("REDIS_DB", 0)
 	cfg.Redis.PoolSize = getEnvAsInt("REDIS_POOL_SIZE", 10)
 
-	// JWT — no default for Secret (security)
 	cfg.JWT.Secret = getEnv("JWT_SECRET", "")
 	cfg.JWT.Expiration = getEnvAsInt("JWT_EXPIRATION", 60)
 	cfg.JWT.Issuer = getEnv("JWT_ISSUER", "parkir-pintar")
 
-	// Auth — API keys parsed from comma-separated "service:key" pairs
 	cfg.Auth.APIKeys = getEnvAsMap("AUTH_API_KEYS")
 
-	// Tracing
 	cfg.Tracing.Enabled = getEnvAsBool("TRACING_ENABLED", false)
 	cfg.Tracing.ServiceName = getEnv("TRACING_SERVICE_NAME", cfg.App.Name)
 	cfg.Tracing.SampleRate = getEnvAsFloat("TRACING_SAMPLE_RATE", 1.0)
@@ -214,7 +308,6 @@ func Load(envPath string) (*Config, error) {
 	cfg.Tracing.NewRelic.LicenseKey = getEnv("NEW_RELIC_LICENSE_KEY", "")
 	cfg.Tracing.NewRelic.Enabled = getEnvAsBool("NEW_RELIC_ENABLED", false)
 
-	// GRPC
 	cfg.GRPC.Server.Port = getEnvAsInt("GRPC_SERVER_PORT", 9090)
 	cfg.GRPC.Server.TLSCertPath = getEnv("GRPC_TLS_CERT_PATH", "")
 	cfg.GRPC.Server.TLSKeyPath = getEnv("GRPC_TLS_KEY_PATH", "")
@@ -227,19 +320,15 @@ func Load(envPath string) (*Config, error) {
 	cfg.GRPC.RateLimit.RequestsPerSecond = getEnvAsInt("GRPC_RATE_LIMIT_RPS", 100)
 	cfg.GRPC.RateLimit.BurstSize = getEnvAsInt("GRPC_RATE_LIMIT_BURST", 200)
 
-	// Logger
 	cfg.Logger.Level = getEnv("LOG_LEVEL", "info")
 	cfg.Logger.Format = getEnv("LOG_FORMAT", "json")
 
-	// Reservation
 	cfg.Reservation.PaymentTimeoutMinutes = getEnvAsInt("PAYMENT_TIMEOUT_MINUTES", 10)
 	cfg.Reservation.ExpiryTimeoutMinutes = getEnvAsInt("RESERVATION_EXPIRY_MINUTES", 60)
 	cfg.Reservation.WorkerPollInterval = getEnvAsDuration("WORKER_POLL_INTERVAL", 30*time.Second)
 
-	// Asynq
 	cfg.Asynq.Concurrency = getEnvAsInt("ASYNQ_CONCURRENCY", 10)
 
-	// NATS
 	cfg.NATS.URL = getEnv("NATS_URL", "nats://localhost:4222")
 	cfg.NATS.Enabled = getEnvAsBool("NATS_ENABLED", false)
 
@@ -250,7 +339,6 @@ func Load(envPath string) (*Config, error) {
 	return cfg, nil
 }
 
-// validate checks required fields and value constraints.
 func validate(cfg *Config) error {
 	// Server port must be valid
 	if cfg.Server.Port <= 0 || cfg.Server.Port >= 65536 {
@@ -273,7 +361,32 @@ func validate(cfg *Config) error {
 	return nil
 }
 
-// --- helper functions ---
+// getEnvOverlay returns the env var value if set, otherwise returns yamlValue if YAML was loaded,
+// otherwise returns defaultValue.
+func getEnvOverlay(key, yamlValue, defaultValue string, yamlLoaded bool) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	if yamlLoaded && yamlValue != "" {
+		return yamlValue
+	}
+	return defaultValue
+}
+
+// getEnvAsIntOverlay returns the env var value if set, otherwise returns yamlValue if YAML was loaded,
+// otherwise returns defaultValue.
+func getEnvAsIntOverlay(key string, yamlValue, defaultValue int, yamlLoaded bool) int {
+	valueStr := os.Getenv(key)
+	if valueStr != "" {
+		if v, err := strconv.Atoi(valueStr); err == nil {
+			return v
+		}
+	}
+	if yamlLoaded && yamlValue != 0 {
+		return yamlValue
+	}
+	return defaultValue
+}
 
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -319,7 +432,6 @@ func getEnvAsFloat(key string, defaultValue float64) float64 {
 	return value
 }
 
-// getEnvAsDuration parses an env var as a time.Duration string (e.g. "5s", "30s", "1m").
 // Returns defaultValue if the env var is unset or cannot be parsed.
 func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 	valueStr := os.Getenv(key)
@@ -333,7 +445,6 @@ func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 	return value
 }
 
-// getEnvAsSlice parses a comma-separated env var into a string slice.
 func getEnvAsSlice(key string, defaultValue []string) []string {
 	valueStr := os.Getenv(key)
 	if valueStr == "" {
@@ -353,8 +464,6 @@ func getEnvAsSlice(key string, defaultValue []string) []string {
 	return result
 }
 
-// getEnvAsMap parses a comma-separated "key:value" env var into a map.
-// Example: "service1:key1,service2:key2"
 func getEnvAsMap(key string) map[string]string {
 	result := make(map[string]string)
 	valueStr := os.Getenv(key)

@@ -1,4 +1,3 @@
-// Package handler provides NATS message consumers for the analytics service.
 package handler
 
 import (
@@ -14,18 +13,15 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-// NATSHandler handles NATS messages for the analytics service.
 type NATSHandler struct {
 	uc     usecase.Usecase
 	client *pkgnats.Client
 }
 
-// NewNATSHandler creates a new NATSHandler with the given usecase and NATS client.
 func NewNATSHandler(uc usecase.Usecase, client *pkgnats.Client) *NATSHandler {
 	return &NATSHandler{uc: uc, client: client}
 }
 
-// InitConsumers starts consuming reservation events for analytics processing.
 func (h *NATSHandler) InitConsumers() (jetstream.ConsumeContext, error) {
 	return h.client.Consume(pkgnats.ConsumerAnalytics, h.handleReservationEvent)
 }

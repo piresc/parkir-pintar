@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -42,7 +42,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 	})
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, model.StatusConfirmed, reservation.Status)
+	assert.Equal(t, constants.StatusConfirmed, reservation.Status)
 
 	// Verify booking fee was charged
 	var bookingFee int64
@@ -62,7 +62,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&bookingFee)
 	require.NoError(t, err)
-	assert.Equal(t, pricing.BookingFee, bookingFee, "booking fee should be 5000 IDR")
+	assert.Equal(t, constants.BookingFee, bookingFee, "booking fee should be 5000 IDR")
 
 	// Count billing records before cancellation
 	var billingCountBefore int
@@ -79,7 +79,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 	// Assert — CANCELLED status
 	require.NoError(t, err)
 	require.NotNil(t, cancelled)
-	assert.Equal(t, model.StatusCancelled, cancelled.Status)
+	assert.Equal(t, constants.StatusCancelled, cancelled.Status)
 
 	// Assert — Spot back to "available"
 	var spotStatus string
@@ -103,7 +103,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&bookingFeeAfter)
 	require.NoError(t, err)
-	assert.Equal(t, pricing.BookingFee, bookingFeeAfter,
+	assert.Equal(t, constants.BookingFee, bookingFeeAfter,
 		"booking fee should remain charged (non-refundable)")
 
 	// Assert — No penalty/cancellation_fee columns exist (removed by migration 000011)

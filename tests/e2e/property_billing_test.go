@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -49,7 +50,7 @@ func TestProperty2_BillingTotalConsistency(t *testing.T) {
 		reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 			DriverID:       driverID,
 			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
+			AssignmentMode: constants.AssignmentSystemAssigned,
 			IdempotencyKey: uuid.New().String(),
 		})
 		require.NoError(t, err)

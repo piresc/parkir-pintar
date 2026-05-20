@@ -7,18 +7,15 @@ import (
 	"parkir-pintar/pkg/tracing"
 )
 
-// TracedRedisClient wraps Client with automatic OTEL tracing.
 type TracedRedisClient struct {
 	*Client
 	tracer tracing.Tracer
 }
 
-// NewTracedRedisClient creates a new traced Redis client.
 func NewTracedRedisClient(client *Client, tracer tracing.Tracer) *TracedRedisClient {
 	return &TracedRedisClient{Client: client, tracer: tracer}
 }
 
-// Get retrieves a value by key with automatic tracing.
 func (r *TracedRedisClient) Get(ctx context.Context, key string) (string, error) {
 	if !r.tracer.IsEnabled() {
 		return r.Client.Get(ctx, key)
@@ -28,7 +25,6 @@ func (r *TracedRedisClient) Get(ctx context.Context, key string) (string, error)
 	return r.Client.Get(ctx, key)
 }
 
-// Set stores a key-value pair with automatic tracing.
 func (r *TracedRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
 	if !r.tracer.IsEnabled() {
 		return r.Client.Set(ctx, key, value, expiration)
@@ -38,7 +34,6 @@ func (r *TracedRedisClient) Set(ctx context.Context, key string, value interface
 	return r.Client.Set(ctx, key, value, expiration)
 }
 
-// SetNX sets value if key doesn't exist with automatic tracing.
 func (r *TracedRedisClient) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
 	if !r.tracer.IsEnabled() {
 		return r.Client.SetNX(ctx, key, value, expiration)
@@ -48,7 +43,6 @@ func (r *TracedRedisClient) SetNX(ctx context.Context, key string, value interfa
 	return r.Client.SetNX(ctx, key, value, expiration)
 }
 
-// Delete removes a key with automatic tracing.
 func (r *TracedRedisClient) Delete(ctx context.Context, key string) error {
 	if !r.tracer.IsEnabled() {
 		return r.Client.Delete(ctx, key)
@@ -58,7 +52,6 @@ func (r *TracedRedisClient) Delete(ctx context.Context, key string) error {
 	return r.Client.Delete(ctx, key)
 }
 
-// Close closes the Redis client.
 func (r *TracedRedisClient) Close() error {
 	return r.Client.Close()
 }

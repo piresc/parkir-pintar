@@ -1,16 +1,3 @@
-// Package handler provides preservation property tests for non-StreamLocation gateway endpoints.
-//
-// Best practices applied (from Go testify coding standards KB):
-// - Test naming: Test[FunctionName]_Should[ExpectedResult]_When[Condition]
-// - AAA pattern: Arrange → Act → Assert
-// - testify/assert for assertions
-// - Mock at interface boundaries rather than concrete implementations
-// - Keep mocks simple and focused on the behavior being tested
-//
-// **Validates: Requirements 3.5** (Preservation Property 14 from design)
-//
-// Non-bug condition: endpoint != StreamLocation
-// These tests verify that all other gateway REST endpoints continue to transcode
 // REST→gRPC correctly on unfixed code. They must PASS on unfixed code.
 package handler
 
@@ -35,8 +22,6 @@ import (
 
 	"pgregory.net/rapid"
 )
-
-// --- Mock gRPC clients for preservation tests ---
 
 type preservationReservationClient struct {
 	reservationv1.ReservationServiceClient
@@ -101,14 +86,8 @@ func (m *preservationPaymentClient) GetPaymentStatus(_ context.Context, in *paym
 	return &paymentv1.PaymentResponse{Id: in.GetPaymentId(), Status: "success"}, nil
 }
 
-// TestCreateReservation_ShouldTranscodeCorrectly_WhenValidRequest verifies
-// that CreateReservation correctly transcodes REST→gRPC fields.
-// Non-bug condition: endpoint != StreamLocation.
-//
-// **Validates: Requirements 3.5**
 func TestCreateReservation_ShouldTranscodeCorrectly_WhenValidRequest(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		driverID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "driverID")
 		vehicleType := rapid.SampledFrom([]string{"car", "motorcycle"}).Draw(t, "vehicleType")
 		idempotencyKey := rapid.StringMatching(`[a-z0-9]{16}`).Draw(t, "idempotencyKey")
@@ -134,10 +113,8 @@ func TestCreateReservation_ShouldTranscodeCorrectly_WhenValidRequest(t *testing.
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		// Act
 		engine.ServeHTTP(w, req)
 
-		// Assert
 		assert.Equal(t, http.StatusCreated, w.Code)
 		require.NotNil(t, resSpy.lastCreateReq)
 		assert.Equal(t, driverID, resSpy.lastCreateReq.GetDriverId())
@@ -146,14 +123,8 @@ func TestCreateReservation_ShouldTranscodeCorrectly_WhenValidRequest(t *testing.
 	})
 }
 
-// TestCancelReservation_ShouldPassID_WhenCalled verifies CancelReservation
-// correctly passes the reservation ID to the gRPC client.
-// Non-bug condition: endpoint != StreamLocation.
-//
-// **Validates: Requirements 3.5**
 func TestCancelReservation_ShouldPassID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
 		resSpy := &preservationReservationClient{}
@@ -166,23 +137,15 @@ func TestCancelReservation_ShouldPassID_WhenCalled(t *testing.T) {
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/reservations/"+resID, nil)
 		w := httptest.NewRecorder()
 
-		// Act
 		engine.ServeHTTP(w, req)
 
-		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, resID, resSpy.lastCancelID)
 	})
 }
 
-// TestCheckIn_ShouldPassID_WhenCalled verifies CheckIn correctly passes
-// the reservation ID to the gRPC client.
-// Non-bug condition: endpoint != StreamLocation.
-//
-// **Validates: Requirements 3.5**
 func TestCheckIn_ShouldPassID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
 		resSpy := &preservationReservationClient{}
@@ -195,23 +158,15 @@ func TestCheckIn_ShouldPassID_WhenCalled(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/reservations/"+resID+"/checkin", nil)
 		w := httptest.NewRecorder()
 
-		// Act
 		engine.ServeHTTP(w, req)
 
-		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, resID, resSpy.lastCheckInID)
 	})
 }
 
-// TestCheckOut_ShouldPassID_WhenCalled verifies CheckOut correctly passes
-// the reservation ID to the gRPC client.
-// Non-bug condition: endpoint != StreamLocation.
-//
-// **Validates: Requirements 3.5**
 func TestCheckOut_ShouldPassID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
 		resSpy := &preservationReservationClient{}
@@ -224,23 +179,15 @@ func TestCheckOut_ShouldPassID_WhenCalled(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/reservations/"+resID+"/checkout", nil)
 		w := httptest.NewRecorder()
 
-		// Act
 		engine.ServeHTTP(w, req)
 
-		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, resID, resSpy.lastCheckOutID)
 	})
 }
 
-// TestGetAvailability_ShouldPassVehicleType_WhenCalled verifies GetAvailability
-// correctly passes the vehicle_type query param to the gRPC client.
-// Non-bug condition: endpoint != StreamLocation.
-//
-// **Validates: Requirements 3.5**
 func TestGetAvailability_ShouldPassVehicleType_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		vehicleType := rapid.SampledFrom([]string{"car", "motorcycle"}).Draw(t, "vehicleType")
 
 		searchSpy := &preservationSearchClient{}
@@ -253,23 +200,15 @@ func TestGetAvailability_ShouldPassVehicleType_WhenCalled(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/availability?vehicle_type="+vehicleType, nil)
 		w := httptest.NewRecorder()
 
-		// Act
 		engine.ServeHTTP(w, req)
 
-		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, vehicleType, searchSpy.lastAvailVehicleType)
 	})
 }
 
-// TestGetPaymentStatus_ShouldPassPaymentID_WhenCalled verifies GetPaymentStatus
-// correctly passes the payment ID to the gRPC client.
-// Non-bug condition: endpoint != StreamLocation.
-//
-// **Validates: Requirements 3.5**
 func TestGetPaymentStatus_ShouldPassPaymentID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Arrange
 		paymentID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "paymentID")
 
 		paySpy := &preservationPaymentClient{}
@@ -282,10 +221,8 @@ func TestGetPaymentStatus_ShouldPassPaymentID_WhenCalled(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/payments/"+paymentID+"/status", nil)
 		w := httptest.NewRecorder()
 
-		// Act
 		engine.ServeHTTP(w, req)
 
-		// Assert
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, paymentID, paySpy.lastPaymentID)
 	})

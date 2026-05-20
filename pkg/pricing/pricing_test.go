@@ -62,7 +62,6 @@ func TestCalculateSessionFee_TwoMidnightsCrossed(t *testing.T) {
 	assert.Equal(t, int64(40_000), result.OvernightFee) // 20k × 2
 	assert.Equal(t, 2, result.NightsCrossed)
 	assert.True(t, result.IsOvernight)
-	// 26 hours → 26 billed hours
 	assert.Equal(t, 26, result.BilledHours)
 	assert.Equal(t, int64(130_000), result.ParkingFee) // 26 × 5k
 }

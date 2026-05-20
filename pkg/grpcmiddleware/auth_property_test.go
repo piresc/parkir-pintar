@@ -30,20 +30,12 @@ func testJWTConfig() config.JWTConfig {
 	}
 }
 
-// noopHandler is a grpc.UnaryHandler that captures the context and returns nil.
 func noopHandler(ctx context.Context, _ interface{}) (interface{}, error) {
 	return ctx, nil
 }
 
-// Feature: grpc-jwt-pkg-integration, Property 1: Auth JWT round-trip
-// **Validates: Requirements 2.1, 2.2**
-//
-// For any valid user_id and role strings, generating a JWT token with those
-// claims and passing it through the Auth interceptor SHALL produce a context
-// containing the same user_id and role values.
 func TestProperty1_AuthJWTRoundTrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Generate non-empty user_id and role strings (GenerateToken requires non-empty userID).
 		userID := rapid.StringMatching(`[a-zA-Z0-9_-]{1,64}`).Draw(t, "userID")
 		role := rapid.StringMatching(`[a-zA-Z0-9_-]{0,32}`).Draw(t, "role")
 
@@ -54,7 +46,6 @@ func TestProperty1_AuthJWTRoundTrip(t *testing.T) {
 		interceptors := NewInterceptors(testSecret, nil, nil, nil)
 		interceptor := interceptors.AuthUnaryInterceptor(nil)
 
-		// Build incoming context with Bearer token in authorization metadata.
 		md := metadata.Pairs("authorization", "Bearer "+token)
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 
@@ -63,33 +54,23 @@ func TestProperty1_AuthJWTRoundTrip(t *testing.T) {
 		resp, err := interceptor(ctx, nil, info, noopHandler)
 		require.NoError(t, err, "interceptor must not return error for valid token")
 
-		// The handler receives the enriched context as the response.
 		enrichedCtx, ok := resp.(context.Context)
 		require.True(t, ok, "handler must return context")
 
-	// Verify context was enriched (claims injected).
 	assert.NotNil(t, enrichedCtx, "enriched context must not be nil")
 	})
 }
 
-// Feature: grpc-jwt-pkg-integration, Property 2: Invalid tokens are rejected
-// **Validates: Requirements 2.4**
-//
-// For any random non-JWT string or expired JWT token, the Auth interceptor
-// SHALL return a gRPC Unauthenticated status code with the message
-// "invalid or expired token".
 func TestProperty2_InvalidTokensAreRejected(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		interceptors := NewInterceptors(testSecret, nil, nil, nil)
 		interceptor := interceptors.AuthUnaryInterceptor(nil)
 		info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Method"}
 
-		// Choose between a random non-JWT string or an expired JWT token.
 		useExpired := rapid.Bool().Draw(t, "useExpired")
 
 		var tokenStr string
 		if useExpired {
-			// Create an expired JWT token.
 			cfg := testJWTConfig()
 			now := time.Now()
 			claims := auth.Claims{
@@ -106,7 +87,6 @@ func TestProperty2_InvalidTokensAreRejected(t *testing.T) {
 			require.NoError(t, err)
 			tokenStr = signed
 		} else {
-			// Generate a random non-JWT string.
 			tokenStr = rapid.StringMatching(`[a-zA-Z0-9!@#$%^&*]{1,128}`).Draw(t, "randomToken")
 		}
 
@@ -123,15 +103,8 @@ func TestProperty2_InvalidTokensAreRejected(t *testing.T) {
 	})
 }
 
-// Feature: grpc-jwt-pkg-integration, Property 3: Auth public method bypass
-// **Validates: Requirements 2.5**
-//
-// For any gRPC method name and any set of public method names, the Auth
-// interceptor SHALL skip authentication if and only if the method name is
-// in the public methods set.
 func TestProperty3_AuthPublicMethodBypass(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		// Generate a set of public method names.
 		numPublic := rapid.IntRange(1, 5).Draw(t, "numPublic")
 		publicMethods := make([]string, numPublic)
 		for i := 0; i < numPublic; i++ {
@@ -140,7 +113,6 @@ func TestProperty3_AuthPublicMethodBypass(t *testing.T) {
 			publicMethods[i] = "/" + svc + "/" + method
 		}
 
-		// Decide whether the target method is in the public set or not.
 		isPublic := rapid.Bool().Draw(t, "isPublic")
 
 		var targetMethod string
@@ -148,7 +120,6 @@ func TestProperty3_AuthPublicMethodBypass(t *testing.T) {
 			idx := rapid.IntRange(0, len(publicMethods)-1).Draw(t, "publicIdx")
 			targetMethod = publicMethods[idx]
 		} else {
-			// Generate a method name that is NOT in the public set.
 			for {
 				svc := rapid.StringMatching(`[A-Z][a-zA-Z]{2,15}`).Draw(t, "privateSvc")
 				method := rapid.StringMatching(`[A-Z][a-zA-Z]{2,15}`).Draw(t, "privateMethod")
@@ -170,7 +141,6 @@ func TestProperty3_AuthPublicMethodBypass(t *testing.T) {
 		interceptor := interceptors.AuthUnaryInterceptor(publicMethods)
 		info := &grpc.UnaryServerInfo{FullMethod: targetMethod}
 
-		// Use a context WITHOUT any authorization metadata.
 		ctx := context.Background()
 
 		handlerCalled := false
@@ -182,7 +152,6 @@ func TestProperty3_AuthPublicMethodBypass(t *testing.T) {
 		_, err := interceptor(ctx, nil, info, handler)
 
 		if isPublic {
-			// Public methods bypass auth — handler should be called, no error.
 			assert.NoError(t, err, "public method must bypass auth")
 			assert.True(t, handlerCalled, "handler must be called for public methods")
 		} else {

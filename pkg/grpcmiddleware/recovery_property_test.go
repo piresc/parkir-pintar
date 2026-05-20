@@ -14,19 +14,12 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Feature: grpc-jwt-pkg-integration, Property 4: Recovery catches any panic value
-// **Validates: Requirements 3.1**
-//
-// For any panic value (string, error, integer, struct), the Recovery interceptor
-// SHALL recover the panic and return a gRPC Internal status code without
-// crashing the process.
 func TestProperty4_RecoveryCatchesAnyPanicValue(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		interceptors := NewInterceptors("", nil, nil, nil)
 		interceptor := interceptors.RecoveryUnaryInterceptor()
 		info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Method"}
 
-		// Generate a panic value of varying types.
 		panicKind := rapid.IntRange(0, 4).Draw(t, "panicKind")
 
 		var panicValue interface{}

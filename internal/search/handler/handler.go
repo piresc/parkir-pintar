@@ -1,12 +1,3 @@
-// Package handler provides gRPC handlers for the search domain module.
-// Handlers validate request fields, delegate to the usecase layer, and map
-// domain errors to gRPC status codes.
-//
-// Best practices applied (from Go coding standards KB):
-// - Document all exported functions and types with proper Godoc format
-// - Use context.Context as first parameter for consistency
-// - Handle errors explicitly with proper gRPC status mapping
-// - Keep interfaces small and focused
 package handler
 
 import (
@@ -22,29 +13,24 @@ import (
 	searchv1 "parkir-pintar/proto/search/v1"
 )
 
-// Vehicle type constants used across the search domain.
 const (
 	vehicleTypeCar        = "car"
 	vehicleTypeMotorcycle = "motorcycle"
 )
 
-// Handler implements the searchv1.SearchServiceServer gRPC interface.
 type Handler struct {
 	searchv1.UnimplementedSearchServiceServer
 	uc usecase.Usecase
 }
 
-// NewHandler creates a new search gRPC Handler with the given usecase.
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 
-// RegisterService registers this handler with the given gRPC server.
 func (h *Handler) RegisterService(s *grpc.Server) {
 	searchv1.RegisterSearchServiceServer(s, h)
 }
 
-// GetAvailability validates the vehicle_type field and delegates to the usecase.
 func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabilityRequest) (*searchv1.AvailabilityResponse, error) {
 	if req.GetVehicleType() == "" {
 		return nil, status.Error(codes.InvalidArgument, "vehicle_type is required")
@@ -89,7 +75,6 @@ func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabi
 	}, nil
 }
 
-// GetFloorMap validates the floor_number field and delegates to the usecase.
 func (h *Handler) GetFloorMap(ctx context.Context, req *searchv1.GetFloorMapRequest) (*searchv1.FloorMapResponse, error) {
 	if req.GetFloorNumber() < 1 || req.GetFloorNumber() > 5 {
 		return nil, status.Error(codes.InvalidArgument, "floor_number must be between 1 and 5")
@@ -117,7 +102,6 @@ func (h *Handler) GetFloorMap(ctx context.Context, req *searchv1.GetFloorMapRequ
 	return &searchv1.FloorMapResponse{Spots: protoSpots}, nil
 }
 
-// GetSpotDetails validates the spot_id field and delegates to the usecase.
 func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetailsRequest) (*searchv1.SpotDetailsResponse, error) {
 	if req.GetSpotId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "spot_id is required")
@@ -139,5 +123,3 @@ func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetai
 		Status:      spot.Status,
 	}, nil
 }
-
-

@@ -1,14 +1,3 @@
-// Package usecase implements the business logic layer for the analytics module.
-//
-// Best practices applied (from Go testify coding standards KB):
-// - Test naming: Test[FunctionName]_Should[ExpectedResult]_When[Condition]
-// - AAA pattern: Arrange → Act → Assert
-// - testify/mock for mock implementations of all dependency interfaces
-// - testify/assert and testify/require for assertions
-// - Each test is isolated with its own mock setup
-// - AssertExpectations(t) called on all mocks to verify interactions
-// - Use t.Context() for Go 1.24+ context in tests
-// - Mock at interface boundaries rather than concrete implementations
 package usecase
 
 import (
@@ -23,9 +12,6 @@ import (
 	"parkir-pintar/internal/analytics/model"
 )
 
-// --- Mock Implementations ---
-
-// MockRepository implements repository.Repository using testify/mock.
 type MockRepository struct {
 	mock.Mock
 }
@@ -51,12 +37,7 @@ func (m *MockRepository) RecordEvent(ctx context.Context, event model.Reservatio
 	return args.Error(0)
 }
 
-// --- Test Cases ---
-
-// TestGetPeakHours_ShouldReturnAboveAverageHours_WhenDataExists verifies that
-// GetPeakHours returns only hours with above-average occupancy.
 func TestGetPeakHours_ShouldReturnAboveAverageHours_WhenDataExists(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	stats := []model.PeakHourStats{
@@ -69,13 +50,9 @@ func TestGetPeakHours_ShouldReturnAboveAverageHours_WhenDataExists(t *testing.T)
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetPeakHours(t.Context())
 
-	// Assert
 	require.NoError(t, err)
-	// Average occupancy = (0.9 + 0.85 + 0.3 + 0.1) / 4 = 0.5375
-	// Hours above average: 8 (0.9) and 9 (0.85)
 	assert.Len(t, result, 2)
 	for _, r := range result {
 		assert.Greater(t, r.AvgOccupancy, 0.5375)
@@ -83,49 +60,36 @@ func TestGetPeakHours_ShouldReturnAboveAverageHours_WhenDataExists(t *testing.T)
 	repo.AssertExpectations(t)
 }
 
-// TestGetPeakHours_ShouldReturnEmpty_WhenNoData verifies that GetPeakHours
-// returns an empty slice when no historical data exists.
 func TestGetPeakHours_ShouldReturnEmpty_WhenNoData(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	repo.On("GetHourlyStats", mock.Anything, mock.Anything, mock.Anything).
 		Return([]model.PeakHourStats{}, nil)
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetPeakHours(t.Context())
 
-	// Assert
 	require.NoError(t, err)
 	assert.Empty(t, result)
 	repo.AssertExpectations(t)
 }
 
-// TestGetPeakHours_ShouldReturnError_WhenRepositoryFails verifies that
-// GetPeakHours propagates repository errors as internal app errors.
 func TestGetPeakHours_ShouldReturnError_WhenRepositoryFails(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	repo.On("GetHourlyStats", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, assert.AnError)
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetPeakHours(t.Context())
 
-	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to retrieve peak hour data")
 	repo.AssertExpectations(t)
 }
 
-// TestGetIdleHours_ShouldReturnBelowThresholdHours_WhenDataExists verifies that
-// GetIdleHours returns only hours with occupancy below 30%.
 func TestGetIdleHours_ShouldReturnBelowThresholdHours_WhenDataExists(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	stats := []model.PeakHourStats{
@@ -138,12 +102,9 @@ func TestGetIdleHours_ShouldReturnBelowThresholdHours_WhenDataExists(t *testing.
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetIdleHours(t.Context())
 
-	// Assert
 	require.NoError(t, err)
-	// Hours below 30%: 2 (0.1) and 3 (0.15)
 	assert.Len(t, result, 2)
 	for _, r := range result {
 		assert.Less(t, r.AvgOccupancy, 0.30)
@@ -151,10 +112,7 @@ func TestGetIdleHours_ShouldReturnBelowThresholdHours_WhenDataExists(t *testing.
 	repo.AssertExpectations(t)
 }
 
-// TestGetIdleHours_ShouldReturnEmpty_WhenAllHoursAboveThreshold verifies that
-// GetIdleHours returns an empty slice when no hours are below the idle threshold.
 func TestGetIdleHours_ShouldReturnEmpty_WhenAllHoursAboveThreshold(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	stats := []model.PeakHourStats{
@@ -165,19 +123,14 @@ func TestGetIdleHours_ShouldReturnEmpty_WhenAllHoursAboveThreshold(t *testing.T)
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetIdleHours(t.Context())
 
-	// Assert
 	require.NoError(t, err)
 	assert.Empty(t, result)
 	repo.AssertExpectations(t)
 }
 
-// TestPredictResources_ShouldReturnPredictions_WhenSufficientData verifies that
-// PredictResources generates hourly predictions for the given horizon.
 func TestPredictResources_ShouldReturnPredictions_WhenSufficientData(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	now := time.Now()
@@ -190,10 +143,8 @@ func TestPredictResources_ShouldReturnPredictions_WhenSufficientData(t *testing.
 
 	uc := NewUsecase(repo)
 
-	// Act — predict 3 hours ahead
 	result, err := uc.PredictResources(t.Context(), 3*time.Hour)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Len(t, result, 3)
 	for _, p := range result {
@@ -207,10 +158,7 @@ func TestPredictResources_ShouldReturnPredictions_WhenSufficientData(t *testing.
 	repo.AssertExpectations(t)
 }
 
-// TestPredictResources_ShouldReturnError_WhenInsufficientData verifies that
-// PredictResources returns an error when fewer than 2 days of data exist.
 func TestPredictResources_ShouldReturnError_WhenInsufficientData(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	dailyData := []model.DailyOccupancy{
@@ -220,37 +168,27 @@ func TestPredictResources_ShouldReturnError_WhenInsufficientData(t *testing.T) {
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.PredictResources(t.Context(), 24*time.Hour)
 
-	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "at least 2 days")
 	repo.AssertExpectations(t)
 }
 
-// TestPredictResources_ShouldReturnError_WhenHorizonNegative verifies that
-// PredictResources rejects a non-positive horizon duration.
 func TestPredictResources_ShouldReturnError_WhenHorizonNegative(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.PredictResources(t.Context(), -1*time.Hour)
 
-	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "horizon must be positive")
 	repo.AssertExpectations(t)
 }
 
-// TestGetUsagePatterns_ShouldReturnPattern_WhenDataExists verifies that
-// GetUsagePatterns correctly identifies peak and idle hours.
 func TestGetUsagePatterns_ShouldReturnPattern_WhenDataExists(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	stats := []model.PeakHourStats{
@@ -263,35 +201,27 @@ func TestGetUsagePatterns_ShouldReturnPattern_WhenDataExists(t *testing.T) {
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetUsagePatterns(t.Context())
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "last_30_days", result.Period)
 	assert.Greater(t, result.AvgUtilization, 0.0)
 	assert.NotEmpty(t, result.PeakHours)
 	assert.NotEmpty(t, result.IdleHours)
-	// Hours 2 and 3 should be idle (< 30%)
 	assert.Contains(t, result.IdleHours, 2)
 	assert.Contains(t, result.IdleHours, 3)
 	repo.AssertExpectations(t)
 }
 
-// TestGetUsagePatterns_ShouldReturnEmptyPattern_WhenNoData verifies that
-// GetUsagePatterns returns a zero-value pattern when no data exists.
 func TestGetUsagePatterns_ShouldReturnEmptyPattern_WhenNoData(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	repo.On("GetHourlyStats", mock.Anything, mock.Anything, mock.Anything).
 		Return([]model.PeakHourStats{}, nil)
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetUsagePatterns(t.Context())
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "last_30_days", result.Period)
 	assert.Equal(t, 0.0, result.AvgUtilization)
@@ -300,20 +230,15 @@ func TestGetUsagePatterns_ShouldReturnEmptyPattern_WhenNoData(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
-// TestGetUsagePatterns_ShouldReturnError_WhenRepositoryFails verifies that
-// GetUsagePatterns propagates repository errors.
 func TestGetUsagePatterns_ShouldReturnError_WhenRepositoryFails(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	repo.On("GetHourlyStats", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, assert.AnError)
 
 	uc := NewUsecase(repo)
 
-	// Act
 	result, err := uc.GetUsagePatterns(t.Context())
 
-	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to retrieve usage pattern data")

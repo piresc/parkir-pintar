@@ -1,5 +1,3 @@
-// Package repository provides the data access layer for the analytics module
-// using sqlx with parameterized queries against the reservation schema tables.
 package repository
 
 import (
@@ -12,31 +10,22 @@ import (
 	"parkir-pintar/internal/analytics/model"
 )
 
-// Repository defines the data access interface for analytics queries.
 type Repository interface {
-	// GetHourlyStats returns aggregated reservation and occupancy statistics
-	// grouped by hour and day-of-week for the given date range.
 	GetHourlyStats(ctx context.Context, startDate, endDate time.Time) ([]model.PeakHourStats, error)
 
-	// GetDailyOccupancy returns average spot occupancy per day for the last N days.
 	GetDailyOccupancy(ctx context.Context, days int) ([]model.DailyOccupancy, error)
 
-	// RecordEvent persists a reservation event for analytics reporting.
 	RecordEvent(ctx context.Context, event model.ReservationEvent) error
 }
 
-// sqlxRepository is the PostgreSQL-backed implementation of Repository.
 type sqlxRepository struct {
 	db *sqlx.DB
 }
 
-// NewRepository creates a new analytics Repository backed by the given sqlx.DB.
 func NewRepository(db *sqlx.DB) Repository {
 	return &sqlxRepository{db: db}
 }
 
-// GetHourlyStats queries reservation counts grouped by hour and day-of-week,
-// calculating average occupancy and a peak score based on reservation density.
 func (r *sqlxRepository) GetHourlyStats(ctx context.Context, startDate, endDate time.Time) ([]model.PeakHourStats, error) {
 	query := `
 		SELECT
@@ -60,8 +49,6 @@ func (r *sqlxRepository) GetHourlyStats(ctx context.Context, startDate, endDate 
 	return stats, nil
 }
 
-// GetDailyOccupancy calculates average spot occupancy per day for the last N days
-// by comparing occupied/reserved spots against total capacity.
 func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]model.DailyOccupancy, error) {
 	query := `
 		WITH daily AS (
@@ -95,8 +82,6 @@ func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 	return occupancy, nil
 }
 
-// RecordEvent inserts a reservation event into the reservation_events table
-// for later analytics aggregation (peak hours, occupancy trends).
 func (r *sqlxRepository) RecordEvent(ctx context.Context, event model.ReservationEvent) error {
 	query := `
 		INSERT INTO reservation_events (reservation_id, driver_id, spot_id, vehicle_type, status, timestamp)

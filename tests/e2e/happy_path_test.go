@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -39,14 +39,14 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 
 	// Assert — Step 1: Reservation waiting payment, spot reserved
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, model.StatusWaitingPayment, reservation.Status)
+	assert.Equal(t, constants.StatusWaitingPayment, reservation.Status)
 	assert.NotEmpty(t, reservation.SpotID)
 
 	// Act — Step 2: Confirm reservation
@@ -57,7 +57,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	// Assert — Step 2: Reservation confirmed
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, model.StatusConfirmed, reservation.Status)
+	assert.Equal(t, constants.StatusConfirmed, reservation.Status)
 
 	var spotStatus string
 	err = env.db.QueryRowContext(ctx,
@@ -71,7 +71,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&billingFee)
 	require.NoError(t, err)
-	assert.Equal(t, pricing.BookingFee, billingFee)
+	assert.Equal(t, constants.BookingFee, billingFee)
 
 	// Act — Step 4: Check in
 	checkedIn, err := env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
@@ -80,7 +80,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 
 	// Assert — Step 4: CHECKED_IN, spot occupied
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusCheckedIn, checkedIn.Reservation.Status)
+	assert.Equal(t, constants.StatusCheckedIn, checkedIn.Reservation.Status)
 
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
@@ -95,7 +95,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	// Assert — Step 5: CHECKED_OUT, billing calculated (spot still occupied until CompleteCheckout)
 	require.NoError(t, err)
 	require.NotNil(t, checkoutResp)
-	assert.Equal(t, model.StatusCheckedOut, checkoutResp.Reservation.Status)
+	assert.Equal(t, constants.StatusCheckedOut, checkoutResp.Reservation.Status)
 	assert.Greater(t, checkoutResp.TotalAmount, int64(0))
 
 	err = env.db.QueryRowContext(ctx,
@@ -111,7 +111,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	// Assert — Step 6: Payment processed, spot available, status completed
 	require.NoError(t, err)
 	require.NotNil(t, completeResp)
-	assert.Equal(t, model.StatusCompleted, completeResp.Reservation.Status)
+	assert.Equal(t, constants.StatusCompleted, completeResp.Reservation.Status)
 
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
@@ -127,7 +127,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		"SELECT parking_fee, billed_hours FROM billing_records WHERE reservation_id = $1",
 		reservation.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee)
+	assert.Equal(t, int64(billing.BilledHours)*constants.HourlyRate, billing.ParkingFee)
 
 	// Verify payment record exists with status success
 	var paymentStatus string

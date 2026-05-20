@@ -12,19 +12,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Exporter type constants.
 const (
 	ExporterStdout = "stdout"
 	ExporterNoop   = "noop"
 )
 
-// newExporter creates a SpanExporter based on the Config.Exporter value.
-//
-//   - "stdout"    → stdouttrace exporter for local development
-//   - "otlp"      → OTLP HTTP exporter for any OTEL-compatible collector
-//   - "otlp-grpc" → OTLP gRPC exporter (e.g. for Grafana Alloy)
-//   - "newrelic"  → OTLP HTTP exporter pointed at New Relic's OTLP endpoint
-//   - "noop"      → returns nil (caller should use NoOpTracer instead)
 func newExporter(cfg *Config) (sdktrace.SpanExporter, error) {
 	switch cfg.Exporter {
 	case ExporterStdout:

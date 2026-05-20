@@ -1,12 +1,3 @@
-// Package handler provides gRPC handlers for the payment domain module.
-// Handlers validate request fields, delegate to the usecase layer, and map
-// domain errors to gRPC status codes.
-//
-// Best practices applied (from Go coding standards KB):
-// - Document all exported functions and types with proper Godoc format
-// - Use context.Context as first parameter for consistency
-// - Handle errors explicitly with proper gRPC status mapping
-// - Keep interfaces small and focused
 package handler
 
 import (
@@ -23,23 +14,19 @@ import (
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
-// Handler implements the paymentv1.PaymentServiceServer gRPC interface.
 type Handler struct {
 	paymentv1.UnimplementedPaymentServiceServer
 	uc usecase.Usecase
 }
 
-// NewHandler creates a new payment gRPC Handler with the given usecase.
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 
-// RegisterService registers this handler with the given gRPC server.
 func (h *Handler) RegisterService(s *grpc.Server) {
 	paymentv1.RegisterPaymentServiceServer(s, h)
 }
 
-// ProcessPayment validates required fields and delegates to the usecase.
 func (h *Handler) ProcessPayment(ctx context.Context, req *paymentv1.ProcessPaymentRequest) (*paymentv1.PaymentResponse, error) {
 	if req.GetBillingId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "billing_id is required")
@@ -71,7 +58,6 @@ func (h *Handler) ProcessPayment(ctx context.Context, req *paymentv1.ProcessPaym
 	return paymentToProto(result), nil
 }
 
-// ProcessQRIS validates required fields and delegates to the usecase.
 func (h *Handler) ProcessQRIS(ctx context.Context, req *paymentv1.ProcessQRISRequest) (*paymentv1.PaymentResponse, error) {
 	if req.GetBillingId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "billing_id is required")
@@ -95,7 +81,6 @@ func (h *Handler) ProcessQRIS(ctx context.Context, req *paymentv1.ProcessQRISReq
 	return paymentToProto(result), nil
 }
 
-// RefundPayment validates required fields and delegates to the usecase.
 func (h *Handler) RefundPayment(ctx context.Context, req *paymentv1.RefundPaymentRequest) (*paymentv1.PaymentResponse, error) {
 	if req.GetPaymentId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "payment_id is required")
@@ -111,7 +96,6 @@ func (h *Handler) RefundPayment(ctx context.Context, req *paymentv1.RefundPaymen
 	return paymentToProto(result), nil
 }
 
-// GetPaymentStatus validates required fields and delegates to the usecase.
 func (h *Handler) GetPaymentStatus(ctx context.Context, req *paymentv1.GetPaymentStatusRequest) (*paymentv1.PaymentResponse, error) {
 	if req.GetPaymentId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "payment_id is required")
@@ -127,7 +111,6 @@ func (h *Handler) GetPaymentStatus(ctx context.Context, req *paymentv1.GetPaymen
 	return paymentToProto(result), nil
 }
 
-// paymentToProto converts a domain Payment to a proto PaymentResponse.
 func paymentToProto(p *model.Payment) *paymentv1.PaymentResponse {
 	if p == nil {
 		return nil
@@ -148,5 +131,3 @@ func paymentToProto(p *model.Payment) *paymentv1.PaymentResponse {
 	}
 	return resp
 }
-
-

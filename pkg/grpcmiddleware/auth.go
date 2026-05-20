@@ -12,10 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// AuthUnaryInterceptor returns a grpc.UnaryServerInterceptor that validates
-// JWT Bearer tokens from the "authorization" metadata key. On success,
-// user_id and role claims are injected into the context. Methods listed in
-// publicMethods bypass authentication entirely.
 func (i *Interceptors) AuthUnaryInterceptor(publicMethods []string) grpc.UnaryServerInterceptor {
 	public := toSet(publicMethods)
 
@@ -38,9 +34,6 @@ func (i *Interceptors) AuthUnaryInterceptor(publicMethods []string) grpc.UnarySe
 	}
 }
 
-// authenticate extracts and validates the Bearer token from gRPC metadata,
-// returning a new context with user_id and role injected, or a gRPC status
-// error on failure.
 func (i *Interceptors) authenticate(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -71,19 +64,15 @@ func (i *Interceptors) authenticate(ctx context.Context) (context.Context, error
 	return newCtx, nil
 }
 
-// wrappedStream wraps a grpc.ServerStream to override its Context method,
-// allowing interceptors to inject values into the stream's context.
 type wrappedStream struct {
 	grpc.ServerStream
 	ctx context.Context
 }
 
-// Context returns the wrapped context instead of the original stream context.
 func (w *wrappedStream) Context() context.Context {
 	return w.ctx
 }
 
-// toSet converts a string slice to a map for O(1) lookups.
 func toSet(items []string) map[string]struct{} {
 	s := make(map[string]struct{}, len(items))
 	for _, item := range items {

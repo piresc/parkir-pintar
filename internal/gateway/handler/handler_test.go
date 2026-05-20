@@ -1,10 +1,3 @@
-// Package handler provides tests for the API Gateway REST handlers.
-//
-// Best practices applied (from Go coding standards KB):
-// - Use table-driven tests with descriptive names
-// - Use t.Context() for test context (Go 1.24+)
-// - Use httptest.NewRecorder and gin.CreateTestContext for HTTP testing
-// - Test JWT validation, routing, and gRPC-to-HTTP error mapping
 package handler
 
 import (
@@ -34,7 +27,6 @@ import (
 
 const testJWTSecret = "test-secret-key-for-gateway-tests"
 
-// generateTestToken creates a valid JWT token for testing.
 func generateTestToken(t *testing.T) string {
 	t.Helper()
 	claims := jwt.MapClaims{
@@ -49,7 +41,6 @@ func generateTestToken(t *testing.T) string {
 	return signed
 }
 
-// setupTestRouter creates a Gin engine with the gateway routes and JWT middleware.
 func setupTestRouter(t *testing.T, h *Handler) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -161,7 +152,6 @@ func TestGetFloorMap_InvalidFloor(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-// TestRouteRegistration verifies all expected routes are registered.
 func TestRouteRegistration(t *testing.T) {
 	h := NewHandler(nil, nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
@@ -189,11 +179,8 @@ func TestRouteRegistration(t *testing.T) {
 	}
 }
 
-// TestGetAvailability_ValidRequest verifies the route accepts a valid request
 // (will fail at gRPC level since client is nil, but validates routing works).
 func TestGetAvailability_NilClient(t *testing.T) {
-	// With nil search client, calling the handler should panic or return error.
-	// We just verify the JWT auth passes and the handler is reached.
 	h := NewHandler(nil, &mockSearchClient{}, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
 
@@ -203,11 +190,9 @@ func TestGetAvailability_NilClient(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// The mock returns a valid response
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-// TestGetPaymentStatus_NilClient verifies payment status route with mock.
 func TestGetPaymentStatus_MockClient(t *testing.T) {
 	h := NewHandler(nil, nil, &mockPaymentClient{}, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
 	router := setupTestRouter(t, h)
@@ -220,8 +205,6 @@ func TestGetPaymentStatus_MockClient(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-
-// --- Mock gRPC clients for testing ---
 
 type mockSearchClient struct {
 	searchv1.SearchServiceClient

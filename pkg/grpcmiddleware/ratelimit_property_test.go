@@ -14,12 +14,6 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Feature: grpc-jwt-pkg-integration, Property 6: Token bucket rate limiting
-// **Validates: Requirements 5.2, 5.3**
-//
-// For any RequestsPerSecond R and BurstSize B, a fresh rate limiter SHALL
-// allow exactly B requests immediately, and after consuming all tokens, the
-// next request SHALL be rejected with ResourceExhausted.
 func TestProperty6_TokenBucketRateLimiting(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		burstSize := rapid.IntRange(1, 50).Draw(t, "burstSize")
@@ -34,7 +28,6 @@ func TestProperty6_TokenBucketRateLimiting(t *testing.T) {
 
 		info := &grpc.UnaryServerInfo{FullMethod: "/test.Service/Method"}
 
-		// Create a context with a fake peer address.
 		addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:12345")
 		require.NoError(t, err)
 		ctx := peer.NewContext(context.Background(), &peer.Peer{Addr: addr})
@@ -43,8 +36,6 @@ func TestProperty6_TokenBucketRateLimiting(t *testing.T) {
 			return "ok", nil
 		}
 
-		// A fresh bucket starts with burstSize tokens. Exactly burstSize
-		// requests should be allowed immediately.
 		for i := 0; i < burstSize; i++ {
 			resp, err := interceptor(ctx, nil, info, successHandler)
 			assert.NoError(t, err, "request %d of %d should be allowed", i+1, burstSize)

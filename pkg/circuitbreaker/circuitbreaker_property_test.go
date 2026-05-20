@@ -11,20 +11,8 @@ import (
 	"pgregory.net/rapid"
 )
 
-// errSimulated is a sentinel error used by test call sequences.
 var errSimulated = errors.New("simulated failure")
 
-// Feature: grpc-jwt-pkg-integration, Property 8: Circuit breaker state machine
-// **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5, 8.6**
-//
-// For any failure threshold T and any sequence of success/failure call results:
-// (a) in Closed state, all calls are forwarded;
-// (b) after T consecutive failures, the state transitions to Open;
-// (c) in Open state, calls are rejected immediately without invoking the wrapped function;
-// (d) after the open timeout, the state transitions to Half-Open;
-// (e) in Half-Open, a successful probe transitions to Closed and a failed probe
-//
-//	transitions back to Open.
 func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		threshold := rapid.IntRange(1, 5).Draw(t, "threshold")
@@ -36,7 +24,6 @@ func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 			HalfOpenMaxProbes: 1,
 		})
 
-		// (a) In Closed state, all calls are forwarded.
 		assert.Equal(t, StateClosed, cb.State(), "initial state must be Closed")
 
 		callCount := 0
@@ -47,7 +34,6 @@ func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 		assert.Equal(t, 1, callCount, "Closed state must forward calls")
 		assert.Equal(t, StateClosed, cb.State(), "success in Closed keeps state Closed")
 
-		// (b) After T consecutive failures, transition to Open.
 		for i := 0; i < threshold; i++ {
 			err := cb.Execute(func() error {
 				callCount++
@@ -57,7 +43,6 @@ func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 		}
 		assert.Equal(t, StateOpen, cb.State(), "must be Open after threshold consecutive failures")
 
-		// (c) In Open state, calls are rejected without invoking fn.
 		callCountBefore := callCount
 		err := cb.Execute(func() error {
 			callCount++
@@ -66,20 +51,16 @@ func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 		assert.ErrorIs(t, err, ErrCircuitOpen, "Open state must reject with ErrCircuitOpen")
 		assert.Equal(t, callCountBefore, callCount, "Open state must not invoke the wrapped function")
 
-		// (d) After open timeout, transition to Half-Open.
 		time.Sleep(openTimeout + 10*time.Millisecond)
 
-		// (e-1) In Half-Open, a failed probe transitions back to Open.
 		err = cb.Execute(func() error {
 			return errSimulated
 		})
 		assert.ErrorIs(t, err, errSimulated)
 		assert.Equal(t, StateOpen, cb.State(), "failed probe in HalfOpen must transition to Open")
 
-		// Advance time again to get back to HalfOpen.
 		time.Sleep(openTimeout + 10*time.Millisecond)
 
-		// (e-2) In Half-Open, a successful probe transitions to Closed.
 		err = cb.Execute(func() error {
 			return nil
 		})
@@ -88,12 +69,7 @@ func TestProperty8_CircuitBreakerStateMachine(t *testing.T) {
 	})
 }
 
-// Feature: grpc-jwt-pkg-integration, Property 9: Circuit breaker concurrency safety
-// **Validates: Requirements 8.8**
-//
 // For any number of concurrent goroutines executing calls through the circuit
-// breaker, the state transitions SHALL remain consistent and no data races
-// SHALL occur.
 func TestProperty9_CircuitBreakerConcurrencySafety(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		threshold := rapid.IntRange(1, 10).Draw(t, "threshold")
@@ -112,7 +88,6 @@ func TestProperty9_CircuitBreakerConcurrencySafety(t *testing.T) {
 		for i := 0; i < goroutines; i++ {
 			go func() {
 				defer wg.Done()
-				// Each goroutine executes a mix of success and failure calls.
 				for j := 0; j < 20; j++ {
 					_ = cb.Execute(func() error {
 						executed.Add(1)

@@ -9,14 +9,12 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-// Stream subject patterns used in stream and consumer definitions.
 const (
 	SubjectPatternReservationSearch    = "reservation.search.*"
 	SubjectPatternReservationAnalytics = "reservation.analytics.*"
 	SubjectPatternPaymentReservation   = "payment.reservation.*"
 )
 
-// StreamConfig holds the configuration for creating a stream.
 type StreamConfig struct {
 	Name      string
 	Subjects  []string
@@ -25,7 +23,6 @@ type StreamConfig struct {
 	MaxAge    time.Duration
 }
 
-// ConsumerConfig holds the configuration for creating a consumer.
 type ConsumerConfig struct {
 	Stream        string
 	Name          string
@@ -36,7 +33,6 @@ type ConsumerConfig struct {
 	DeliverPolicy jetstream.DeliverPolicy
 }
 
-// DefaultStreamConfigs returns the default stream configurations for parkir-pintar.
 func DefaultStreamConfigs() []StreamConfig {
 	return []StreamConfig{
 		{
@@ -63,8 +59,6 @@ func DefaultStreamConfigs() []StreamConfig {
 	}
 }
 
-// DefaultConsumerConfigs returns the default consumer configurations keyed by consumer name.
-// The map key is the consumer name, and the value contains the stream and config details.
 func DefaultConsumerConfigs() map[string]ConsumerConfig {
 	return map[string]ConsumerConfig{
 		ConsumerSearchSpot: {
@@ -97,7 +91,6 @@ func DefaultConsumerConfigs() map[string]ConsumerConfig {
 	}
 }
 
-// toJetStreamConfig converts our StreamConfig to a jetstream.StreamConfig.
 func (sc StreamConfig) toJetStreamConfig() jetstream.StreamConfig {
 	return jetstream.StreamConfig{
 		Name:      sc.Name,
@@ -108,7 +101,6 @@ func (sc StreamConfig) toJetStreamConfig() jetstream.StreamConfig {
 	}
 }
 
-// toJetStreamConfig converts our ConsumerConfig to a jetstream.ConsumerConfig.
 func (cc ConsumerConfig) toJetStreamConfig() jetstream.ConsumerConfig {
 	return jetstream.ConsumerConfig{
 		Name:          cc.Name,
@@ -121,7 +113,6 @@ func (cc ConsumerConfig) toJetStreamConfig() jetstream.ConsumerConfig {
 	}
 }
 
-// CreateStreams creates all default streams using the client.
 func CreateStreams(ctx context.Context, client *Client) error {
 	for _, cfg := range DefaultStreamConfigs() {
 		if _, err := client.CreateStream(ctx, cfg.toJetStreamConfig()); err != nil {
@@ -131,11 +122,6 @@ func CreateStreams(ctx context.Context, client *Client) error {
 	return nil
 }
 
-// CreateConsumersForService creates consumers relevant to the given service.
-// Service names map to consumers:
-//   - "search": ConsumerSearchSpot
-//   - "analytics": ConsumerAnalytics
-//   - "reservation": ConsumerReservationPayment
 func CreateConsumersForService(ctx context.Context, client *Client, serviceName string) error {
 	serviceConsumers := map[string][]string{
 		"search":      {ConsumerSearchSpot},

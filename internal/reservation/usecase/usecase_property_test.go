@@ -20,8 +20,8 @@ import (
 	"pgregory.net/rapid"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
 
@@ -49,8 +49,8 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 			DriverID:       "driver-1",
 			SpotID:         "spot-1",
 			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
-			Status:         model.StatusConfirmed,
+			AssignmentMode: constants.AssignmentSystemAssigned,
+			Status:         constants.StatusConfirmed,
 			IdempotencyKey: key,
 		}
 
@@ -61,7 +61,7 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-1",
 			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
+			AssignmentMode: constants.AssignmentSystemAssigned,
 			IdempotencyKey: key,
 		}
 
@@ -119,13 +119,13 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			}, nil)
 			repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 			repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "reserved").Return(nil)
-			billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+			billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 			uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 			req := &model.CreateReservationRequest{
 				DriverID:       "driver-1",
 				VehicleType:    "car",
-				AssignmentMode: model.AssignmentSystemAssigned,
+				AssignmentMode: constants.AssignmentSystemAssigned,
 				IdempotencyKey: key,
 			}
 			return uc.CreateReservation(t.Context(), req)
@@ -183,13 +183,13 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		}, nil)
 		repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
+		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
 
 		uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-prop9",
 			VehicleType:    vehicleType,
-			AssignmentMode: model.AssignmentSystemAssigned,
+			AssignmentMode: constants.AssignmentSystemAssigned,
 			IdempotencyKey: "prop9-key",
 		}
 
@@ -205,7 +205,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 			"reservation vehicle type should match requested %q", vehicleType)
 
 		// Postcondition 2: status is "waiting_payment"
-		assert.Equal(rt, model.StatusWaitingPayment, result.Status,
+		assert.Equal(rt, constants.StatusWaitingPayment, result.Status,
 			"reservation status should be waiting_payment")
 
 		// Postcondition 3: confirmed_at and expires_at are nil until payment
@@ -254,13 +254,13 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		}, nil)
 		repo1.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo1.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
+		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
 
 		uc1 := NewUsecase(repo1, locker1, billing1, payment1, nil, nil, nil, 60, 10)
 		req1 := &model.CreateReservationRequest{
 			DriverID:       "driver-first",
 			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
+			AssignmentMode: constants.AssignmentSystemAssigned,
 			IdempotencyKey: "key-first",
 		}
 
@@ -269,7 +269,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		// Assert first reservation succeeds
 		assert.NoError(rt, err1)
 		assert.NotNil(rt, res1)
-		assert.Equal(rt, model.StatusWaitingPayment, res1.Status)
+		assert.Equal(rt, constants.StatusWaitingPayment, res1.Status)
 
 		// --- Second reservation for same spot: fails due to lock contention ---
 		repo2 := new(MockRepository)
@@ -291,7 +291,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		req2 := &model.CreateReservationRequest{
 			DriverID:       "driver-second",
 			VehicleType:    "car",
-			AssignmentMode: model.AssignmentSystemAssigned,
+			AssignmentMode: constants.AssignmentSystemAssigned,
 			IdempotencyKey: "key-second",
 		}
 

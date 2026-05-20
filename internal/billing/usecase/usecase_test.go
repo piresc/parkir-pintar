@@ -1,15 +1,3 @@
-// Package usecase implements the business logic layer for the billing domain.
-//
-// Best practices applied (from Go testify coding standards KB):
-// - Test naming: Test[FunctionName]_Should[ExpectedResult]_When[Condition]
-// - AAA pattern: Arrange → Act → Assert
-// - testify/mock for mock implementations of all dependency interfaces
-// - testify/assert and testify/require for assertions
-// - Each test is isolated with its own mock setup
-// - AssertExpectations(t) called on all mocks to verify interactions
-// - Use t.Context() for Go 1.24+ context in tests
-// - Mock at interface boundaries rather than concrete implementations
-// - Keep mocks simple and focused on the behavior being tested
 package usecase
 
 import (
@@ -24,11 +12,9 @@ import (
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/pkg/pricing"
+	"parkir-pintar/internal/reservation/constants"
 )
 
-// --- Mock Implementations ---
-
-// MockRepository implements repository.Repository using testify/mock.
 type MockRepository struct {
 	mock.Mock
 }
@@ -59,12 +45,7 @@ func (m *MockRepository) UpdateBillingRecord(ctx context.Context, record *model.
 	return args.Error(0)
 }
 
-// --- Test Cases ---
-
-// TestStartBilling_ShouldCreateRecord_WhenNewReservation verifies that
-// StartBilling creates a billing record with booking_fee=5000 and status "pending".
 func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	repo.On("GetByIdempotencyKey", mock.Anything, "billing-res-1").Return(nil, repository.ErrNotFound)
@@ -74,34 +55,29 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 	uc := NewUsecase(repo)
 	req := &model.StartBillingRequest{
 		ReservationID:  "res-1",
-		BookingFee:     pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
 		IdempotencyKey: "billing-res-1",
 	}
 
-	// Act
 	result, err := uc.StartBilling(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "res-1", result.ReservationID)
-	assert.Equal(t, pricing.BookingFee, result.BookingFee)
+	assert.Equal(t, constants.BookingFee, result.BookingFee)
 	assert.Equal(t, model.BillingStatusPending, result.Status)
-	assert.Equal(t, pricing.BookingFee, result.TotalAmount)
+	assert.Equal(t, constants.BookingFee, result.TotalAmount)
 	assert.NotEmpty(t, result.ID)
 	repo.AssertExpectations(t)
 }
 
-// TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey verifies
-// that a duplicate idempotency key returns the existing record without side effects.
 func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	existing := &model.BillingRecord{
 		ID:             "existing-billing-id",
 		ReservationID:  "res-1",
-		BookingFee:     pricing.BookingFee,
-		TotalAmount:    pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
+		TotalAmount:    constants.BookingFee,
 		IdempotencyKey: "billing-res-1",
 		Status:         model.BillingStatusPending,
 	}
@@ -110,32 +86,25 @@ func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testin
 	uc := NewUsecase(repo)
 	req := &model.StartBillingRequest{
 		ReservationID:  "res-1",
-		BookingFee:     pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
 		IdempotencyKey: "billing-res-1",
 	}
 
-	// Act
 	result, err := uc.StartBilling(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "existing-billing-id", result.ID)
-	// CreateBillingRecord should NOT have been called
 	repo.AssertNotCalled(t, "CreateBillingRecord")
 	repo.AssertExpectations(t)
 }
 
-// TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession verifies
-// that CalculateFee computes correct parking_fee, overnight_fee, and total
-// for a standard 2-hour same-day session.
 func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	existingRecord := &model.BillingRecord{
 		ID:            "billing-1",
 		ReservationID: "res-1",
-		BookingFee:    pricing.BookingFee,
+		BookingFee:    constants.BookingFee,
 		Status:        model.BillingStatusPending,
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(existingRecord, nil)
@@ -152,10 +121,8 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 		CheckOutAt:    checkOut,
 	}
 
-	// Act
 	result, err := uc.CalculateFee(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, int64(10_000), result.ParkingFee) // 2h × 5000
 	assert.Equal(t, int64(0), result.OvernightFee)    // same day
@@ -163,22 +130,18 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 	assert.Equal(t, 2, result.BilledHours)
 	assert.False(t, result.IsOvernight)
 	assert.Equal(t, model.BillingStatusCalculated, result.Status)
-	// total = booking_fee + parking_fee + overnight_fee
-	expectedTotal := pricing.BookingFee + int64(10_000)
+	expectedTotal := constants.BookingFee + int64(10_000)
 	assert.Equal(t, expectedTotal, result.TotalAmount)
 	repo.AssertExpectations(t)
 }
 
-// TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight verifies
-// that CalculateFee applies the overnight fee when the session crosses midnight in WIB.
 func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	existingRecord := &model.BillingRecord{
 		ID:            "billing-2",
 		ReservationID: "res-2",
-		BookingFee:    pricing.BookingFee,
+		BookingFee:    constants.BookingFee,
 		Status:        model.BillingStatusPending,
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-2").Return(existingRecord, nil)
@@ -195,31 +158,25 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 		CheckOutAt:    checkOut,
 	}
 
-	// Act
 	result, err := uc.CalculateFee(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, int64(40_000), result.ParkingFee)               // 8h × 5000
-	assert.Equal(t, pricing.OvernightPerNight, result.OvernightFee) // 20,000
+	assert.Equal(t, constants.OvernightPerNight, result.OvernightFee) // 20,000
 	assert.Equal(t, 480, result.DurationMinutes)                    // 8 hours
 	assert.Equal(t, 8, result.BilledHours)
 	assert.True(t, result.IsOvernight)
-	// total = 5000 + 40000 + 20000 = 65000
 	assert.Equal(t, int64(65_000), result.TotalAmount)
 	repo.AssertExpectations(t)
 }
 
-// TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced verifies
-// that GenerateInvoice returns the existing record when already in "invoiced" status.
 func TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	existing := &model.BillingRecord{
 		ID:             "billing-3",
 		ReservationID:  "res-3",
-		BookingFee:     pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "invoice-res-3",
@@ -233,28 +190,22 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced(t *testing.T) 
 		IdempotencyKey: "invoice-res-3",
 	}
 
-	// Act
 	result, err := uc.GenerateInvoice(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "billing-3", result.ID)
 	assert.Equal(t, model.BillingStatusInvoiced, result.Status)
-	// UpdateBillingRecord should NOT have been called (idempotent return)
 	repo.AssertNotCalled(t, "UpdateBillingRecord")
 	repo.AssertExpectations(t)
 }
 
-// TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice verifies
-// that GenerateInvoice updates the billing record status to "invoiced".
 func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 
 	existingRecord := &model.BillingRecord{
 		ID:             "billing-4",
 		ReservationID:  "res-4",
-		BookingFee:     pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "billing-res-4",
@@ -269,31 +220,25 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 		IdempotencyKey: "invoice-res-4",
 	}
 
-	// Act
 	result, err := uc.GenerateInvoice(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, model.BillingStatusInvoiced, result.Status)
 	repo.AssertExpectations(t)
 }
 
-// TestBillingTotalInvariant_ShouldEqualSumOfFees verifies
 // that total_amount always equals the sum of all fee fields.
 func TestBillingTotalInvariant_ShouldEqualSumOfFees(t *testing.T) {
-	// Arrange
 	record := &model.BillingRecord{
-		BookingFee:   pricing.BookingFee,
+		BookingFee:   constants.BookingFee,
 		ParkingFee:   15_000,
-		OvernightFee: pricing.OvernightPerNight,
+		OvernightFee: constants.OvernightPerNight,
 	}
 
-	// Act
 	total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
-	// Assert
-	expectedTotal := pricing.BookingFee + int64(15_000) + pricing.OvernightPerNight
+	expectedTotal := constants.BookingFee + int64(15_000) + constants.OvernightPerNight
 	assert.Equal(t, expectedTotal, total)
 	assert.Equal(t, record.BookingFee+record.ParkingFee+record.OvernightFee, total)
-	assert.GreaterOrEqual(t, total, pricing.BookingFee)
+	assert.GreaterOrEqual(t, total, constants.BookingFee)
 }

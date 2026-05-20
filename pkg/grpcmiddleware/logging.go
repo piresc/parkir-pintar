@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// slogInterceptorLogger adapts *slog.Logger to the grpc-ecosystem logging.Logger interface.
 type slogInterceptorLogger struct {
 	logger *slog.Logger
 }
@@ -29,12 +28,6 @@ func (l *slogInterceptorLogger) Log(ctx context.Context, level logging.Level, ms
 	}
 }
 
-// LoggingUnaryInterceptor returns a grpc.UnaryServerInterceptor that logs the
-// full method name, gRPC status code, and duration for each unary RPC.
-// Successful calls (codes.OK) are logged at INFO level; all other status codes
-// are logged at ERROR level.
-//
-// Powered by github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging.
 func (i *Interceptors) LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return logging.UnaryServerInterceptor(
 		&slogInterceptorLogger{logger: i.logger},
@@ -46,9 +39,6 @@ func (i *Interceptors) LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	)
 }
 
-// traceFieldsExtractor extracts trace_id and span_id from context if available.
 func traceFieldsExtractor(ctx context.Context) logging.Fields {
-	// The tracing interceptor already handles span context propagation.
-	// This is a hook point for additional context fields if needed.
 	return nil
 }

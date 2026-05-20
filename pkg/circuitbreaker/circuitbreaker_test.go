@@ -51,7 +51,6 @@ func TestExecute_FailureBelowThreshold(t *testing.T) {
 	cb := New(Config{FailureThreshold: 3})
 	testErr := errors.New("fail")
 
-	// 2 failures (below threshold of 3)
 	for i := 0; i < 2; i++ {
 		err := cb.Execute(func() error { return testErr })
 		assert.ErrorIs(t, err, testErr)
@@ -68,7 +67,6 @@ func TestExecute_OpensAfterThreshold(t *testing.T) {
 	}
 	assert.Equal(t, StateOpen, cb.State())
 
-	// Next call should return ErrCircuitOpen
 	err := cb.Execute(func() error { return nil })
 	assert.ErrorIs(t, err, ErrCircuitOpen)
 }
@@ -77,12 +75,10 @@ func TestExecute_SuccessResetsCount(t *testing.T) {
 	cb := New(Config{FailureThreshold: 3})
 	testErr := errors.New("fail")
 
-	// 2 failures then 1 success
 	_ = cb.Execute(func() error { return testErr })
 	_ = cb.Execute(func() error { return testErr })
 	_ = cb.Execute(func() error { return nil })
 
-	// 2 more failures should NOT open (count was reset)
 	_ = cb.Execute(func() error { return testErr })
 	_ = cb.Execute(func() error { return testErr })
 	assert.Equal(t, StateClosed, cb.State())
@@ -92,15 +88,12 @@ func TestExecute_HalfOpenRecovery(t *testing.T) {
 	cb := New(Config{FailureThreshold: 2, OpenTimeout: 50 * time.Millisecond, HalfOpenMaxProbes: 1})
 	testErr := errors.New("fail")
 
-	// Trip the breaker
 	_ = cb.Execute(func() error { return testErr })
 	_ = cb.Execute(func() error { return testErr })
 	assert.Equal(t, StateOpen, cb.State())
 
-	// Wait for timeout to transition to half-open
 	time.Sleep(60 * time.Millisecond)
 
-	// Probe succeeds → should close
 	err := cb.Execute(func() error { return nil })
 	assert.NoError(t, err)
 	assert.Equal(t, StateClosed, cb.State())
@@ -110,15 +103,12 @@ func TestExecute_HalfOpenFailure(t *testing.T) {
 	cb := New(Config{FailureThreshold: 2, OpenTimeout: 50 * time.Millisecond, HalfOpenMaxProbes: 1})
 	testErr := errors.New("fail")
 
-	// Trip the breaker
 	_ = cb.Execute(func() error { return testErr })
 	_ = cb.Execute(func() error { return testErr })
 	assert.Equal(t, StateOpen, cb.State())
 
-	// Wait for half-open
 	time.Sleep(60 * time.Millisecond)
 
-	// Probe fails → back to open
 	_ = cb.Execute(func() error { return testErr })
 	assert.Equal(t, StateOpen, cb.State())
 }

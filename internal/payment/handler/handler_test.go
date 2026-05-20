@@ -15,7 +15,6 @@ import (
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
-// mockUsecase is a testify mock for the payment usecase.Usecase interface.
 type mockUsecase struct {
 	mock.Mock
 }

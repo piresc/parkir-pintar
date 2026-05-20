@@ -1,6 +1,3 @@
-// Package telemetry provides a unified initialization for all three OpenTelemetry
-// signals (traces, metrics, logs) using OTLP gRPC exporters pointing to a single
-// collector endpoint (e.g. Grafana Alloy).
 package telemetry
 
 import (
@@ -19,30 +16,22 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Config holds the configuration for the unified telemetry setup.
 type Config struct {
-	// ServiceName is the OTEL service.name resource attribute.
 	ServiceName string
 
-	// OTLPEndpoint is the gRPC address of the OTLP collector (e.g. "monitoring-alloy:4319").
-	// If empty, noop providers are returned.
 	OTLPEndpoint string
 
-	// TraceSampleRate controls the TraceIDRatioBased sampler (0.0–1.0).
 	TraceSampleRate float64
 
-	// MetricInterval is the periodic reader push interval. Defaults to 15s.
 	MetricInterval time.Duration
 }
 
-// Providers holds the initialized OTel SDK providers for all three signals.
 type Providers struct {
 	TracerProvider *sdktrace.TracerProvider
 	MeterProvider  *sdkmetric.MeterProvider
 	LoggerProvider *sdklog.LoggerProvider
 }
 
-// Shutdown gracefully shuts down all providers, flushing pending data.
 func (p *Providers) Shutdown(ctx context.Context) error {
 	var firstErr error
 	if p.LoggerProvider != nil {
@@ -63,8 +52,6 @@ func (p *Providers) Shutdown(ctx context.Context) error {
 	return firstErr
 }
 
-// Init initializes all three OTel providers with OTLP gRPC exporters.
-// If cfg.OTLPEndpoint is empty, noop-equivalent providers (no exporters) are returned.
 func Init(ctx context.Context, cfg Config) (*Providers, error) {
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -76,7 +63,6 @@ func Init(ctx context.Context, cfg Config) (*Providers, error) {
 	}
 
 	if cfg.OTLPEndpoint == "" {
-		// Return providers with no exporters (effectively noop).
 		tp := sdktrace.NewTracerProvider(sdktrace.WithResource(res))
 		mp := sdkmetric.NewMeterProvider(sdkmetric.WithResource(res))
 		lp := sdklog.NewLoggerProvider(sdklog.WithResource(res))
@@ -89,7 +75,6 @@ func Init(ctx context.Context, cfg Config) (*Providers, error) {
 
 	dialOpts := grpc.WithTransportCredentials(insecure.NewCredentials())
 
-	// --- Trace exporter ---
 	traceExporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint(cfg.OTLPEndpoint),
 		otlptracegrpc.WithDialOption(dialOpts),
@@ -106,7 +91,6 @@ func Init(ctx context.Context, cfg Config) (*Providers, error) {
 		sdktrace.WithSampler(sampler),
 	)
 
-	// --- Metric exporter ---
 	metricExporter, err := otlpmetricgrpc.New(ctx,
 		otlpmetricgrpc.WithEndpoint(cfg.OTLPEndpoint),
 		otlpmetricgrpc.WithDialOption(dialOpts),
@@ -125,7 +109,6 @@ func Init(ctx context.Context, cfg Config) (*Providers, error) {
 		sdkmetric.WithResource(res),
 	)
 
-	// --- Log exporter ---
 	logExporter, err := otlploggrpc.New(ctx,
 		otlploggrpc.WithEndpoint(cfg.OTLPEndpoint),
 		otlploggrpc.WithDialOption(dialOpts),

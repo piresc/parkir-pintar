@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- Mocks ---
-
 type mockExpirer struct {
 	called        bool
 	reservationID string
@@ -39,14 +37,10 @@ func (m *mockFailer) FailReservation(ctx context.Context, reservationID string, 
 	return m.err
 }
 
-// --- Task type constants ---
-
 func TestTaskTypeConstants(t *testing.T) {
 	assert.Equal(t, "task:reservation:expire", TypeReservationExpire)
 	assert.Equal(t, "task:payment:hold_timeout", TypePaymentHoldTimeout)
 }
-
-// --- Payload marshaling ---
 
 func TestReservationExpiryPayload_ShouldMarshalCorrectly(t *testing.T) {
 	payload := ReservationExpiryPayload{ReservationID: "res-123"}
@@ -77,8 +71,6 @@ func TestPaymentHoldTimeoutPayload_ShouldMarshalCorrectly(t *testing.T) {
 	assert.Equal(t, "res-456", decoded.ReservationID)
 	assert.Equal(t, "pay-789", decoded.PaymentID)
 }
-
-// --- ReservationExpiryHandler ---
 
 func TestNewReservationExpiryHandler_ShouldReturnHandler(t *testing.T) {
 	expirer := &mockExpirer{}
@@ -141,8 +133,6 @@ func TestReservationExpiryHandler_ProcessTask_ShouldPropagateError_WhenExpirerFa
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "db connection failed")
 }
-
-// --- PaymentHoldTimeoutHandler ---
 
 func TestNewPaymentHoldTimeoutHandler_ShouldReturnHandler(t *testing.T) {
 	failer := &mockFailer{}
@@ -233,13 +223,9 @@ func TestPaymentHoldTimeoutHandler_ProcessTask_ShouldPropagateError_WhenFailerFa
 	assert.Contains(t, err.Error(), "service unavailable")
 }
 
-// --- NewClient ---
-
 func TestNewClient_ShouldReturnNonNilClient(t *testing.T) {
-	// NewClient creates a client without actually connecting (asynq is lazy).
 	client := NewClient("localhost:6379", "")
 	require.NotNil(t, client)
-	// Clean up
 	_ = client.Close()
 }
 
@@ -248,8 +234,6 @@ func TestNewClient_ShouldAcceptPassword(t *testing.T) {
 	require.NotNil(t, client)
 	_ = client.Close()
 }
-
-// --- NewServer ---
 
 func TestNewServer_ShouldReturnNonNilServer(t *testing.T) {
 	server := NewServer("localhost:6379", "", 10)

@@ -10,16 +10,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// parseFullMethod splits a gRPC full method name of the form "/service/method"
-// into its service and method components. If the format is unexpected, the
-// original string is returned as the service and method is empty.
 func parseFullMethod(fullMethod string) (service, method string) {
-	// fullMethod is typically "/package.Service/Method"
 	if fullMethod == "" {
 		return "", ""
 	}
 
-	// Remove leading slash.
 	trimmed := strings.TrimPrefix(fullMethod, "/")
 
 	parts := strings.SplitN(trimmed, "/", 2)
@@ -30,11 +25,6 @@ func parseFullMethod(fullMethod string) (service, method string) {
 	return trimmed, ""
 }
 
-// TracingUnaryInterceptor returns a grpc.UnaryServerInterceptor that creates
-// a tracing span for each unary RPC using the Tracer interface from
-// pkg/tracing. The span name is set to the full gRPC method name. RPC
-// metadata (rpc.system, rpc.service, rpc.method) is logged as structured
-// fields. If the handler returns an error, it is logged at ERROR level.
 func (i *Interceptors) TracingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -71,11 +61,6 @@ func (i *Interceptors) TracingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-// TracingStreamInterceptor returns a grpc.StreamServerInterceptor that creates
-// a tracing span for each streaming RPC using the Tracer interface from
-// pkg/tracing. The span name is set to the full gRPC method name. RPC
-// metadata (rpc.system, rpc.service, rpc.method) is logged as structured
-// fields. If the handler returns an error, it is logged at ERROR level.
 func (i *Interceptors) TracingStreamInterceptor() grpc.StreamServerInterceptor {
 	return func(
 		srv interface{},

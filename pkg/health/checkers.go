@@ -8,18 +8,15 @@ import (
 	"parkir-pintar/pkg/redis"
 )
 
-// Checker name constants.
 const (
 	CheckerNamePostgres = "postgres"
 	CheckerNameRedis    = "redis"
 )
 
-// postgresChecker verifies PostgreSQL connectivity via ping.
 type postgresChecker struct {
 	db *database.PostgresClient
 }
 
-// NewPostgresChecker creates a health checker for PostgreSQL.
 func NewPostgresChecker(db *database.PostgresClient) Checker {
 	return &postgresChecker{db: db}
 }
@@ -35,12 +32,10 @@ func (c *postgresChecker) Name() string {
 	return CheckerNamePostgres
 }
 
-// redisChecker verifies Redis connectivity via ping.
 type redisChecker struct {
 	redis *redis.Client
 }
 
-// NewRedisChecker creates a health checker for Redis.
 func NewRedisChecker(rc *redis.Client) Checker {
 	return &redisChecker{redis: rc}
 }

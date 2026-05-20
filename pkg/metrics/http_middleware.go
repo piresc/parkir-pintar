@@ -10,7 +10,6 @@ import (
 	otelmetric "go.opentelemetry.io/otel/metric"
 )
 
-// responseWriter wraps gin.ResponseWriter to capture status code and response size.
 type responseWriter struct {
 	gin.ResponseWriter
 	statusCode int
@@ -35,20 +34,13 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-// uuidPattern matches UUID-like path segments.
 var uuidPattern = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
 
-// numericPattern matches purely numeric path segments.
 var numericPattern = regexp.MustCompile(`^\d+$`)
 
-// normalizePath replaces dynamic path segments (UUIDs, numeric IDs) with :id
-// to reduce metric cardinality.
 func normalizePath(path string) string {
-	// Replace UUIDs first.
 	normalized := uuidPattern.ReplaceAllString(path, ":id")
 
-	// Replace remaining numeric-only segments.
-	// Split by / and check each segment.
 	parts := splitPath(normalized)
 	for i, part := range parts {
 		if numericPattern.MatchString(part) {
@@ -86,7 +78,6 @@ func joinPath(parts []string) string {
 	return result
 }
 
-// HTTPMiddleware returns a Gin middleware that records HTTP request metrics.
 func (m *Metrics) HTTPMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -99,7 +90,6 @@ func (m *Metrics) HTTPMiddleware() gin.HandlerFunc {
 		duration := time.Since(start).Seconds()
 		method := c.Request.Method
 
-		// Use the matched route pattern if available; fall back to normalized path.
 		path := c.FullPath()
 		if path == "" {
 			path = normalizePath(c.Request.URL.Path)

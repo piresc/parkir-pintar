@@ -18,7 +18,6 @@ import (
 	"time"
 )
 
-// mockUsecase is a testify mock for the billing usecase.Usecase interface.
 type mockUsecase struct {
 	mock.Mock
 }

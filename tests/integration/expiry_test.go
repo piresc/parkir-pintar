@@ -21,9 +21,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires tests the full
@@ -58,13 +58,13 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-expire-1", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-expire-1",
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "expire-key-1",
 	})
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",
 		SpotID:      "spot-expire-1",
-		Status:      model.StatusWaitingPayment,
+		Status:      constants.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -84,13 +84,13 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",
 		SpotID:      "spot-expire-1",
-		Status:      model.StatusWaitingPayment,
+		Status:      constants.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusConfirmed
+		return r.Status == constants.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -105,12 +105,12 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",
 		SpotID:      "spot-expire-1",
-		Status:      model.StatusConfirmed,
+		Status:      constants.StatusConfirmed,
 		ConfirmedAt: &confirmedAt,
 		ExpiresAt:   &expiresAt,
 	}, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusExpired
+		return r.Status == constants.StatusExpired
 	})).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-expire-1", "available").Return(nil)
 

@@ -23,9 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min tests the full
@@ -59,13 +59,13 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-cancel-1",
 		VehicleType:    "motorcycle",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "cancel-free-key",
 	})
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      model.StatusWaitingPayment,
+		Status:      constants.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -85,13 +85,13 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      model.StatusWaitingPayment,
+		Status:      constants.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusConfirmed
+		return r.Status == constants.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -105,11 +105,11 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      model.StatusConfirmed,
+		Status:      constants.StatusConfirmed,
 		ConfirmedAt: &confirmedAt,
 	}, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusCancelled
+		return r.Status == constants.StatusCancelled
 	})).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1", "available").Return(nil)
 
@@ -121,7 +121,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	// Assert: cancellation succeeded with no fee
 	require.NoError(t, err)
 	require.NotNil(t, cancelled)
-	assert.Equal(t, model.StatusCancelled, cancelled.Status)
+	assert.Equal(t, constants.StatusCancelled, cancelled.Status)
 	assert.NotNil(t, cancelled.CancelledAt)
 
 	// Verify: spot released to "available"

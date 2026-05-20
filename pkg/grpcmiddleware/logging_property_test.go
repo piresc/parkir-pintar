@@ -15,16 +15,7 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Feature: grpc-jwt-pkg-integration, Property 7: Logging interceptor fields and level
-// **Validates: Requirements 6.1, 6.2**
-//
-// For any gRPC method name and handler result (success or error with any status
-// code), the Logging interceptor SHALL produce a log entry containing the method
-// name, gRPC status code, and duration in milliseconds, at INFO level for
-// codes.OK and ERROR level for all other codes.
 func TestProperty7_LoggingInterceptorFieldsAndLevel(t *testing.T) {
-	// grpcCodes is the set of gRPC status codes we draw from. codes.OK is
-	// included so that both the INFO and ERROR paths are exercised.
 	grpcCodes := []codes.Code{
 		codes.OK,
 		codes.Canceled,
@@ -46,16 +37,13 @@ func TestProperty7_LoggingInterceptorFieldsAndLevel(t *testing.T) {
 	}
 
 	rapid.Check(t, func(t *rapid.T) {
-		// Generate a random gRPC method name.
 		service := rapid.StringMatching(`[a-zA-Z][a-zA-Z0-9_.]{0,30}`).Draw(t, "service")
 		method := rapid.StringMatching(`[A-Z][a-zA-Z0-9]{0,30}`).Draw(t, "method")
 		fullMethod := "/" + service + "/" + method
 
-		// Pick a random gRPC status code.
 		codeIdx := rapid.IntRange(0, len(grpcCodes)-1).Draw(t, "codeIdx")
 		chosenCode := grpcCodes[codeIdx]
 
-		// Set up a logger that writes JSON to a buffer.
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -64,7 +52,6 @@ func TestProperty7_LoggingInterceptorFieldsAndLevel(t *testing.T) {
 
 		info := &grpc.UnaryServerInfo{FullMethod: fullMethod}
 
-		// Build a handler that returns nil (success) or a gRPC status error.
 		handler := func(_ context.Context, _ interface{}) (interface{}, error) {
 			if chosenCode == codes.OK {
 				return "ok", nil
@@ -74,7 +61,6 @@ func TestProperty7_LoggingInterceptorFieldsAndLevel(t *testing.T) {
 
 		_, _ = interceptor(context.Background(), nil, info, handler)
 
-		// Parse the JSON log entry.
 		logOutput := buf.Bytes()
 		require.NotEmpty(t, logOutput, "logger must produce output")
 
@@ -85,30 +71,24 @@ func TestProperty7_LoggingInterceptorFieldsAndLevel(t *testing.T) {
 		err := json.Unmarshal(lines[0], &entry)
 		require.NoError(t, err, "log output must be valid JSON")
 
-		// Verify method name is present (grpc-ecosystem splits into service + method).
 		assert.Equal(t, method, entry["grpc.method"],
 			"log entry must contain the gRPC method name")
 
-		// Verify gRPC status code is present.
 		assert.Equal(t, chosenCode.String(), entry["grpc.code"],
 			"log entry must contain the gRPC status code")
 
-		// Verify duration_ms is present and non-negative.
 		durationRaw, ok := entry["duration_ms"]
 		require.True(t, ok, "log entry must contain duration_ms")
 		durationVal, ok := durationRaw.(float64)
 		require.True(t, ok, "duration_ms must be a number")
 		assert.GreaterOrEqual(t, durationVal, float64(0), "duration_ms must be non-negative")
 
-		// Verify log level: INFO for codes.OK, ERROR for everything else.
 		level, ok := entry["level"].(string)
 		require.True(t, ok, "log entry must contain a level field")
 
 		if chosenCode == codes.OK {
 			assert.Equal(t, "INFO", level, "codes.OK must be logged at INFO level")
 		} else {
-			// grpc-ecosystem/go-grpc-middleware/v2 uses DefaultServerCodeToLevel:
-			// INFO for Canceled/NotFound, WARN for client errors, ERROR for server errors.
 			assert.True(t, level == "INFO" || level == "WARN" || level == "ERROR",
 				"non-OK codes must be logged at INFO, WARN, or ERROR level, got: %s", level)
 		}

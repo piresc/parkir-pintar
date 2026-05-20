@@ -10,8 +10,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GRPCUnaryInterceptor returns a gRPC unary server interceptor that records
-// request count and duration metrics.
 func (m *Metrics) GRPCUnaryInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,

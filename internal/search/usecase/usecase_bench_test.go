@@ -11,8 +11,6 @@ import (
 	"parkir-pintar/internal/search/model"
 )
 
-// BenchmarkGetAvailability_CacheHit measures performance of the hot path
-// when data is served from Redis cache (expected ~99% of requests).
 func BenchmarkGetAvailability_CacheHit(b *testing.B) {
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)
@@ -39,7 +37,6 @@ func BenchmarkGetAvailability_CacheHit(b *testing.B) {
 	}
 }
 
-// BenchmarkGetAvailability_CacheMiss measures performance when cache misses
 // and data must be fetched from the repository then cached.
 func BenchmarkGetAvailability_CacheMiss(b *testing.B) {
 	repo := new(MockRepository)
@@ -66,7 +63,6 @@ func BenchmarkGetAvailability_CacheMiss(b *testing.B) {
 	}
 }
 
-// BenchmarkGetFloorMap_CacheHit measures floor map retrieval from cache.
 func BenchmarkGetFloorMap_CacheHit(b *testing.B) {
 	repo := new(MockRepository)
 	redis := new(MockRedisClient)

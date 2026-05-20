@@ -11,15 +11,6 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Feature: grpc-jwt-pkg-integration, Property 18: Config defaults for unset environment variables
-// **Validates: Requirements 12.3**
-//
-// For any subset of gRPC environment variables that are set, the Config loader
-// SHALL use the provided values for set variables and sensible defaults
-// (port: 9090, dial timeout: 5s, keep-alive interval: 30s, keep-alive timeout: 10s)
-// for unset variables.
-
-// grpcEnvSubset represents a randomly chosen subset of gRPC env vars with random valid values.
 type grpcEnvSubset struct {
 	PortSet             bool
 	Port                int
@@ -44,7 +35,6 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 			KeepAliveTimeout:    time.Duration(rapid.IntRange(1, 60).Draw(t, "keepAliveTimeoutSec")) * time.Second,
 		}
 
-		// Clear all gRPC env vars first
 		grpcEnvVars := []string{
 			"GRPC_SERVER_PORT", "GRPC_TLS_CERT_PATH", "GRPC_TLS_KEY_PATH",
 			"GRPC_MAX_CONN_AGE", "GRPC_DIAL_TIMEOUT", "GRPC_KEEPALIVE_TIME",
@@ -54,15 +44,12 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 			os.Unsetenv(v)
 		}
 
-		// Also clear vars that affect validation so Load succeeds
 		os.Unsetenv("APP_ENV")
 		os.Setenv("APP_ENV", "local")
 		// Ensure SERVER_PORT is valid so validation passes
 		os.Setenv("SERVER_PORT", "8080")
-		// JWT_SECRET is now required in all environments
 		os.Setenv("JWT_SECRET", "test-default-secret")
 
-		// Set only the chosen subset of gRPC env vars
 		if subset.PortSet {
 			os.Setenv("GRPC_SERVER_PORT", fmt.Sprintf("%d", subset.Port))
 		}
@@ -79,13 +66,11 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 		cfg, err := Load("")
 		require.NoError(t, err)
 
-		// Defaults
 		const defaultPort = 9090
 		defaultDialTimeout := 5 * time.Second
 		defaultKeepAliveTime := 30 * time.Second
 		defaultKeepAliveTimeout := 10 * time.Second
 
-		// Verify: set vars use provided values, unset vars use defaults
 		if subset.PortSet {
 			assert.Equal(t, subset.Port, cfg.GRPC.Server.Port,
 				"GRPC_SERVER_PORT was set; expected provided value")
@@ -118,7 +103,6 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 				"GRPC_KEEPALIVE_TIMEOUT was unset; expected default 10s")
 		}
 
-		// Cleanup
 		for _, v := range grpcEnvVars {
 			os.Unsetenv(v)
 		}

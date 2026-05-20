@@ -17,40 +17,42 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
+
+	"parkir-pintar/internal/reservation/constants"
 )
 
 // allStatuses is the complete set of reservation statuses.
 var allStatuses = []string{
-	StatusPending,
-	StatusWaitingPayment,
-	StatusConfirmed,
-	StatusCheckedIn,
-	StatusCheckedOut,
-	StatusCompleted,
-	StatusExpired,
-	StatusCancelled,
-	StatusFailed,
+	constants.StatusPending,
+	constants.StatusWaitingPayment,
+	constants.StatusConfirmed,
+	constants.StatusCheckedIn,
+	constants.StatusCheckedOut,
+	constants.StatusCompleted,
+	constants.StatusExpired,
+	constants.StatusCancelled,
+	constants.StatusFailed,
 }
 
 // validTransitionPairs enumerates every allowed (from, to) pair.
 var validTransitionPairs = [][2]string{
-	{StatusPending, StatusConfirmed},
-	{StatusWaitingPayment, StatusConfirmed},
-	{StatusWaitingPayment, StatusFailed},
-	{StatusWaitingPayment, StatusCancelled},
-	{StatusConfirmed, StatusCheckedIn},
-	{StatusConfirmed, StatusExpired},
-	{StatusConfirmed, StatusCancelled},
-	{StatusCheckedIn, StatusCheckedOut},
-	{StatusCheckedOut, StatusCompleted},
+	{constants.StatusPending, constants.StatusConfirmed},
+	{constants.StatusWaitingPayment, constants.StatusConfirmed},
+	{constants.StatusWaitingPayment, constants.StatusFailed},
+	{constants.StatusWaitingPayment, constants.StatusCancelled},
+	{constants.StatusConfirmed, constants.StatusCheckedIn},
+	{constants.StatusConfirmed, constants.StatusExpired},
+	{constants.StatusConfirmed, constants.StatusCancelled},
+	{constants.StatusCheckedIn, constants.StatusCheckedOut},
+	{constants.StatusCheckedOut, constants.StatusCompleted},
 }
 
 // terminalStatuses are statuses with no outgoing transitions.
 var terminalStatuses = []string{
-	StatusCompleted,
-	StatusExpired,
-	StatusCancelled,
-	StatusFailed,
+	constants.StatusCompleted,
+	constants.StatusExpired,
+	constants.StatusCancelled,
+	constants.StatusFailed,
 }
 
 // validTransitionSet builds a lookup set for O(1) membership checks.

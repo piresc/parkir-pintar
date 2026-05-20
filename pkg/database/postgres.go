@@ -1,5 +1,3 @@
-// Package database provides PostgreSQL connection management with sqlx,
-// connection pooling, and traced wrapper for automatic OTEL span creation.
 package database
 
 import (
@@ -14,14 +12,10 @@ import (
 	"parkir-pintar/pkg/config"
 )
 
-// PostgresClient represents a PostgreSQL database client with connection pooling.
 type PostgresClient struct {
 	db *sqlx.DB
 }
 
-// NewPostgresClient creates a new PostgreSQL client with the given configuration.
-// It builds a DSN from config, sets connection pool parameters, and verifies
-// connectivity with a 10-second timeout ping.
 func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
@@ -42,7 +36,6 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
 	}
 
-	// Configure connection pool with safe defaults
 	if cfg.MaxConns > 0 {
 		db.SetMaxOpenConns(cfg.MaxConns)
 	} else {
@@ -60,7 +53,6 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	}
 	db.SetConnMaxIdleTime(5 * time.Minute)
 
-	// Verify connection with 10s timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -72,17 +64,14 @@ func NewPostgresClient(cfg config.DatabaseConfig) (*PostgresClient, error) {
 	return &PostgresClient{db: db}, nil
 }
 
-// GetDB returns the underlying sqlx.DB instance for direct query access.
 func (p *PostgresClient) GetDB() *sqlx.DB {
 	return p.db
 }
 
-// Close closes the database connection pool.
 func (p *PostgresClient) Close() error {
 	return p.db.Close()
 }
 
-// Ping verifies the database connection is still alive.
 func (p *PostgresClient) Ping(ctx context.Context) error {
 	return p.db.PingContext(ctx)
 }

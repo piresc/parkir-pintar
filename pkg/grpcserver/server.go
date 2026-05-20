@@ -1,5 +1,3 @@
-// Package grpcserver provides a reusable gRPC server with signal-based
-// graceful shutdown, mirroring the pattern from pkg/server.GracefulServer.
 package grpcserver
 
 import (
@@ -16,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// GRPCServer wraps a grpc.Server with signal-based graceful shutdown.
 type GRPCServer struct {
 	server  *grpc.Server
 	logger  *slog.Logger
@@ -24,15 +21,11 @@ type GRPCServer struct {
 	timeout time.Duration
 }
 
-// New creates a GRPCServer. If logger is nil, slog.Default() is used.
-// opts are passed directly to grpc.NewServer().
 // OTel server stats handler is always prepended to extract incoming trace
-// context (W3C traceparent) so spans join the caller's trace.
 func New(logger *slog.Logger, port int, shutdownTimeout time.Duration, opts ...grpc.ServerOption) *GRPCServer {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	// Prepend OTel handler so it runs before user-supplied options.
 	allOpts := append([]grpc.ServerOption{
 		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}, opts...)
@@ -44,13 +37,10 @@ func New(logger *slog.Logger, port int, shutdownTimeout time.Duration, opts ...g
 	}
 }
 
-// RegisterService registers a gRPC service implementation before Start is called.
 func (s *GRPCServer) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
 	s.server.RegisterService(desc, impl)
 }
 
-// Start listens on the configured port and blocks until SIGINT or SIGTERM.
-// Returns an error if the port bind fails or graceful stop times out.
 func (s *GRPCServer) Start() error {
 	lc := net.ListenConfig{}
 	lis, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", s.port))
@@ -58,7 +48,6 @@ func (s *GRPCServer) Start() error {
 		return fmt.Errorf("failed to listen on port %d: %w", s.port, err)
 	}
 
-	// Channel to capture serve errors
 	errCh := make(chan error, 1)
 
 	go func() {
@@ -68,7 +57,6 @@ func (s *GRPCServer) Start() error {
 		}
 	}()
 
-	// Wait for interrupt signal or server error
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -82,8 +70,6 @@ func (s *GRPCServer) Start() error {
 	return s.GracefulStop()
 }
 
-// GracefulStop initiates a graceful shutdown with the configured timeout.
-// If the timeout is exceeded, the server is force-stopped and an error is returned.
 func (s *GRPCServer) GracefulStop() error {
 	s.logger.Info("shutting down gRPC server")
 

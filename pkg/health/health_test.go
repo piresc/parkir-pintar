@@ -1,11 +1,3 @@
-// Best practices applied from MCP knowledgebase (Go Testing Guidelines):
-// - Descriptive test names using Test[FunctionName]_Should[Result]_When[Condition] pattern
-// - AAA (Arrange-Act-Assert) structure
-// - Table-driven tests for multiple scenarios
-// - Mock external dependencies via interfaces (Checker interface)
-// - Test both success and error scenarios
-// - Use testify/assert and testify/require for assertions
-// - Tests are fast, isolated, repeatable, clear, and comprehensive
 package health
 
 import (
@@ -19,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockChecker implements the Checker interface for testing.
 type mockChecker struct {
 	name string
 	err  error
@@ -38,42 +29,33 @@ func newTestLogger() *slog.Logger {
 }
 
 func TestNewService_ShouldReturnService_WhenLoggerProvided(t *testing.T) {
-	// Arrange
 	logger := newTestLogger()
 
-	// Act
 	svc := NewService(logger)
 
-	// Assert
 	require.NotNil(t, svc)
 	assert.NotNil(t, svc.checkers)
 	assert.Equal(t, 0, len(svc.checkers))
 }
 
 func TestAddChecker_ShouldRegisterChecker_WhenValidCheckerProvided(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	checker := &mockChecker{name: "test-db", err: nil}
 
-	// Act
 	svc.AddChecker("database", checker)
 
-	// Assert
 	assert.Equal(t, 1, len(svc.checkers))
 	assert.Equal(t, checker, svc.checkers["database"])
 }
 
 func TestCheckAll_ShouldReturnHealthy_WhenAllCheckersPass(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	svc.AddChecker("postgres", &mockChecker{name: "postgres", err: nil})
 	svc.AddChecker("redis", &mockChecker{name: "redis", err: nil})
 	ctx := context.Background()
 
-	// Act
 	result, err := svc.CheckAll(ctx)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "healthy", result["status"])
 	deps, ok := result["dependencies"].(map[string]interface{})
@@ -82,16 +64,13 @@ func TestCheckAll_ShouldReturnHealthy_WhenAllCheckersPass(t *testing.T) {
 }
 
 func TestCheckAll_ShouldReturnUnhealthy_WhenAnyCheckerFails(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	svc.AddChecker("postgres", &mockChecker{name: "postgres", err: nil})
 	svc.AddChecker("redis", &mockChecker{name: "redis", err: errors.New("connection refused")})
 	ctx := context.Background()
 
-	// Act
 	result, err := svc.CheckAll(ctx)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "unhealthy", result["status"])
 	deps, ok := result["dependencies"].(map[string]interface{})
@@ -108,44 +87,35 @@ func TestCheckAll_ShouldReturnUnhealthy_WhenAnyCheckerFails(t *testing.T) {
 }
 
 func TestCheckAll_ShouldReturnHealthy_WhenNoCheckersRegistered(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	ctx := context.Background()
 
-	// Act
 	result, err := svc.CheckAll(ctx)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "healthy", result["status"])
 }
 
 func TestCheckAll_ShouldReturnError_WhenContextCancelled(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	svc.AddChecker("postgres", &mockChecker{name: "postgres", err: nil})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	// Act
 	result, err := svc.CheckAll(ctx)
 
-	// Assert
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "health check cancelled")
 }
 
 func TestCheckAll_ShouldRecordDuration_WhenCheckerRuns(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	svc.AddChecker("fast-check", &mockChecker{name: "fast-check", err: nil})
 	ctx := context.Background()
 
-	// Act
 	result, err := svc.CheckAll(ctx)
 
-	// Assert
 	require.NoError(t, err)
 	deps, ok := result["dependencies"].(map[string]interface{})
 	require.True(t, ok)
@@ -156,20 +126,16 @@ func TestCheckAll_ShouldRecordDuration_WhenCheckerRuns(t *testing.T) {
 }
 
 func TestCheckAll_ShouldNotBlockOtherCheckers_WhenOneCheckerFails(t *testing.T) {
-	// Arrange
 	svc := NewService(newTestLogger())
 	svc.AddChecker("failing", &mockChecker{name: "failing", err: errors.New("down")})
 	svc.AddChecker("passing", &mockChecker{name: "passing", err: nil})
 	svc.AddChecker("also-passing", &mockChecker{name: "also-passing", err: nil})
 	ctx := context.Background()
 
-	// Act
 	result, err := svc.CheckAll(ctx)
 
-	// Assert
 	require.NoError(t, err)
 	deps, ok := result["dependencies"].(map[string]interface{})
 	require.True(t, ok)
-	// All 3 checkers should have results (failure doesn't block others)
 	assert.Equal(t, 3, len(deps))
 }

@@ -1,4 +1,3 @@
-// Package usecase implements the business logic layer for the billing domain.
 package usecase
 
 import (
@@ -9,19 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/pkg/pricing"
+	"parkir-pintar/internal/reservation/constants"
 )
 
-// TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations
-// verifies PRD §17.1: "different reservations create different invoice records" for billing.
 func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(t *testing.T) {
-	// Arrange — first invoice
 	repo := new(MockRepository)
 
 	record1 := &model.BillingRecord{
 		ID:             "billing-1",
 		ReservationID:  "res-1",
-		BookingFee:     pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
 		ParkingFee:     10000,
 		TotalAmount:    15000,
 		IdempotencyKey: "billing-res-1",
@@ -40,11 +36,10 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(
 	require.NoError(t, err)
 	require.NotNil(t, inv1)
 
-	// Arrange — second invoice for different reservation
 	record2 := &model.BillingRecord{
 		ID:             "billing-2",
 		ReservationID:  "res-2",
-		BookingFee:     pricing.BookingFee,
+		BookingFee:     constants.BookingFee,
 		ParkingFee:     20000,
 		TotalAmount:    25000,
 		IdempotencyKey: "billing-res-2",
@@ -62,11 +57,9 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(
 	require.NoError(t, err)
 	require.NotNil(t, inv2)
 
-	// Assert: different reservations → different invoice records
 	assert.NotEqual(t, inv1.ID, inv2.ID, "different reservations must produce different billing records")
 	assert.NotEqual(t, inv1.ReservationID, inv2.ReservationID)
 
-	// Assert: UpdateBillingRecord was called twice (once per reservation)
 	repo.AssertNumberOfCalls(t, "UpdateBillingRecord", 2)
 
 	repo.AssertExpectations(t)

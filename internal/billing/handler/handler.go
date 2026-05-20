@@ -1,6 +1,3 @@
-// Package handler provides gRPC handlers for the billing domain module.
-// Handlers validate request fields, delegate to the usecase layer, and map
-// domain errors to gRPC status codes.
 package handler
 
 import (
@@ -16,23 +13,19 @@ import (
 	billingv1 "parkir-pintar/proto/billing/v1"
 )
 
-// Handler implements the billingv1.BillingServiceServer gRPC interface.
 type Handler struct {
 	billingv1.UnimplementedBillingServiceServer
 	uc usecase.Usecase
 }
 
-// NewHandler creates a new billing gRPC Handler with the given usecase.
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 
-// RegisterService registers this handler with the given gRPC server.
 func (h *Handler) RegisterService(s *grpc.Server) {
 	billingv1.RegisterBillingServiceServer(s, h)
 }
 
-// StartBilling validates required fields and delegates to the usecase.
 func (h *Handler) StartBilling(ctx context.Context, req *billingv1.StartBillingRequest) (*billingv1.BillingResponse, error) {
 	if req.GetReservationId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
@@ -53,7 +46,6 @@ func (h *Handler) StartBilling(ctx context.Context, req *billingv1.StartBillingR
 	return billingRecordToProto(result), nil
 }
 
-// CalculateFee validates required fields and delegates to the usecase.
 func (h *Handler) CalculateFee(ctx context.Context, req *billingv1.CalculateFeeRequest) (*billingv1.BillingResponse, error) {
 	if req.GetReservationId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
@@ -77,7 +69,6 @@ func (h *Handler) CalculateFee(ctx context.Context, req *billingv1.CalculateFeeR
 	return billingRecordToProto(result), nil
 }
 
-// GenerateInvoice validates required fields and delegates to the usecase.
 func (h *Handler) GenerateInvoice(ctx context.Context, req *billingv1.GenerateInvoiceRequest) (*billingv1.BillingResponse, error) {
 	if req.GetReservationId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
@@ -97,7 +88,6 @@ func (h *Handler) GenerateInvoice(ctx context.Context, req *billingv1.GenerateIn
 	return billingRecordToProto(result), nil
 }
 
-// ApplyOvernightFee validates required fields and delegates to the usecase.
 func (h *Handler) ApplyOvernightFee(ctx context.Context, req *billingv1.ApplyOvernightFeeRequest) (*billingv1.BillingResponse, error) {
 	if req.GetReservationId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "reservation_id is required")
@@ -113,7 +103,6 @@ func (h *Handler) ApplyOvernightFee(ctx context.Context, req *billingv1.ApplyOve
 	return billingRecordToProto(result), nil
 }
 
-// billingRecordToProto converts a domain BillingRecord to a proto BillingResponse.
 func billingRecordToProto(r *model.BillingRecord) *billingv1.BillingResponse {
 	if r == nil {
 		return nil
@@ -133,5 +122,3 @@ func billingRecordToProto(r *model.BillingRecord) *billingv1.BillingResponse {
 		Status:          r.Status,
 	}
 }
-
-

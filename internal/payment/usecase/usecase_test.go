@@ -1,15 +1,3 @@
-// Package usecase implements the business logic layer for the payment domain.
-//
-// Best practices applied (from Go testify coding standards KB):
-// - Test naming: Test[FunctionName]_Should[ExpectedResult]_When[Condition]
-// - AAA pattern: Arrange → Act → Assert
-// - testify/mock for mock implementations of all dependency interfaces
-// - testify/assert and testify/require for assertions
-// - Each test is isolated with its own mock setup
-// - AssertExpectations(t) called on all mocks to verify interactions
-// - Use t.Context() for Go 1.24+ context in tests
-// - Mock at interface boundaries rather than concrete implementations
-// - Keep mocks simple and focused on the behavior being tested
 // - Don't mock the class under test
 // - Don't use real dependencies when mocks are appropriate
 package usecase
@@ -28,9 +16,6 @@ import (
 	"parkir-pintar/internal/payment/repository"
 )
 
-// --- Mock Implementations ---
-
-// MockRepository implements repository.Repository using testify/mock.
 type MockRepository struct {
 	mock.Mock
 }
@@ -74,7 +59,6 @@ func (m *MockRepository) GetByBillingID(ctx context.Context, billingID string) (
 	return args.Get(0).(*model.Payment), args.Error(1)
 }
 
-// MockPaymentGateway implements gateway.PaymentGateway using testify/mock.
 type MockPaymentGateway struct {
 	mock.Mock
 }
@@ -94,12 +78,7 @@ func (m *MockPaymentGateway) GetStatus(ctx context.Context, transactionRef strin
 	return args.String(0), args.Error(1)
 }
 
-// --- Test Cases ---
-
-// TestProcessPayment_ShouldReturnExisting_WhenDuplicateIdempotencyKey verifies
-// that a duplicate idempotency key returns the existing payment without side effects.
 func TestProcessPayment_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
 
@@ -121,23 +100,17 @@ func TestProcessPayment_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *test
 		IdempotencyKey: "pay-key-1",
 	}
 
-	// Act
 	result, err := uc.ProcessPayment(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "existing-pay-id", result.ID)
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)
-	// Gateway should NOT have been called
 	gw.AssertNotCalled(t, "Charge")
 	repo.AssertNotCalled(t, "CreatePayment")
 	repo.AssertExpectations(t)
 }
 
-// TestProcessPayment_ShouldReturnSuccess_WhenGatewaySucceeds verifies
-// that a successful gateway charge results in status "success" with a transaction ref.
 func TestProcessPayment_ShouldReturnSuccess_WhenGatewaySucceeds(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
 
@@ -154,10 +127,8 @@ func TestProcessPayment_ShouldReturnSuccess_WhenGatewaySucceeds(t *testing.T) {
 		IdempotencyKey: "pay-key-2",
 	}
 
-	// Act
 	result, err := uc.ProcessPayment(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)
 	assert.Equal(t, "txn-abc-123", result.TransactionRef)
@@ -167,11 +138,7 @@ func TestProcessPayment_ShouldReturnSuccess_WhenGatewaySucceeds(t *testing.T) {
 	gw.AssertExpectations(t)
 }
 
-// TestProcessPayment_ShouldReturnFailed_WhenGatewayFails verifies
-// that when the gateway fails all 3 retries, the payment status is set to "failed"
-// and a payment.failed event is published.
 func TestProcessPayment_ShouldReturnFailed_WhenGatewayFails(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
 
@@ -189,23 +156,17 @@ func TestProcessPayment_ShouldReturnFailed_WhenGatewayFails(t *testing.T) {
 		IdempotencyKey: "pay-key-3",
 	}
 
-	// Act
 	result, err := uc.ProcessPayment(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err) // no error returned; payment is marked failed
 	assert.Equal(t, model.PaymentStatusFailed, result.Status)
 	assert.Empty(t, result.TransactionRef)
 	assert.Nil(t, result.PaidAt)
-	// Gateway should have been called 3 times (circuit breaker retries)
 	gw.AssertNumberOfCalls(t, "Charge", 3)
 	repo.AssertExpectations(t)
 }
 
-// TestRefundPayment_ShouldReturnRefunded_WhenSuccessful verifies
-// that RefundPayment calls the gateway refund and updates status to "refunded".
 func TestRefundPayment_ShouldReturnRefunded_WhenSuccessful(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
 
@@ -226,10 +187,8 @@ func TestRefundPayment_ShouldReturnRefunded_WhenSuccessful(t *testing.T) {
 	uc := NewUsecase(repo, gw, nil)
 	req := &model.RefundPaymentRequest{PaymentID: "pay-4"}
 
-	// Act
 	result, err := uc.RefundPayment(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, model.PaymentStatusRefunded, result.Status)
 	gw.AssertCalled(t, "Refund", mock.Anything, "txn-refund-123")
@@ -237,17 +196,13 @@ func TestRefundPayment_ShouldReturnRefunded_WhenSuccessful(t *testing.T) {
 	gw.AssertExpectations(t)
 }
 
-// TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds verifies
-// that the circuit breaker retries and succeeds on the second attempt.
 func TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
 
 	gatewayErr := errors.New("transient failure")
 	repo.On("GetByIdempotencyKey", mock.Anything, "pay-key-5").Return(nil, repository.ErrNotFound)
 	repo.On("CreatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
-	// First call fails, second succeeds
 	gw.On("Charge", mock.Anything, int64(5000), "ewallet").Return("", gatewayErr).Once()
 	gw.On("Charge", mock.Anything, int64(5000), "ewallet").Return("txn-retry-ok", nil).Once()
 	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
@@ -260,10 +215,8 @@ func TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds(t *te
 		IdempotencyKey: "pay-key-5",
 	}
 
-	// Act
 	result, err := uc.ProcessPayment(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)
 	assert.Equal(t, "txn-retry-ok", result.TransactionRef)
@@ -272,10 +225,7 @@ func TestProcessPayment_ShouldRetryAndSucceed_WhenGatewayFailsThenSucceeds(t *te
 	gw.AssertExpectations(t)
 }
 
-// TestGetPaymentStatus_ShouldReturnPayment_WhenExists verifies
-// that GetPaymentStatus returns the payment when found.
 func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
-	// Arrange
 	repo := new(MockRepository)
 	gw := new(MockPaymentGateway)
 
@@ -290,10 +240,8 @@ func TestGetPaymentStatus_ShouldReturnPayment_WhenExists(t *testing.T) {
 	uc := NewUsecase(repo, gw, nil)
 	req := &model.GetPaymentStatusRequest{PaymentID: "pay-6"}
 
-	// Act
 	result, err := uc.GetPaymentStatus(t.Context(), req)
 
-	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "pay-6", result.ID)
 	assert.Equal(t, model.PaymentStatusSuccess, result.Status)

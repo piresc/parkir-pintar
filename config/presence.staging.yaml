@@ -1,0 +1,63 @@
+# Presence service - staging configuration
+# Secrets (DB, Redis, NATS, JWT, etc.) come from environment variables.
+
+app:
+  name: parkir-pintar-presence
+  environment: staging
+  debug: false
+  version: "0.1.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8085
+  read_timeout: 15
+  write_timeout: 15
+  shutdown_timeout: 30
+  allowed_origins:
+    - "https://staging.parkir-pintar.id"
+
+database:
+  schema: public
+  ssl_mode: require
+  max_conns: 20
+  idle_conns: 5
+  max_lifetime: 15
+
+redis:
+  db: 2
+  pool_size: 20
+
+jwt:
+  expiration: 60
+  issuer: parkir-pintar
+
+tracing:
+  enabled: true
+  service_name: parkir-pintar-presence
+  sample_rate: 0.5
+  exclude_paths:
+    - /health
+    - /health/live
+    - /health/ready
+  exporter: otlp
+
+logger:
+  level: info
+  format: json
+
+grpc:
+  server:
+    port: 9095
+    max_conn_age: 5m
+    shutdown_timeout: 30s
+    request_timeout: 30s
+  client:
+    dial_timeout: 5s
+    keepalive_time: 30s
+    keepalive_timeout: 10s
+  rate_limit:
+    requests_per_second: 150
+    burst_size: 300
+
+nats:
+  enabled: true

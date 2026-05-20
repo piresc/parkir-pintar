@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -38,7 +38,7 @@ func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *tes
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
@@ -86,14 +86,14 @@ func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *tes
 	// Billed hours should be at least 5 (could be 6 due to sub-second drift)
 	assert.GreaterOrEqual(t, billing.BilledHours, 5,
 		"billed hours should be at least 5")
-	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee,
+	assert.Equal(t, int64(billing.BilledHours)*constants.HourlyRate, billing.ParkingFee,
 		"parking fee should be billed_hours × 5000")
 
 	// Assert — No overstay penalty (PRD: no penalty system)
 
 	// Assert — Total = booking_fee + parking_fee + overnight_fee (no penalty)
 	// Overnight fee may be non-zero if the 5-hour session crosses midnight in WIB.
-	expectedTotal := pricing.BookingFee + billing.ParkingFee + billing.OvernightFee
+	expectedTotal := constants.BookingFee + billing.ParkingFee + billing.OvernightFee
 	assert.Equal(t, expectedTotal, billing.TotalAmount,
 		"total should be booking_fee + parking_fee + overnight_fee")
 

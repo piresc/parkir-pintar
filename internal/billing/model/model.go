@@ -1,9 +1,7 @@
-// Package model defines domain structs and request types for the billing module.
 package model
 
 import "time"
 
-// Billing status constants.
 const (
 	BillingStatusPending    = "pending"
 	BillingStatusCalculated = "calculated"
@@ -11,7 +9,6 @@ const (
 	BillingStatusPaid       = "paid"
 )
 
-// BillingRecord represents a billing record for a single reservation.
 type BillingRecord struct {
 	ID              string    `json:"id" db:"id"`
 	ReservationID   string    `json:"reservation_id" db:"reservation_id"`
@@ -29,30 +26,24 @@ type BillingRecord struct {
 	UpdatedAt       time.Time `json:"updated_at,omitzero" db:"updated_at"`
 }
 
-// Request types for billing service operations.
-
-// StartBillingRequest is the payload for starting billing on a reservation.
 type StartBillingRequest struct {
 	ReservationID  string `json:"reservation_id"`
 	BookingFee     int64  `json:"booking_fee"`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 
-// CalculateFeeRequest is the payload for calculating fees at check-out.
 type CalculateFeeRequest struct {
 	ReservationID string    `json:"reservation_id"`
 	CheckInAt     time.Time `json:"check_in_at"`
 	CheckOutAt    time.Time `json:"check_out_at"`
 }
 
-// GenerateInvoiceRequest is the payload for generating an invoice.
 type GenerateInvoiceRequest struct {
 	ReservationID  string `json:"reservation_id"`
 	IdempotencyKey string `json:"idempotency_key"`
 }
 
-// ApplyOvernightFeeRequest is the payload for applying an overnight fee.
 type ApplyOvernightFeeRequest struct {
 	ReservationID string `json:"reservation_id"`
-	Amount        int64  `json:"amount"` // configurable overnight fee amount; falls back to pricing.OvernightPerNight if 0
+	Amount        int64  `json:"amount"` // configurable overnight fee amount; falls back to constants.OvernightPerNight if 0
 }

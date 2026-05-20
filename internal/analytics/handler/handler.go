@@ -1,5 +1,3 @@
-// Package handler provides gRPC handlers for the analytics domain module.
-// Handlers delegate to the usecase layer and map domain errors to gRPC status codes.
 package handler
 
 import (
@@ -12,23 +10,19 @@ import (
 	analyticsv1 "parkir-pintar/proto/analytics/v1"
 )
 
-// Handler implements the analyticsv1.AnalyticsServiceServer gRPC interface.
 type Handler struct {
 	analyticsv1.UnimplementedAnalyticsServiceServer
 	uc usecase.Usecase
 }
 
-// NewHandler creates a new analytics gRPC Handler with the given usecase.
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 
-// RegisterService registers this handler with the given gRPC server.
 func (h *Handler) RegisterService(s *grpc.Server) {
 	analyticsv1.RegisterAnalyticsServiceServer(s, h)
 }
 
-// GetPeakHours returns peak hour statistics from historical reservation data.
 func (h *Handler) GetPeakHours(ctx context.Context, _ *analyticsv1.GetPeakHoursRequest) (*analyticsv1.GetPeakHoursResponse, error) {
 	stats, err := h.uc.GetPeakHours(ctx)
 	if err != nil {
@@ -49,7 +43,6 @@ func (h *Handler) GetPeakHours(ctx context.Context, _ *analyticsv1.GetPeakHoursR
 	return &analyticsv1.GetPeakHoursResponse{Stats: protoStats}, nil
 }
 
-// GetUsagePatterns returns daily occupancy/usage patterns summarized over the last 30 days.
 func (h *Handler) GetUsagePatterns(ctx context.Context, _ *analyticsv1.GetUsagePatternsRequest) (*analyticsv1.GetUsagePatternsResponse, error) {
 	pattern, err := h.uc.GetUsagePatterns(ctx)
 	if err != nil {

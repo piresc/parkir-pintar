@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	reservationuc "parkir-pintar/internal/reservation/usecase"
 	"parkir-pintar/tests/testhelpers"
@@ -80,12 +81,12 @@ func TestWrongSpotDetection_ShouldFlagWrongSpot_WhenSensorShowsEmpty(t *testing.
 	reservation, err := uc.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	require.Equal(t, model.StatusWaitingPayment, reservation.Status)
+	require.Equal(t, constants.StatusWaitingPayment, reservation.Status)
 
 	// Confirm reservation (processes booking fee payment)
 	confirmed, err := uc.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
@@ -93,7 +94,7 @@ func TestWrongSpotDetection_ShouldFlagWrongSpot_WhenSensorShowsEmpty(t *testing.
 		CallerID:      driverID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, model.StatusConfirmed, confirmed.Status)
+	require.Equal(t, constants.StatusConfirmed, confirmed.Status)
 
 	// Act — Check in (presence sensor returns verified=false)
 	checkInResp, err := uc.CheckIn(ctx, &model.CheckInRequest{
@@ -104,7 +105,7 @@ func TestWrongSpotDetection_ShouldFlagWrongSpot_WhenSensorShowsEmpty(t *testing.
 	// Assert — Check-in succeeds (non-blocking) but flags wrong spot
 	require.NoError(t, err, "check-in should succeed even when sensor shows empty")
 	require.NotNil(t, checkInResp)
-	assert.Equal(t, model.StatusCheckedIn, checkInResp.Reservation.Status,
+	assert.Equal(t, constants.StatusCheckedIn, checkInResp.Reservation.Status,
 		"reservation should transition to checked_in regardless of presence result")
 	assert.True(t, checkInResp.WrongSpotWarning,
 		"WrongSpotWarning should be true when sensor shows spot is empty")
@@ -135,7 +136,7 @@ func TestWrongSpotDetection_ShouldVerifyOK_WhenSensorShowsOccupied(t *testing.T)
 	reservation, err := uc.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
@@ -147,7 +148,7 @@ func TestWrongSpotDetection_ShouldVerifyOK_WhenSensorShowsOccupied(t *testing.T)
 		CallerID:      driverID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, model.StatusConfirmed, confirmed.Status)
+	require.Equal(t, constants.StatusConfirmed, confirmed.Status)
 
 	// Act — Check in (presence sensor returns verified=true)
 	checkInResp, err := uc.CheckIn(ctx, &model.CheckInRequest{
@@ -158,7 +159,7 @@ func TestWrongSpotDetection_ShouldVerifyOK_WhenSensorShowsOccupied(t *testing.T)
 	// Assert — Check-in succeeds with no warning
 	require.NoError(t, err)
 	require.NotNil(t, checkInResp)
-	assert.Equal(t, model.StatusCheckedIn, checkInResp.Reservation.Status)
+	assert.Equal(t, constants.StatusCheckedIn, checkInResp.Reservation.Status)
 	assert.False(t, checkInResp.WrongSpotWarning,
 		"WrongSpotWarning should be false when sensor confirms presence")
 }

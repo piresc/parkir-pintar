@@ -23,9 +23,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight tests
@@ -59,13 +59,13 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	repo.On("ListByDriverID", mock.Anything, "driver-overnight", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-overnight", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-overnight",
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: "overnight-key",
 	})
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-overnight",
 		SpotID:      "spot-overnight",
-		Status:      model.StatusWaitingPayment,
+		Status:      constants.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -85,13 +85,13 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-overnight",
 		SpotID:      "spot-overnight",
-		Status:      model.StatusWaitingPayment,
+		Status:      constants.StatusWaitingPayment,
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusConfirmed
+		return r.Status == constants.StatusConfirmed
 	})).Return(nil).Once()
-	payment.On("ProcessPayment", mock.Anything, "billing-test-id", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
+	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
 	_, err = uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{
 		ReservationID: reservation.ID,
@@ -103,11 +103,11 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-overnight",
 		SpotID:      "spot-overnight",
-		Status:      model.StatusConfirmed,
+		Status:      constants.StatusConfirmed,
 		ConfirmedAt: &confirmedAt,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusCheckedIn
+		return r.Status == constants.StatusCheckedIn
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-overnight", "occupied").Return(nil)
 	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
@@ -128,12 +128,12 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-overnight",
 		SpotID:      "spot-overnight",
-		Status:      model.StatusCheckedIn,
+		Status:      constants.StatusCheckedIn,
 		ConfirmedAt: &confirmedAt,
 		CheckedInAt: &checkedInAt,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == model.StatusCheckedOut
+		return r.Status == constants.StatusCheckedOut
 	})).Return(nil).Once()
 	billing.On("CalculateFee", mock.Anything, reservation.ID, checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
 	billing.On("GenerateInvoice", mock.Anything, reservation.ID, mock.AnythingOfType("string")).Return(billingRecord, nil)
@@ -141,7 +141,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	checkOutResult, err := uc.CheckOut(t.Context(), &model.CheckOutRequest{ReservationID: reservation.ID})
 	require.NoError(t, err)
 	require.NotNil(t, checkOutResult)
-	assert.Equal(t, model.StatusCheckedOut, checkOutResult.Reservation.Status)
+	assert.Equal(t, constants.StatusCheckedOut, checkOutResult.Reservation.Status)
 	assert.Equal(t, int64(65000), checkOutResult.TotalAmount, "PRD Example 3: overnight total should be 65,000 IDR")
 	assert.Equal(t, "billing-overnight", checkOutResult.BillingID)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/tests/testhelpers"
 )
@@ -38,7 +39,7 @@ func TestExpiry_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: model.AssignmentSystemAssigned,
+		AssignmentMode: constants.AssignmentSystemAssigned,
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
@@ -62,7 +63,7 @@ func TestExpiry_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM reservations WHERE id = $1", reservation.ID).Scan(&status)
 	require.NoError(t, err)
-	assert.Equal(t, model.StatusExpired, status)
+	assert.Equal(t, constants.StatusExpired, status)
 
 	// Assert — Spot back to "available"
 	var spotStatus string

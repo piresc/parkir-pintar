@@ -32,9 +32,7 @@ func TestNewStore_NoCleanup(t *testing.T) {
 	}
 	s := NewStore(cfg)
 	require.NotNil(t, s)
-	// No cleanup goroutine started, Stop should still not panic.
 	// stopCh is unbuffered so we can't close it without a reader — but the code
-	// only starts the goroutine if CleanupInterval > 0, so closing is safe.
 }
 
 func TestAllow_UnderLimit(t *testing.T) {
@@ -45,7 +43,6 @@ func TestAllow_UnderLimit(t *testing.T) {
 	}
 	s := NewStore(cfg)
 
-	// First 5 requests (burst) should all be allowed.
 	for i := 0; i < 5; i++ {
 		assert.True(t, s.Allow("client1"), "request %d should be allowed", i)
 	}
@@ -59,11 +56,9 @@ func TestAllow_ExceedsLimit(t *testing.T) {
 	}
 	s := NewStore(cfg)
 
-	// Exhaust the burst.
 	assert.True(t, s.Allow("client1"))
 	assert.True(t, s.Allow("client1"))
 
-	// Next request should be denied (burst exhausted, rate is 1/s).
 	assert.False(t, s.Allow("client1"))
 }
 
@@ -75,11 +70,9 @@ func TestAllow_DifferentKeys(t *testing.T) {
 	}
 	s := NewStore(cfg)
 
-	// Each key gets its own limiter.
 	assert.True(t, s.Allow("client1"))
 	assert.True(t, s.Allow("client2"))
 
-	// Both should now be exhausted.
 	assert.False(t, s.Allow("client1"))
 	assert.False(t, s.Allow("client2"))
 }
@@ -93,15 +86,12 @@ func TestCleanup_RemovesStaleEntries(t *testing.T) {
 	s := NewStore(cfg)
 	defer s.Stop()
 
-	// Create an entry.
 	s.Allow("stale-client")
 
-	// Manually set lastSeen to the past so cleanup will remove it.
 	s.mu.Lock()
 	s.limiters["stale-client"].lastSeen = time.Now().Add(-1 * time.Hour)
 	s.mu.Unlock()
 
-	// Wait for at least one cleanup cycle.
 	time.Sleep(150 * time.Millisecond)
 
 	s.mu.Lock()
@@ -120,10 +110,8 @@ func TestCleanup_KeepsFreshEntries(t *testing.T) {
 	s := NewStore(cfg)
 	defer s.Stop()
 
-	// Create an entry with recent access.
 	s.Allow("fresh-client")
 
-	// Wait for a cleanup cycle (200ms). Entry is ~250ms old, threshold is 400ms (2×interval).
 	time.Sleep(250 * time.Millisecond)
 
 	s.mu.Lock()
@@ -142,8 +130,6 @@ func TestStop_NoPanic(t *testing.T) {
 }
 
 func TestStop_NoCleanupNoPanic(t *testing.T) {
-	// When CleanupInterval is 0, no goroutine is started.
-	// Closing stopCh should still not panic (no reader, but close is fine).
 	cfg := Config{
 		RequestsPerSecond: 10,
 		BurstSize:         10,

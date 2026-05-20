@@ -10,7 +10,6 @@ import (
 )
 
 func TestInit_NoEndpoint(t *testing.T) {
-	// Empty endpoint should return noop-equivalent providers (no exporters).
 	cfg := Config{
 		ServiceName:     "test-service",
 		OTLPEndpoint:    "",
@@ -35,14 +34,11 @@ func TestInit_NoEndpoint_Shutdown(t *testing.T) {
 	providers, err := Init(context.Background(), cfg)
 	require.NoError(t, err)
 
-	// Shutdown should succeed without errors.
 	err = providers.Shutdown(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestInit_WithEndpoint(t *testing.T) {
-	// With an endpoint, exporters are created (lazy connection).
-	// This should not fail even if the endpoint is unreachable.
 	cfg := Config{
 		ServiceName:     "test-service",
 		OTLPEndpoint:    "localhost:0",
@@ -61,12 +57,10 @@ func TestInit_WithEndpoint(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	err = providers.Shutdown(ctx)
-	// May get context deadline exceeded if flush tries to connect, that's acceptable.
 	_ = err
 }
 
 func TestInit_DefaultMetricInterval(t *testing.T) {
-	// MetricInterval of 0 should default to 15s internally.
 	cfg := Config{
 		ServiceName:     "test-service",
 		OTLPEndpoint:    "localhost:0",
@@ -84,14 +78,12 @@ func TestInit_DefaultMetricInterval(t *testing.T) {
 }
 
 func TestProviders_Shutdown_NilProviders(t *testing.T) {
-	// All nil providers should not panic.
 	p := &Providers{}
 	err := p.Shutdown(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestProviders_Shutdown_PartialNil(t *testing.T) {
-	// Only TracerProvider set, others nil.
 	cfg := Config{
 		ServiceName:  "test-service",
 		OTLPEndpoint: "",
@@ -99,14 +91,12 @@ func TestProviders_Shutdown_PartialNil(t *testing.T) {
 	providers, err := Init(context.Background(), cfg)
 	require.NoError(t, err)
 
-	// Simulate partial nil by clearing one.
 	providers.LoggerProvider = nil
 	err = providers.Shutdown(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestConfig_ZeroValues(t *testing.T) {
-	// Zero-value config with empty endpoint should still work.
 	cfg := Config{}
 	providers, err := Init(context.Background(), cfg)
 	require.NoError(t, err)

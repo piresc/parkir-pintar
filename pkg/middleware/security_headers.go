@@ -2,16 +2,8 @@ package middleware
 
 import "github.com/gin-gonic/gin"
 
-// SecurityHeaders returns middleware that sets recommended HTTP security headers
-// on every response. These headers mitigate common web vulnerabilities:
-//
 //   - X-Content-Type-Options: prevents MIME-type sniffing
 //   - X-Frame-Options: prevents clickjacking
-//   - X-XSS-Protection: disabled (modern approach relies on CSP)
-//   - Strict-Transport-Security: enforces HTTPS
-//   - Content-Security-Policy: restricts resource loading
-//   - Referrer-Policy: controls referrer information leakage
-//   - Permissions-Policy: restricts browser feature access
 //   - Cache-Control: prevents caching of API responses
 func (m *Middleware) SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {

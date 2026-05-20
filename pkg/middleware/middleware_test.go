@@ -1,14 +1,3 @@
-// Package middleware tests.
-//
-// Best practices applied (from Go coding standards KB / Go testify patterns):
-// - Use table-driven tests for multiple scenarios
-// - Use descriptive test names: Test[Function]_Should[Result]_When[Condition]
-// - Use gin.TestMode and httptest for HTTP middleware testing
-// - Use testify/assert for assertions
-// - Test both success and failure scenarios
-// - Keep mocks simple and focused on the behavior being tested
-// - Clean up resources properly with defer
-// - Mock external dependencies only
 package middleware
 
 import (
@@ -34,7 +23,6 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-// newTestMiddleware creates a Middleware with sensible test defaults.
 func newTestMiddleware() *Middleware {
 	cfg := &config.Config{
 		App: config.AppConfig{
@@ -46,8 +34,6 @@ func newTestMiddleware() *Middleware {
 	tracer := tracing.NewNoOpTracer()
 	return NewMiddleware(cfg, logger, tracer)
 }
-
-// --- 5.1 NewMiddleware ---
 
 func TestNewMiddleware_ShouldReturnInstance_WhenValidDependencies(t *testing.T) {
 	mw := newTestMiddleware()
@@ -63,8 +49,6 @@ func TestNewMiddleware_ShouldUseDefaults_WhenNilLoggerAndTracer(t *testing.T) {
 	assert.NotNil(t, mw.logger)
 	assert.NotNil(t, mw.tracer)
 }
-
-// --- 5.2 SetContextValues ---
 
 func TestSetContextValues_ShouldStoreHeaders_WhenPresent(t *testing.T) {
 	mw := newTestMiddleware()
@@ -125,8 +109,6 @@ func TestSetContextValues_ShouldFallbackAppVersion_WhenMobileHeader(t *testing.T
 	assert.Equal(t, "2.0.0", body["app"])
 }
 
-// --- 5.6 CorsHandler ---
-
 func TestCorsHandler_ShouldSetHeaders_WhenAllowedOrigin(t *testing.T) {
 	mw := newTestMiddleware()
 	w := httptest.NewRecorder()
@@ -162,9 +144,7 @@ func TestCorsHandler_ShouldReject_WhenDisallowedOrigin(t *testing.T) {
 
 	engine.ServeHTTP(w, req)
 
-	// gin-contrib/cors returns 403 for disallowed origins
 	assert.Equal(t, http.StatusForbidden, w.Code)
-	// Should NOT set Access-Control-Allow-Origin for disallowed origin
 	assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
 }
 
@@ -206,8 +186,6 @@ func TestCorsHandler_ShouldNeverSetWildcard_WhenCredentialsEnabled(t *testing.T)
 	assert.NotEqual(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
 }
 
-// --- 5.7 TracingHandler ---
-
 func TestTracingHandler_ShouldPassThrough_WhenTracingDisabled(t *testing.T) {
 	mw := newTestMiddleware() // uses NoOpTracer which returns false for ShouldTrace
 	w := httptest.NewRecorder()
@@ -223,8 +201,6 @@ func TestTracingHandler_ShouldPassThrough_WhenTracingDisabled(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-
-// --- 5.8 RecoveryHandler ---
 
 func TestRecoveryHandler_ShouldReturn500_WhenPanicOccurs(t *testing.T) {
 	mw := newTestMiddleware()
@@ -285,8 +261,6 @@ func TestRecoveryHandler_ShouldNotInterfere_WhenNoPanic(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-
-// --- 5.9 JWTAuth ---
 
 func createTestJWT(secret string, claims jwt.MapClaims) string {
 	if claims["exp"] == nil {
@@ -432,8 +406,6 @@ func TestJWTAuth_ShouldReturn401_WhenAlgorithmIsNotHS256(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
-// --- Integration: Full middleware chain ---
-
 func TestMiddlewareChain_ShouldWorkTogether_WhenAllApplied(t *testing.T) {
 	mw := newTestMiddleware()
 	w := httptest.NewRecorder()
@@ -460,11 +432,8 @@ func TestMiddlewareChain_ShouldWorkTogether_WhenAllApplied(t *testing.T) {
 	var body map[string]string
 	err := json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
-	// MSISDN should be passed through from header via SetContextValues
 	assert.Equal(t, "081234567890", body["msisdn"])
 }
-
-// --- 5.10 RateLimiter ---
 
 func TestRateLimiter_ShouldAllow_WhenUnderLimit(t *testing.T) {
 	mw := newTestMiddleware()
@@ -502,7 +471,6 @@ func TestRateLimiter_ShouldReturn429_WhenOverLimit(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
-	// Exhaust the burst
 	for i := 0; i < 2; i++ {
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -511,7 +479,6 @@ func TestRateLimiter_ShouldReturn429_WhenOverLimit(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	}
 
-	// Next request should be rate limited
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req.RemoteAddr = "10.0.0.1:12345"
@@ -540,14 +507,12 @@ func TestRateLimiter_ShouldTrackPerIP_WhenDifferentClients(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
-	// First IP uses its token
 	w1 := httptest.NewRecorder()
 	req1 := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req1.RemoteAddr = "10.0.0.1:12345"
 	engine.ServeHTTP(w1, req1)
 	assert.Equal(t, http.StatusOK, w1.Code)
 
-	// Second IP should still have its own bucket
 	w2 := httptest.NewRecorder()
 	req2 := httptest.NewRequest(http.MethodGet, "/test", nil)
 	req2.RemoteAddr = "10.0.0.2:12345"

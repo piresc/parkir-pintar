@@ -10,12 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Best practices derived from Go Testify testing knowledge base:
-// - Use table-driven tests for multiple test cases
-// - Use descriptive test names: Test[Function]_Should[Result]_When[Condition]
-// - Use assert for non-fatal checks, require for fatal preconditions
-// - Test both happy paths and error cases
-// - Keep tests isolated — clear env vars between tests
 // - Don't mock the class under test
 // - Don't hardcode test data throughout multiple tests
 
@@ -51,13 +45,11 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// App defaults
 	assert.Equal(t, "parkir-pintar", cfg.App.Name)
 	assert.Equal(t, "local", cfg.App.Environment)
 	assert.False(t, cfg.App.Debug)
 	assert.Equal(t, "0.0.1", cfg.App.Version)
 
-	// Server defaults
 	assert.Equal(t, "0.0.0.0", cfg.Server.Host)
 	assert.Equal(t, 8080, cfg.Server.Port)
 	assert.Equal(t, 15, cfg.Server.ReadTimeout)
@@ -65,7 +57,6 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, 30, cfg.Server.ShutdownTimeout)
 	assert.Equal(t, []string{"http://localhost:3000"}, cfg.Server.AllowedOrigins)
 
-	// Database defaults
 	assert.Equal(t, "localhost", cfg.Database.Host)
 	assert.Equal(t, 5432, cfg.Database.Port)
 	assert.Equal(t, "", cfg.Database.Username)
@@ -76,23 +67,19 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, 5, cfg.Database.IdleConns)
 	assert.Equal(t, 15, cfg.Database.MaxLifetime)
 
-	// Redis defaults
 	assert.Equal(t, "localhost", cfg.Redis.Host)
 	assert.Equal(t, 6379, cfg.Redis.Port)
 	assert.Equal(t, "", cfg.Redis.Password)
 	assert.Equal(t, 0, cfg.Redis.DB)
 	assert.Equal(t, 10, cfg.Redis.PoolSize)
 
-	// JWT defaults
 	assert.Equal(t, "test-default-secret", cfg.JWT.Secret)
 	assert.Equal(t, 60, cfg.JWT.Expiration)
 	assert.Equal(t, "parkir-pintar", cfg.JWT.Issuer)
 
-	// Auth defaults
 	assert.NotNil(t, cfg.Auth.APIKeys)
 	assert.Empty(t, cfg.Auth.APIKeys)
 
-	// Tracing defaults
 	assert.False(t, cfg.Tracing.Enabled)
 	assert.Equal(t, "parkir-pintar", cfg.Tracing.ServiceName)
 	assert.Equal(t, 1.0, cfg.Tracing.SampleRate)
@@ -102,11 +89,9 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, "", cfg.Tracing.NewRelic.LicenseKey)
 	assert.False(t, cfg.Tracing.NewRelic.Enabled)
 
-	// Logger defaults
 	assert.Equal(t, "info", cfg.Logger.Level)
 	assert.Equal(t, "json", cfg.Logger.Format)
 
-	// GRPC defaults (Requirements 12.1, 12.2, 12.3)
 	assert.Equal(t, 9090, cfg.GRPC.Server.Port)
 	assert.Equal(t, "", cfg.GRPC.Server.TLSCertPath)
 	assert.Equal(t, "", cfg.GRPC.Server.TLSKeyPath)
@@ -236,7 +221,6 @@ func TestLoad_ShouldLoadDotEnvFile_WhenAppEnvIsLocal(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
-	// Create a temporary .env file
 	tmpDir := t.TempDir()
 	envFile := filepath.Join(tmpDir, ".env")
 	err := os.WriteFile(envFile, []byte("APP_NAME=from-dotenv\nSERVER_PORT=3000\n"), 0644)
@@ -253,7 +237,6 @@ func TestLoad_ShouldNotLoadDotEnvFile_WhenAppEnvIsProduction(t *testing.T) {
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "prod-secret-that-is-at-least-32-chars-long")
 
-	// Create a .env file that would override APP_NAME
 	tmpDir := t.TempDir()
 	envFile := filepath.Join(tmpDir, ".env")
 	err := os.WriteFile(envFile, []byte("APP_NAME=should-not-load\n"), 0644)
@@ -261,7 +244,6 @@ func TestLoad_ShouldNotLoadDotEnvFile_WhenAppEnvIsProduction(t *testing.T) {
 
 	cfg, err := Load(envFile)
 	require.NoError(t, err)
-	// APP_NAME should be the default, not from .env
 	assert.Equal(t, "parkir-pintar", cfg.App.Name)
 }
 
@@ -303,7 +285,6 @@ func TestLoad_ShouldUseDefaultsForInvalidIntValues(t *testing.T) {
 
 	cfg, err := Load("")
 	require.NoError(t, err)
-	// Falls back to default 8080
 	assert.Equal(t, 8080, cfg.Server.Port)
 }
 
@@ -327,9 +308,6 @@ func TestLoad_ShouldUseDefaultsForInvalidFloatValues(t *testing.T) {
 	assert.Equal(t, 1.0, cfg.Tracing.SampleRate)
 }
 
-// --- GRPCConfig unit tests (Task 1.3) ---
-// Requirements: 12.1, 12.2, 12.3, 12.5
-
 func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
@@ -337,13 +315,11 @@ func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Server defaults (Requirement 12.1)
 	assert.Equal(t, 9090, cfg.GRPC.Server.Port)
 	assert.Equal(t, "", cfg.GRPC.Server.TLSCertPath)
 	assert.Equal(t, "", cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, time.Duration(0), cfg.GRPC.Server.MaxConnAge)
 
-	// Client defaults (Requirement 12.2, 12.3)
 	assert.Equal(t, 5*time.Second, cfg.GRPC.Client.DialTimeout)
 	assert.Equal(t, 30*time.Second, cfg.GRPC.Client.KeepAliveTime)
 	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
@@ -364,13 +340,11 @@ func TestLoad_ShouldParseAllGRPCEnvVars_WhenAllSet(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Server (Requirement 12.1)
 	assert.Equal(t, 50051, cfg.GRPC.Server.Port)
 	assert.Equal(t, "/certs/server.crt", cfg.GRPC.Server.TLSCertPath)
 	assert.Equal(t, "/certs/server.key", cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, 5*time.Minute, cfg.GRPC.Server.MaxConnAge)
 
-	// Client (Requirement 12.2)
 	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.DialTimeout)
 	assert.Equal(t, 1*time.Minute, cfg.GRPC.Client.KeepAliveTime)
 	assert.Equal(t, 20*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
@@ -380,18 +354,15 @@ func TestLoad_ShouldParsePartialGRPCEnvVars_WhenSomeSet(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
-	// Only set port and dial timeout, leave the rest as defaults
 	t.Setenv("GRPC_SERVER_PORT", "8443")
 	t.Setenv("GRPC_DIAL_TIMEOUT", "15s")
 
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Set values
 	assert.Equal(t, 8443, cfg.GRPC.Server.Port)
 	assert.Equal(t, 15*time.Second, cfg.GRPC.Client.DialTimeout)
 
-	// Defaults for unset vars
 	assert.Equal(t, "", cfg.GRPC.Server.TLSCertPath)
 	assert.Equal(t, "", cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, time.Duration(0), cfg.GRPC.Server.MaxConnAge)
@@ -409,7 +380,6 @@ func TestLoad_ShouldIndicateTLSEnabled_WhenBothCertAndKeyPathsProvided(t *testin
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Requirement 12.5: TLS enabled when both paths are present
 	assert.NotEmpty(t, cfg.GRPC.Server.TLSCertPath)
 	assert.NotEmpty(t, cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, "/certs/server.crt", cfg.GRPC.Server.TLSCertPath)
@@ -421,12 +391,10 @@ func TestLoad_ShouldIndicateNoTLS_WhenOnlyCertPathProvided(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
-	// GRPC_TLS_KEY_PATH not set
 
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Requirement 12.5: TLS not usable when only cert path is set
 	assert.NotEmpty(t, cfg.GRPC.Server.TLSCertPath)
 	assert.Empty(t, cfg.GRPC.Server.TLSKeyPath)
 }
@@ -436,12 +404,10 @@ func TestLoad_ShouldIndicateNoTLS_WhenOnlyKeyPathProvided(t *testing.T) {
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_TLS_KEY_PATH", "/certs/server.key")
-	// GRPC_TLS_CERT_PATH not set
 
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Requirement 12.5: TLS not usable when only key path is set
 	assert.Empty(t, cfg.GRPC.Server.TLSCertPath)
 	assert.NotEmpty(t, cfg.GRPC.Server.TLSKeyPath)
 }
@@ -453,7 +419,6 @@ func TestLoad_ShouldIndicateNoTLS_WhenNeitherCertNorKeyPathProvided(t *testing.T
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Requirement 12.5: No TLS when both paths are empty
 	assert.Empty(t, cfg.GRPC.Server.TLSCertPath)
 	assert.Empty(t, cfg.GRPC.Server.TLSKeyPath)
 }
@@ -467,7 +432,6 @@ func TestLoad_ShouldUseDefaultGRPCPort_WhenInvalidPortProvided(t *testing.T) {
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Falls back to default 9090
 	assert.Equal(t, 9090, cfg.GRPC.Server.Port)
 }
 
@@ -482,7 +446,6 @@ func TestLoad_ShouldUseDefaultDuration_WhenInvalidDurationProvided(t *testing.T)
 	cfg, err := Load("")
 	require.NoError(t, err)
 
-	// Falls back to defaults
 	assert.Equal(t, 5*time.Second, cfg.GRPC.Client.DialTimeout)
 	assert.Equal(t, 30*time.Second, cfg.GRPC.Client.KeepAliveTime)
 	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.KeepAliveTimeout)

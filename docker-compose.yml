@@ -65,9 +65,8 @@ services:
   gateway:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/gateway/Dockerfile
     container_name: parkir-gateway
-    command: ["/app/gateway"]
     ports:
       - "11000:8080"
     environment:
@@ -107,9 +106,8 @@ services:
   search:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/search/Dockerfile
     container_name: parkir-search
-    command: ["/app/search"]
     ports:
       - "11001:9090"
     environment:
@@ -150,9 +148,8 @@ services:
   reservation:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/reservation/Dockerfile
     container_name: parkir-reservation
-    command: ["/app/reservation"]
     ports:
       - "11002:9090"
     environment:
@@ -202,9 +199,8 @@ services:
   billing:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/billing/Dockerfile
     container_name: parkir-billing
-    command: ["/app/billing"]
     ports:
       - "11003:9090"
     environment:
@@ -236,9 +232,8 @@ services:
   payment:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: cmd/payment/Dockerfile
     container_name: parkir-payment
-    command: ["/app/payment"]
     ports:
       - "11004:9090"
     environment:
@@ -260,6 +255,43 @@ services:
       postgres:
         condition: service_healthy
       nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9090 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  presence:
+    build:
+      context: .
+      dockerfile: cmd/presence/Dockerfile
+    container_name: parkir-presence
+    ports:
+      - "11005:9090"
+    environment:
+      APP_NAME: parkir-pintar-presence
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9090"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SSL_MODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      TRACING_ENABLED: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - backend

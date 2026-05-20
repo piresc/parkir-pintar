@@ -1,3 +1,6 @@
+# DEPRECATED: Use per-service Dockerfiles in cmd/<service>/Dockerfile instead.
+# This file is kept for backward compatibility with existing CI pipelines.
+
 # =============================================================================
 # Stage 1: Build
 # =============================================================================

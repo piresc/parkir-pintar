@@ -19,7 +19,7 @@ COMPOSE_FILE := docker-compose.yml
 
 # Migration
 MIGRATE := $(shell which migrate 2>/dev/null || echo "migrate")
-MIGRATION_DIR := migrations
+MIGRATION_DIR := db/migrations
 
 # Coverage
 COVERAGE_DIR := .coverage
@@ -27,7 +27,7 @@ COVERAGE_FILE := $(COVERAGE_DIR)/coverage.out
 COVERAGE_HTML := $(COVERAGE_DIR)/coverage.html
 
 # Services
-SERVICES := reservation billing payment presence search gateway
+SERVICES := reservation billing payment presence search gateway analytics
 
 # Build info
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -123,14 +123,7 @@ security:
 ## proto: Generate protobuf/gRPC code
 proto:
 	@echo "==> Generating protobuf code..."
-	@for proto_file in $$(find api/proto -name "*.proto"); do \
-		echo "  Generating $$proto_file..."; \
-		$(PROTOC) \
-			--go_out=. --go_opt=paths=source_relative \
-			--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-			-I api/proto \
-			$$proto_file; \
-	done
+	@cd proto && buf generate
 	@echo "==> Proto generation complete."
 
 ## docker-up: Start all services with docker compose

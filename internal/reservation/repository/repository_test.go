@@ -160,28 +160,6 @@ func TestGetByIDForUpdate(t *testing.T) {
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestFindExpiredReservations_Empty(t *testing.T) {
-	db, mock := setupTestDB(t)
-	defer db.Close()
-
-	rows := sqlmock.NewRows([]string{
-		"id", "driver_id", "spot_id", "vehicle_type", "assignment_mode",
-		"status", "idempotency_key", "confirmed_at", "expires_at",
-		"checked_in_at", "checked_out_at", "cancelled_at", "created_at", "updated_at",
-	})
-
-	mock.ExpectQuery(regexp.QuoteMeta(
-		"SELECT * FROM reservations WHERE status = 'confirmed' AND expires_at < NOW()",
-	)).WillReturnRows(rows)
-
-	repo := NewRepository(db)
-	result, err := repo.FindExpiredReservations(context.Background())
-
-	assert.NoError(t, err)
-	assert.Empty(t, result)
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
 func TestGetByID_NotFound(t *testing.T) {
 	db, mock := setupTestDB(t)
 	defer db.Close()

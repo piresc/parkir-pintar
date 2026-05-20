@@ -71,21 +71,6 @@ func (mr *MockRepositoryMockRecorder) FindAvailableSpot(ctx, vehicleType any) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAvailableSpot", reflect.TypeOf((*MockRepository)(nil).FindAvailableSpot), ctx, vehicleType)
 }
 
-// FindAvailableSpotTx mocks base method.
-func (m *MockRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindAvailableSpotTx", ctx, tx, vehicleType)
-	ret0, _ := ret[0].(*model.ParkingSpot)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindAvailableSpotTx indicates an expected call of FindAvailableSpotTx.
-func (mr *MockRepositoryMockRecorder) FindAvailableSpotTx(ctx, tx, vehicleType any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAvailableSpotTx", reflect.TypeOf((*MockRepository)(nil).FindAvailableSpotTx), ctx, tx, vehicleType)
-}
-
 // FindByIdempotencyKey mocks base method.
 func (m *MockRepository) FindByIdempotencyKey(ctx context.Context, key string) (*model.Reservation, error) {
 	m.ctrl.T.Helper()
@@ -99,36 +84,6 @@ func (m *MockRepository) FindByIdempotencyKey(ctx context.Context, key string) (
 func (mr *MockRepositoryMockRecorder) FindByIdempotencyKey(ctx, key any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByIdempotencyKey", reflect.TypeOf((*MockRepository)(nil).FindByIdempotencyKey), ctx, key)
-}
-
-// FindExpiredReservations mocks base method.
-func (m *MockRepository) FindExpiredReservations(ctx context.Context) ([]*model.Reservation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindExpiredReservations", ctx)
-	ret0, _ := ret[0].([]*model.Reservation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindExpiredReservations indicates an expected call of FindExpiredReservations.
-func (mr *MockRepositoryMockRecorder) FindExpiredReservations(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindExpiredReservations", reflect.TypeOf((*MockRepository)(nil).FindExpiredReservations), ctx)
-}
-
-// FindStalePaymentReservations mocks base method.
-func (m *MockRepository) FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindStalePaymentReservations", ctx, timeoutMinutes)
-	ret0, _ := ret[0].([]*model.Reservation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindStalePaymentReservations indicates an expected call of FindStalePaymentReservations.
-func (mr *MockRepositoryMockRecorder) FindStalePaymentReservations(ctx, timeoutMinutes any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindStalePaymentReservations", reflect.TypeOf((*MockRepository)(nil).FindStalePaymentReservations), ctx, timeoutMinutes)
 }
 
 // GetByID mocks base method.

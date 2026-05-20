@@ -71,14 +71,6 @@ func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*
 	return args.Get(0).(*model.ParkingSpot), args.Error(1)
 }
 
-func (m *MockRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error) {
-	args := m.Called(ctx, tx, vehicleType)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.ParkingSpot), args.Error(1)
-}
-
 func (m *MockRepository) GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error) {
 	args := m.Called(ctx, tx, spotID)
 	if args.Get(0) == nil {
@@ -95,22 +87,6 @@ func (m *MockRepository) CreateReservationTx(ctx context.Context, tx *sqlx.Tx, r
 func (m *MockRepository) UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, spotID string, status string) error {
 	args := m.Called(ctx, tx, spotID, status)
 	return args.Error(0)
-}
-
-func (m *MockRepository) FindExpiredReservations(ctx context.Context) ([]*model.Reservation, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*model.Reservation), args.Error(1)
-}
-
-func (m *MockRepository) FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error) {
-	args := m.Called(ctx, timeoutMinutes)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*model.Reservation), args.Error(1)
 }
 
 func (m *MockRepository) ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error) {
@@ -280,7 +256,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-42", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
@@ -327,7 +303,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-99", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
@@ -844,8 +820,8 @@ func TestConfirmReservation_ShouldTransitionToConfirmed_WhenWaitingPayment(t *te
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-confirm").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
-	billing.On("StartBilling", mock.Anything, "res-confirm", constants.BookingFee, mock.AnythingOfType("string")).Return(billingRecord, nil)
-	payment.On("ProcessPayment", mock.Anything, "billing-1", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-1", nil)
+	billing.On("StartBilling", mock.Anything, "res-confirm", pricing.BookingFee, mock.AnythingOfType("string")).Return(billingRecord, nil)
+	payment.On("ProcessPayment", mock.Anything, "billing-1", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-1", nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	result, err := uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{ReservationID: "res-confirm"})

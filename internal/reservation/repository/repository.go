@@ -18,18 +18,15 @@ import (
 type Repository interface {
 	FindByIdempotencyKey(ctx context.Context, key string) (*model.Reservation, error)
 	FindAvailableSpot(ctx context.Context, vehicleType string) (*model.ParkingSpot, error)
-	FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error)
 	GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error)
 	CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
 	UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, spotID string, status string) error
 	UpdateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
-	FindExpiredReservations(ctx context.Context) ([]*model.Reservation, error)
 	GetByID(ctx context.Context, id string) (*model.Reservation, error)
 	GetByIDForUpdate(ctx context.Context, tx *sqlx.Tx, id string) (*model.Reservation, error)
 	WithTransaction(ctx context.Context, fn func(tx *sqlx.Tx) error) error
-	FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error)
 	ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error)
 }
 
@@ -47,7 +44,6 @@ func (r *sqlxRepository) FindByIdempotencyKey(ctx context.Context, key string) (
 }
 
 // FindAvailableSpot retrieves the first available parking spot matching the vehicle type.
-// This is a read-only hint; the actual lock is acquired via FindAvailableSpotTx within a transaction.
 func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType string) (*model.ParkingSpot, error) {
 	var spot model.ParkingSpot
 	err := r.db.GetContext(ctx, &spot,
@@ -66,26 +62,7 @@ func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 	return &spot, nil
 }
 
-// FindAvailableSpotTx retrieves the first available spot within a transaction,
-// holding the row lock until the transaction commits.
-func (r *sqlxRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, vehicleType string) (*model.ParkingSpot, error) {
-	var spot model.ParkingSpot
-	err := tx.GetContext(ctx, &spot,
-		`SELECT * FROM parking_spots
-		 WHERE vehicle_type = $1 AND status = 'available'
-		 ORDER BY floor_number, spot_number
-		 LIMIT 1
-		 FOR UPDATE SKIP LOCKED`,
-		vehicleType,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: vehicle_type=%s", reservationerrors.ErrNotFound, vehicleType)
-		}
-		return nil, fmt.Errorf("find available spot tx: %w", err)
-	}
-	return &spot, nil
-}
+
 
 // GetSpotByID retrieves a parking spot by ID (read-only, no lock).
 func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
@@ -155,17 +132,7 @@ func (r *sqlxRepository) UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, sp
 	return nil
 }
 
-// FindExpiredReservations retrieves all confirmed reservations that have passed their expiry time.
-func (r *sqlxRepository) FindExpiredReservations(ctx context.Context) ([]*model.Reservation, error) {
-	var reservations []*model.Reservation
-	err := r.db.SelectContext(ctx, &reservations,
-		"SELECT * FROM reservations WHERE status = 'confirmed' AND expires_at < NOW()",
-	)
-	if err != nil {
-		return nil, fmt.Errorf("find expired reservations: %w", err)
-	}
-	return reservations, nil
-}
+
 
 // GetByID retrieves a single reservation by its UUID.
 func (r *sqlxRepository) GetByID(ctx context.Context, id string) (*model.Reservation, error) {
@@ -231,19 +198,7 @@ func (r *sqlxRepository) WithTransaction(ctx context.Context, fn func(tx *sqlx.T
 	return nil
 }
 
-// FindStalePaymentReservations retrieves waiting_payment reservations whose
-// created_at is older than the specified timeout in minutes.
-func (r *sqlxRepository) FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error) {
-	var reservations []*model.Reservation
-	query := `SELECT * FROM reservations
-		WHERE status = 'waiting_payment'
-		AND created_at < NOW() - make_interval(mins => $1)`
-	err := r.db.SelectContext(ctx, &reservations, query, timeoutMinutes)
-	if err != nil {
-		return nil, fmt.Errorf("find stale payment reservations: %w", err)
-	}
-	return reservations, nil
-}
+
 
 // ListByDriverID retrieves reservations for a given driver, optionally filtered by status.
 func (r *sqlxRepository) ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error) {

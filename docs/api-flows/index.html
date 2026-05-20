@@ -5,26 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Parkir Pintar — API Flow Documentation</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
 :root {
   --bg-primary: #0d0d0d;
   --bg-secondary: #1a1a1a;
   --bg-tertiary: #242424;
   --bg-card: #1e1e1e;
+  --bg-code: #0d1117;
   --border: #333;
   --border-accent: #f59e0b;
+  --border-amber: rgba(245, 158, 11, 0.3);
   --text-primary: #e5e5e5;
   --text-secondary: #a3a3a3;
   --text-muted: #737373;
-  --amber-50: #fffbeb;
-  --amber-100: #fef3c7;
-  --amber-200: #fde68a;
   --amber-300: #fcd34d;
   --amber-400: #fbbf24;
   --amber-500: #f59e0b;
   --amber-600: #d97706;
   --amber-700: #b45309;
-  --amber-800: #92400e;
-  --amber-900: #78350f;
+  --amber-dim: #92610a;
+  --amber-glow: rgba(245, 158, 11, 0.15);
   --green-400: #4ade80;
   --green-500: #22c55e;
   --red-400: #f87171;
@@ -41,7 +42,6 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
 html { scroll-behavior: smooth; scroll-padding-top: 2rem; }
 
 body {
@@ -150,8 +150,8 @@ body {
 
 .method-badge-sm.post { background: rgba(34, 197, 94, 0.15); color: var(--green-400); }
 .method-badge-sm.get { background: rgba(96, 165, 250, 0.15); color: var(--blue-400); }
-.method-badge-sm.put { background: rgba(251, 191, 36, 0.15); color: var(--amber-400); }
 .method-badge-sm.delete { background: rgba(248, 113, 113, 0.15); color: var(--red-400); }
+.method-badge-sm.event { background: rgba(192, 132, 252, 0.15); color: var(--purple-400); }
 
 /* Main Content */
 .main {
@@ -211,6 +211,13 @@ body {
   margin-bottom: 1.5rem;
 }
 
+.endpoint-number {
+  font-size: 0.7rem;
+  color: var(--amber-dim);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
 .method-badge {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -222,6 +229,7 @@ body {
 
 .method-badge.post { background: rgba(34, 197, 94, 0.15); color: var(--green-400); border: 1px solid rgba(34, 197, 94, 0.3); }
 .method-badge.get { background: rgba(96, 165, 250, 0.15); color: var(--blue-400); border: 1px solid rgba(96, 165, 250, 0.3); }
+.method-badge.delete { background: rgba(248, 113, 113, 0.15); color: var(--red-400); border: 1px solid rgba(248, 113, 113, 0.3); }
 
 .endpoint-path {
   font-family: var(--font-mono);
@@ -271,7 +279,7 @@ body {
 
 /* Code Blocks */
 .code-block {
-  background: var(--bg-primary);
+  background: var(--bg-code);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem 1.5rem;
@@ -301,8 +309,32 @@ body {
 .code-block .comment { color: var(--text-muted); font-style: italic; }
 .code-block .keyword { color: var(--purple-400); }
 .code-block .sql-keyword { color: var(--amber-400); font-weight: 600; }
+.code-block .type { color: var(--blue-400); }
 
-/* Flow Diagram */
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  font-size: 0.8rem;
+  line-height: 1.8;
+  margin: 0.75rem 0;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.key { color: var(--blue-400); }
+.string { color: var(--green-400); }
+.number { color: var(--amber-300); }
+.comment { color: var(--text-muted); font-style: italic; }
+.keyword { color: var(--purple-400); }
+.type { color: var(--blue-400); }
+
+/* Flow Diagram - Horizontal */
 .flow-diagram {
   display: flex;
   flex-direction: column;
@@ -316,7 +348,7 @@ body {
   gap: 0;
 }
 
-.flow-step {
+.flow-step-h {
   flex: 1;
   padding: 1rem 1.25rem;
   background: var(--bg-primary);
@@ -328,10 +360,10 @@ body {
   justify-content: center;
 }
 
-.flow-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
-.flow-step:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.flow-step-h:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.flow-step-h:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
 
-.flow-step:not(:last-child)::after {
+.flow-step-h:not(:last-child)::after {
   content: '';
   position: absolute;
   right: -8px;
@@ -484,7 +516,7 @@ body {
 
 /* SQL Block */
 .sql-block {
-  background: var(--bg-primary);
+  background: var(--bg-code);
   border: 1px solid var(--border);
   border-left: 3px solid var(--amber-600);
   border-radius: 0 var(--radius) var(--radius) 0;
@@ -495,26 +527,6 @@ body {
   overflow-x: auto;
   margin: 0.5rem 0;
 }
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .sidebar { width: 240px; }
-  .main { margin-left: 240px; padding: 2rem; }
-}
-
-@media (max-width: 768px) {
-  .sidebar { display: none; }
-  .main { margin-left: 0; padding: 1.5rem; }
-  .flow-row { flex-direction: column; }
-  .flow-step:not(:last-child)::after { display: none; }
-  .flow-step { border-radius: var(--radius) !important; margin-bottom: 0.5rem; }
-}
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* Note callout */
 .note {
@@ -533,10 +545,67 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+/* NATS Section */
+.nats-section {
+  margin-top: 5rem;
+  padding-top: 2.5rem;
+  border-top: 2px solid var(--amber-dim);
+}
+
+.nats-header {
+  font-size: 1.5rem;
+  color: var(--amber-400);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.consumer-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--purple-500);
+  border-radius: var(--radius);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.consumer-title {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.consumer-subject {
+  font-size: 0.8rem;
+  color: var(--purple-400);
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  font-family: var(--font-mono);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sidebar { width: 240px; }
+  .main { margin-left: 240px; padding: 2rem; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 1.5rem; max-width: 100%; }
+  .flow-row { flex-direction: column; }
+  .flow-step-h:not(:last-child)::after { display: none; }
+  .flow-step-h { border-radius: var(--radius) !important; margin-bottom: 0.5rem; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 </style>
 </head>
 <body>
-
 <!-- Sidebar Navigation -->
 <nav class="sidebar">
   <div class="sidebar-header">
@@ -570,6 +639,58 @@ body {
       <span class="method-badge-sm post">POST</span>
       <span>/:id/checkout</span>
     </a>
+    <a href="#complete-checkout" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/:id/complete</span>
+    </a>
+    <a href="#cancel-reservation" class="nav-link">
+      <span class="method-badge-sm delete">DEL</span>
+      <span>/:id (cancel)</span>
+    </a>
+    <a href="#get-reservation" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/:id</span>
+    </a>
+    <a href="#list-by-driver" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/reservations</span>
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Availability &amp; Spots</div>
+    <a href="#get-availability" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/availability</span>
+    </a>
+    <a href="#get-floor-map" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/floors/:floor</span>
+    </a>
+    <a href="#get-spot-details" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/spots/:id</span>
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Payments &amp; Presence</div>
+    <a href="#get-payment-status" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/payments/:id/status</span>
+    </a>
+    <a href="#stream-presence" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/presence/stream</span>
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Background Flows</div>
+    <a href="#nats-consumers" class="nav-link">
+      <span class="method-badge-sm event">EVT</span>
+      <span>NATS Consumers</span>
+    </a>
   </div>
 </nav>
 
@@ -585,6 +706,7 @@ body {
   <!-- ============================================================ -->
   <section class="endpoint-section" id="auth-login">
     <div class="endpoint-header">
+      <span class="endpoint-number">#01</span>
       <span class="method-badge post">POST</span>
       <span class="endpoint-path">/api/v1/auth/login</span>
       <span class="endpoint-title">Authentication — Gateway Only</span>
@@ -594,24 +716,23 @@ body {
       Authenticates a driver by ID and returns a signed JWT token. This endpoint is handled entirely at the HTTP gateway layer with no gRPC delegation.
     </p>
 
-    <!-- Flow Diagram -->
     <div class="sub-section">
       <div class="sub-section-title">Request Flow</div>
       <div class="flow-diagram">
         <div class="flow-row">
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Client</div>
             <div class="flow-step-content">POST JSON body with driver_id</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Gateway</div>
             <div class="flow-step-content">Bind JSON, validate driver_id not empty</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">JWT Service</div>
             <div class="flow-step-content">Generate signed token with expiry</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Response</div>
             <div class="flow-step-content">Return token + metadata</div>
           </div>
@@ -619,7 +740,6 @@ body {
       </div>
     </div>
 
-    <!-- Request -->
     <div class="sub-section">
       <div class="sub-section-title">Request Body</div>
       <div class="code-block">
@@ -630,7 +750,6 @@ body {
       </div>
     </div>
 
-    <!-- Response -->
     <div class="sub-section">
       <div class="sub-section-title">Success Response — 200</div>
       <div class="code-block">
@@ -643,7 +762,6 @@ body {
       </div>
     </div>
 
-    <!-- Errors -->
     <div class="sub-section">
       <div class="sub-section-title">Error Cases</div>
       <table class="error-table">
@@ -658,12 +776,12 @@ body {
       </table>
     </div>
   </section>
-
   <!-- ============================================================ -->
   <!-- ENDPOINT 2: POST /api/v1/reservations -->
   <!-- ============================================================ -->
   <section class="endpoint-section" id="create-reservation">
     <div class="endpoint-header">
+      <span class="endpoint-number">#02</span>
       <span class="method-badge post">POST</span>
       <span class="endpoint-path">/api/v1/reservations</span>
       <span class="endpoint-title">CreateReservation</span>
@@ -673,24 +791,23 @@ body {
       Creates a new parking reservation with full idempotency support, distributed locking, transactional spot assignment, billing integration, and async task scheduling.
     </p>
 
-    <!-- Flow Diagram -->
     <div class="sub-section">
       <div class="sub-section-title">High-Level Flow</div>
       <div class="flow-diagram">
         <div class="flow-row">
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Gateway</div>
             <div class="flow-step-content">Parse JSON, enforce ownership (driver_id == JWT user), build gRPC request</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">gRPC Handler</div>
             <div class="flow-step-content">Validate required fields, delegate to usecase</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Usecase</div>
             <div class="flow-step-content">Idempotency → Lock → Transaction → Billing → Tasks → Events</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Repository</div>
             <div class="flow-step-content">PostgreSQL queries within transaction</div>
           </div>
@@ -698,7 +815,6 @@ body {
       </div>
     </div>
 
-    <!-- Detailed Steps -->
     <div class="sub-section">
       <div class="sub-section-title">Usecase Detail Steps</div>
       <div class="flow-vertical">
@@ -745,26 +861,24 @@ body {
       </div>
     </div>
 
-    <!-- SQL Queries -->
     <div class="sub-section">
       <div class="sub-section-title">SQL Queries</div>
       <div class="sql-block"><span class="comment">-- Idempotency check</span>
-<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> reservations <span class="sql-keyword">WHERE</span> idempotency_key = $1;</div>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> reservations <span class="sql-keyword">WHERE</span> idempotency_key = ;</div>
       <div class="sql-block"><span class="comment">-- Find available spot (system-assigned)</span>
 <span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> parking_spots
-<span class="sql-keyword">WHERE</span> vehicle_type = $1 <span class="sql-keyword">AND</span> status = <span class="string">'available'</span>
+<span class="sql-keyword">WHERE</span> vehicle_type =  <span class="sql-keyword">AND</span> status = <span class="string">'available'</span>
 <span class="sql-keyword">ORDER BY</span> floor_number, spot_number
 <span class="sql-keyword">LIMIT</span> 1;</div>
       <div class="sql-block"><span class="comment">-- Lock spot row for update</span>
-<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> parking_spots <span class="sql-keyword">WHERE</span> id = $1 <span class="sql-keyword">FOR UPDATE</span>;</div>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> parking_spots <span class="sql-keyword">WHERE</span> id =  <span class="sql-keyword">FOR UPDATE</span>;</div>
       <div class="sql-block"><span class="comment">-- Insert reservation</span>
 <span class="sql-keyword">INSERT INTO</span> reservations (id, driver_id, spot_id, status, idempotency_key, created_at, ...)
-<span class="sql-keyword">VALUES</span> ($1, $2, $3, $4, $5, $6, ...);</div>
+<span class="sql-keyword">VALUES</span> (, , , , , , ...);</div>
       <div class="sql-block"><span class="comment">-- Update spot status</span>
-<span class="sql-keyword">UPDATE</span> parking_spots <span class="sql-keyword">SET</span> status = $1 <span class="sql-keyword">WHERE</span> id = $2;</div>
+<span class="sql-keyword">UPDATE</span> parking_spots <span class="sql-keyword">SET</span> status =  <span class="sql-keyword">WHERE</span> id = ;</div>
     </div>
 
-    <!-- Events -->
     <div class="sub-section">
       <div class="sub-section-title">Published Events (NATS)</div>
       <div>
@@ -779,6 +893,7 @@ body {
   <!-- ============================================================ -->
   <section class="endpoint-section" id="confirm-reservation">
     <div class="endpoint-header">
+      <span class="endpoint-number">#03</span>
       <span class="method-badge post">POST</span>
       <span class="endpoint-path">/api/v1/reservations/:id/confirm</span>
       <span class="endpoint-title">ConfirmReservation</span>
@@ -788,24 +903,23 @@ body {
       Confirms a reservation by processing payment. Uses a multi-phase approach with TOCTOU protection to ensure consistency between payment processing and status updates.
     </p>
 
-    <!-- Flow Diagram -->
     <div class="sub-section">
       <div class="sub-section-title">High-Level Flow</div>
       <div class="flow-diagram">
         <div class="flow-row">
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Gateway</div>
             <div class="flow-step-content">Extract :id param, call gRPC ConfirmReservation</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">gRPC Handler</div>
             <div class="flow-step-content">Validate reservation_id, extract CallerID from metadata</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Usecase</div>
             <div class="flow-step-content">4-phase: Lock → Billing → Payment → Commit</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">External</div>
             <div class="flow-step-content">Billing + Payment services</div>
           </div>
@@ -813,7 +927,6 @@ body {
       </div>
     </div>
 
-    <!-- Detailed Steps -->
     <div class="sub-section">
       <div class="sub-section-title">Multi-Phase Execution</div>
       <div class="flow-vertical">
@@ -857,7 +970,6 @@ body {
       </div>
     </div>
 
-    <!-- Events -->
     <div class="sub-section">
       <div class="sub-section-title">Published Events (NATS)</div>
       <div>
@@ -865,7 +977,6 @@ body {
       </div>
     </div>
 
-    <!-- External Calls -->
     <div class="sub-section">
       <div class="sub-section-title">External Service Calls</div>
       <div class="code-block">
@@ -877,7 +988,6 @@ paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span 
       </div>
     </div>
 
-    <!-- Errors -->
     <div class="sub-section">
       <div class="sub-section-title">Error Cases</div>
       <table class="error-table">
@@ -894,12 +1004,12 @@ paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span 
       </table>
     </div>
   </section>
-
   <!-- ============================================================ -->
   <!-- ENDPOINT 4: POST /api/v1/reservations/:id/checkin -->
   <!-- ============================================================ -->
   <section class="endpoint-section" id="checkin">
     <div class="endpoint-header">
+      <span class="endpoint-number">#04</span>
       <span class="method-badge post">POST</span>
       <span class="endpoint-path">/api/v1/reservations/:id/checkin</span>
       <span class="endpoint-title">CheckIn</span>
@@ -909,24 +1019,23 @@ paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span 
       Records driver arrival at the parking spot. Transitions reservation to checked_in, marks spot as occupied, activates billing timer, and optionally verifies physical presence.
     </p>
 
-    <!-- Flow Diagram -->
     <div class="sub-section">
       <div class="sub-section-title">High-Level Flow</div>
       <div class="flow-diagram">
         <div class="flow-row">
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Gateway</div>
             <div class="flow-step-content">Extract :id, call gRPC CheckIn</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">gRPC Handler</div>
             <div class="flow-step-content">Validate ID, extract CallerID</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Usecase</div>
             <div class="flow-step-content">Transaction → Billing → Presence → Events</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Repository</div>
             <div class="flow-step-content">Update reservation + spot status</div>
           </div>
@@ -934,7 +1043,6 @@ paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span 
       </div>
     </div>
 
-    <!-- Detailed Steps -->
     <div class="sub-section">
       <div class="sub-section-title">Usecase Detail Steps</div>
       <div class="flow-vertical">
@@ -971,7 +1079,6 @@ paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span 
       </div>
     </div>
 
-    <!-- Events -->
     <div class="sub-section">
       <div class="sub-section-title">Published Events (NATS)</div>
       <div>
@@ -980,7 +1087,6 @@ paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span 
       </div>
     </div>
 
-    <!-- External Calls -->
     <div class="sub-section">
       <div class="sub-section-title">External Service Calls</div>
       <div class="code-block">
@@ -1002,6 +1108,7 @@ presenceClient.VerifyPresence(reservationID)
   <!-- ============================================================ -->
   <section class="endpoint-section" id="checkout">
     <div class="endpoint-header">
+      <span class="endpoint-number">#05</span>
       <span class="method-badge post">POST</span>
       <span class="endpoint-path">/api/v1/reservations/:id/checkout</span>
       <span class="endpoint-title">CheckOut</span>
@@ -1011,24 +1118,23 @@ presenceClient.VerifyPresence(reservationID)
       Initiates the checkout process. Calculates parking fees based on duration, generates an invoice, and returns a billing breakdown. Note: the spot remains "occupied" until a separate CompleteCheckout flow releases it.
     </p>
 
-    <!-- Flow Diagram -->
     <div class="sub-section">
       <div class="sub-section-title">High-Level Flow</div>
       <div class="flow-diagram">
         <div class="flow-row">
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Gateway</div>
             <div class="flow-step-content">Extract :id, call gRPC CheckOut</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">gRPC Handler</div>
             <div class="flow-step-content">Validate ID, extract CallerID</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Usecase</div>
             <div class="flow-step-content">Transaction → Fee Calculation → Invoice</div>
           </div>
-          <div class="flow-step">
+          <div class="flow-step-h">
             <div class="flow-step-label">Billing</div>
             <div class="flow-step-content">CalculateFee + GenerateInvoice</div>
           </div>
@@ -1036,7 +1142,6 @@ presenceClient.VerifyPresence(reservationID)
       </div>
     </div>
 
-    <!-- Detailed Steps -->
     <div class="sub-section">
       <div class="sub-section-title">Usecase Detail Steps</div>
       <div class="flow-vertical">
@@ -1077,7 +1182,6 @@ presenceClient.VerifyPresence(reservationID)
       <strong>Important:</strong> The parking spot remains in <code>occupied</code> status after checkout. It is only released back to <code>available</code> when the <code>CompleteCheckout</code> flow runs (after payment is settled). This prevents the spot from being re-assigned before the vehicle physically leaves.
     </div>
 
-    <!-- External Calls -->
     <div class="sub-section">
       <div class="sub-section-title">External Service Calls</div>
       <div class="code-block">
@@ -1089,7 +1193,6 @@ billingClient.GenerateInvoice(reservationID)
       </div>
     </div>
 
-    <!-- Response -->
     <div class="sub-section">
       <div class="sub-section-title">Success Response — 200</div>
       <div class="code-block">
@@ -1109,13 +1212,895 @@ billingClient.GenerateInvoice(reservationID)
       </div>
     </div>
   </section>
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 6: POST /api/v1/reservations/:id/complete -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="complete-checkout">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#06</span>
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/reservations/:id/complete</span>
+      <span class="endpoint-title">CompleteCheckout</span>
+    </div>
 
+    <p class="endpoint-desc">
+      Finalizes a checked-out reservation by generating an invoice, processing payment via QRIS, and releasing the parking spot back to available status.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Extract reservation <code>:id</code> from path, call gRPC CompleteCheckout</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 1 — Transaction</div>
+          <div class="step-text">GetByIDForUpdate → ownership check → status must be <code>checked_out</code>. Acquires row lock to prevent concurrent completion.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 2 — Billing</div>
+          <div class="step-text"><code>billingClient.GenerateInvoice</code> (idempotent re-fetch). If invoice already exists, fetches existing one instead of creating duplicate.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 3 — Payment</div>
+          <div class="step-text"><code>paymentClient.ProcessPayment(billingID, totalAmount, "qris", idempotencyKey)</code>. QRIS payment processing with idempotency key for safe retries.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 4 — Finalize (Transaction)</div>
+          <div class="step-text">Set status=<code>completed</code>, UpdateSpotStatusTx(<code>available</code>). Spot released back to pool within same transaction.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Events Published</div>
+          <div class="step-text">Emit NATS events for search index and analytics.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Published Events (NATS)</div>
+      <div>
+        <span class="event-tag">reservation.search.spot-updated</span>
+        <span class="event-tag">reservation.analytics.completed</span>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Queries</div>
+      <div class="sql-block"><span class="comment">-- Phase 1: Lock reservation row</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> reservations
+<span class="sql-keyword">WHERE</span> id =  <span class="sql-keyword">FOR UPDATE</span>;</div>
+      <div class="sql-block"><span class="comment">-- Phase 4: Mark completed</span>
+<span class="sql-keyword">UPDATE</span> reservations
+<span class="sql-keyword">SET</span> status = <span class="string">'completed'</span>, completed_at = NOW()
+<span class="sql-keyword">WHERE</span> id = ;</div>
+      <div class="sql-block"><span class="comment">-- Phase 4: Release spot</span>
+<span class="sql-keyword">UPDATE</span> parking_spots
+<span class="sql-keyword">SET</span> status = <span class="string">'available'</span>
+<span class="sql-keyword">WHERE</span> id = ;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"id"</span>: <span class="string">"uuid"</span>,
+  <span class="key">"status"</span>: <span class="string">"completed"</span>,
+  <span class="key">"completed_at"</span>: <span class="string">"2026-05-20T10:30:00Z"</span>,
+  <span class="key">"invoice"</span>: {
+    <span class="key">"id"</span>: <span class="string">"inv-uuid"</span>,
+    <span class="key">"total_amount"</span>: <span class="number">15000</span>
+  },
+  <span class="key">"payment"</span>: {
+    <span class="key">"method"</span>: <span class="string">"qris"</span>,
+    <span class="key">"status"</span>: <span class="string">"success"</span>
+  }
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>404</td><td>Reservation not found</td><td>reservation not found</td></tr>
+          <tr><td>403</td><td>Not the owner</td><td>unauthorized access</td></tr>
+          <tr><td>409</td><td>Status not checked_out</td><td>invalid state transition</td></tr>
+          <tr><td>502</td><td>Billing/payment service failure</td><td>upstream service error</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 7: DELETE /api/v1/reservations/:id -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="cancel-reservation">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#07</span>
+      <span class="method-badge delete">DELETE</span>
+      <span class="endpoint-path">/api/v1/reservations/:id</span>
+      <span class="endpoint-title">CancelReservation</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Cancels a reservation that is in <code>waiting_payment</code> or <code>confirmed</code> status. No refund is issued — booking fee is forfeited if cancelled from confirmed state.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Extract reservation <code>:id</code> from path, call gRPC CancelReservation</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Transaction</div>
+          <div class="step-text">GetByIDForUpdate → ownership check → ValidateTransition(→cancelled). Only valid from: waiting_payment, confirmed.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Cancel &amp; Release</div>
+          <div class="step-text">Set <code>cancelled_at</code>, UpdateSpotStatusTx(<code>available</code>). Spot immediately returned to available pool.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Events</div>
+          <div class="step-text">Publish spot-updated + analytics cancelled events.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Note:</strong> No refund is issued. If cancelled from <code>confirmed</code> status, the booking fee is forfeited as a cancellation penalty.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Published Events (NATS)</div>
+      <div>
+        <span class="event-tag">reservation.search.spot-updated</span>
+        <span class="event-tag">reservation.analytics.cancelled</span>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Queries</div>
+      <div class="sql-block"><span class="comment">-- Lock reservation</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> reservations
+<span class="sql-keyword">WHERE</span> id =  <span class="sql-keyword">FOR UPDATE</span>;</div>
+      <div class="sql-block"><span class="comment">-- Cancel reservation</span>
+<span class="sql-keyword">UPDATE</span> reservations
+<span class="sql-keyword">SET</span> status = <span class="string">'cancelled'</span>, cancelled_at = NOW()
+<span class="sql-keyword">WHERE</span> id = ;</div>
+      <div class="sql-block"><span class="comment">-- Release spot</span>
+<span class="sql-keyword">UPDATE</span> parking_spots
+<span class="sql-keyword">SET</span> status = <span class="string">'available'</span>
+<span class="sql-keyword">WHERE</span> id = ;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"id"</span>: <span class="string">"uuid"</span>,
+  <span class="key">"status"</span>: <span class="string">"cancelled"</span>,
+  <span class="key">"cancelled_at"</span>: <span class="string">"2026-05-20T10:30:00Z"</span>,
+  <span class="key">"message"</span>: <span class="string">"reservation cancelled successfully"</span>
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>404</td><td>Reservation not found</td><td>reservation not found</td></tr>
+          <tr><td>403</td><td>Not the owner</td><td>unauthorized access</td></tr>
+          <tr><td>409</td><td>Invalid source status</td><td>cannot cancel from current state</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 8: GET /api/v1/reservations/:id -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-reservation">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#08</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/reservations/:id</span>
+      <span class="endpoint-title">GetReservation</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Retrieves a single reservation by ID. Only the owning driver can access their reservation.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Extract reservation <code>:id</code> from path, call gRPC GetReservation</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Usecase</div>
+          <div class="step-text"><code>repo.GetByID</code> → ownership check (driver_id matches JWT)</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Response</div>
+          <div class="step-text">Return full reservation object</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query</div>
+      <div class="sql-block"><span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> reservations
+<span class="sql-keyword">WHERE</span> id = ;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"id"</span>: <span class="string">"uuid"</span>,
+  <span class="key">"driver_id"</span>: <span class="string">"driver-uuid"</span>,
+  <span class="key">"spot_id"</span>: <span class="string">"spot-uuid"</span>,
+  <span class="key">"vehicle_type"</span>: <span class="string">"car"</span>,
+  <span class="key">"status"</span>: <span class="string">"confirmed"</span>,
+  <span class="key">"created_at"</span>: <span class="string">"2026-05-20T09:00:00Z"</span>,
+  <span class="key">"confirmed_at"</span>: <span class="string">"2026-05-20T09:01:00Z"</span>,
+  <span class="key">"checked_in_at"</span>: <span class="type">null</span>,
+  <span class="key">"checked_out_at"</span>: <span class="type">null</span>,
+  <span class="key">"completed_at"</span>: <span class="type">null</span>,
+  <span class="key">"cancelled_at"</span>: <span class="type">null</span>
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>404</td><td>Reservation not found</td><td>reservation not found</td></tr>
+          <tr><td>403</td><td>Wrong owner (driver_id mismatch)</td><td>unauthorized access</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 9: GET /api/v1/reservations -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="list-by-driver">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#09</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/reservations</span>
+      <span class="endpoint-title">ListByDriver</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Lists all reservations for the authenticated driver. Driver ID is extracted from JWT (not query param). Optional <code>?status=</code> filter.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Extract <code>driverID</code> from JWT (not query param), read optional <code>?status=</code>. Security: driver can only see their own reservations.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Usecase</div>
+          <div class="step-text"><code>repo.ListByDriverID(driverID, status)</code>. Joins with parking_spots for spot_code enrichment.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Response</div>
+          <div class="step-text">Return array of reservations ordered by created_at DESC</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query</div>
+      <div class="sql-block"><span class="sql-keyword">SELECT</span> r.*, ps.spot_code
+<span class="sql-keyword">FROM</span> reservations r
+<span class="sql-keyword">JOIN</span> parking_spots ps <span class="sql-keyword">ON</span> ps.id = r.spot_id
+<span class="sql-keyword">WHERE</span> r.driver_id = 
+  <span class="comment">-- Optional status filter:</span>
+  [<span class="sql-keyword">AND</span> r.status = ]
+<span class="sql-keyword">ORDER BY</span> r.created_at <span class="sql-keyword">DESC</span>;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"reservations"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="string">"uuid-1"</span>,
+      <span class="key">"spot_code"</span>: <span class="string">"F2-A03"</span>,
+      <span class="key">"vehicle_type"</span>: <span class="string">"car"</span>,
+      <span class="key">"status"</span>: <span class="string">"confirmed"</span>,
+      <span class="key">"created_at"</span>: <span class="string">"2026-05-20T09:00:00Z"</span>
+    },
+    {
+      <span class="key">"id"</span>: <span class="string">"uuid-2"</span>,
+      <span class="key">"spot_code"</span>: <span class="string">"F1-B07"</span>,
+      <span class="key">"vehicle_type"</span>: <span class="string">"motorcycle"</span>,
+      <span class="key">"status"</span>: <span class="string">"completed"</span>,
+      <span class="key">"created_at"</span>: <span class="string">"2026-05-19T14:00:00Z"</span>
+    }
+  ]
+}
+      </div>
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 10: GET /api/v1/availability -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-availability">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#10</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/availability</span>
+      <span class="endpoint-title">GetAvailability</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Returns per-floor availability counts for a given vehicle type. Uses Redis cache with 5s TTL and singleflight to prevent thundering herd on cache miss.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Read <code>?vehicle_type=</code> query param, call gRPC GetAvailability</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">gRPC Handler</div>
+          <div class="step-text">Validate <code>vehicle_type</code> is required, compute totals from floor data</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Cache Check</div>
+          <div class="step-text"><code>redis.Get("availability:&lt;vehicleType&gt;")</code> — 5s TTL. If hit → return cached result immediately.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Cache Miss</div>
+          <div class="step-text">singleflight → <code>repo.GetAvailabilityByVehicleType</code> → cache result. Singleflight deduplicates concurrent requests for same key.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Response</div>
+          <div class="step-text">Return per-floor availability with totals</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Caching Strategy</div>
+      <div class="code-block">
+<span class="comment">// Redis cache key pattern</span>
+Key:  <span class="string">"availability:&lt;vehicleType&gt;"</span>   <span class="comment">// e.g. "availability:car"</span>
+TTL:  <span class="number">5</span> seconds
+Invalidation: NATS consumer on spot-updated events
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query (on cache miss)</div>
+      <div class="sql-block"><span class="sql-keyword">SELECT</span>
+    floor_number,
+    <span class="type">COUNT</span>(*) <span class="sql-keyword">FILTER</span> (<span class="sql-keyword">WHERE</span> status = <span class="string">'available'</span> <span class="sql-keyword">AND</span> vehicle_type = ) <span class="sql-keyword">AS</span> available,
+    <span class="type">COUNT</span>(*) <span class="sql-keyword">FILTER</span> (<span class="sql-keyword">WHERE</span> vehicle_type = ) <span class="sql-keyword">AS</span> total
+<span class="sql-keyword">FROM</span> spot_read_model
+<span class="sql-keyword">GROUP BY</span> floor_number;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"vehicle_type"</span>: <span class="string">"car"</span>,
+  <span class="key">"total_available"</span>: <span class="number">42</span>,
+  <span class="key">"total_capacity"</span>: <span class="number">120</span>,
+  <span class="key">"floors"</span>: [
+    { <span class="key">"floor"</span>: <span class="number">1</span>, <span class="key">"available"</span>: <span class="number">8</span>, <span class="key">"total"</span>: <span class="number">24</span> },
+    { <span class="key">"floor"</span>: <span class="number">2</span>, <span class="key">"available"</span>: <span class="number">12</span>, <span class="key">"total"</span>: <span class="number">24</span> },
+    { <span class="key">"floor"</span>: <span class="number">3</span>, <span class="key">"available"</span>: <span class="number">10</span>, <span class="key">"total"</span>: <span class="number">24</span> },
+    { <span class="key">"floor"</span>: <span class="number">4</span>, <span class="key">"available"</span>: <span class="number">6</span>, <span class="key">"total"</span>: <span class="number">24</span> },
+    { <span class="key">"floor"</span>: <span class="number">5</span>, <span class="key">"available"</span>: <span class="number">6</span>, <span class="key">"total"</span>: <span class="number">24</span> }
+  ]
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td>Missing vehicle_type param</td><td>vehicle_type is required</td></tr>
+          <tr><td>400</td><td>Invalid vehicle_type value</td><td>invalid vehicle type</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 11: GET /api/v1/floors/:floor -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-floor-map">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#11</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/floors/:floor</span>
+      <span class="endpoint-title">GetFloorMap</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Returns all parking spots on a given floor with their current status. Cached in Redis with 5s TTL and singleflight protection.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Parse <code>:floor</code> number from path, validate range</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">gRPC Handler</div>
+          <div class="step-text">Validate floor number is between 1–5</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Cache Check</div>
+          <div class="step-text"><code>redis.Get("floormap:&lt;N&gt;")</code> — 5s TTL. If hit → return cached floor map immediately.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Cache Miss</div>
+          <div class="step-text">singleflight → <code>repo.GetFloorSpots</code> → cache result</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Response</div>
+          <div class="step-text">Return ordered list of spots with status</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Caching Strategy</div>
+      <div class="code-block">
+<span class="comment">// Redis cache key pattern</span>
+Key:  <span class="string">"floormap:&lt;N&gt;"</span>   <span class="comment">// e.g. "floormap:3"</span>
+TTL:  <span class="number">5</span> seconds
+Invalidation: NATS consumer on spot-updated events
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query (on cache miss)</div>
+      <div class="sql-block"><span class="sql-keyword">SELECT</span>
+    id, spot_code, vehicle_type, status, floor_number, spot_number
+<span class="sql-keyword">FROM</span> spot_read_model
+<span class="sql-keyword">WHERE</span> floor_number = 
+<span class="sql-keyword">ORDER BY</span> spot_number;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"floor"</span>: <span class="number">3</span>,
+  <span class="key">"spots"</span>: [
+    {
+      <span class="key">"id"</span>: <span class="string">"spot-uuid-1"</span>,
+      <span class="key">"spot_code"</span>: <span class="string">"F3-A01"</span>,
+      <span class="key">"vehicle_type"</span>: <span class="string">"car"</span>,
+      <span class="key">"status"</span>: <span class="string">"available"</span>,
+      <span class="key">"spot_number"</span>: <span class="number">1</span>
+    },
+    {
+      <span class="key">"id"</span>: <span class="string">"spot-uuid-2"</span>,
+      <span class="key">"spot_code"</span>: <span class="string">"F3-A02"</span>,
+      <span class="key">"vehicle_type"</span>: <span class="string">"car"</span>,
+      <span class="key">"status"</span>: <span class="string">"occupied"</span>,
+      <span class="key">"spot_number"</span>: <span class="number">2</span>
+    }
+  ]
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td>Invalid floor number</td><td>floor must be between 1 and 5</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 12: GET /api/v1/spots/:id -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-spot-details">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#12</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/spots/:id</span>
+      <span class="endpoint-title">GetSpotDetails</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Returns details for a single parking spot. No caching — always reads fresh from the read model.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Extract spot <code>:id</code> from path, call gRPC GetSpotDetails</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Usecase</div>
+          <div class="step-text"><code>repo.GetSpotByID</code> — direct DB read, no cache. Individual spot lookups bypass cache for freshness.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Response</div>
+          <div class="step-text">Return spot details</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>No caching</strong> for individual spot lookups. This ensures real-time accuracy when a driver is viewing a specific spot before reserving.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query</div>
+      <div class="sql-block"><span class="sql-keyword">SELECT</span>
+    id, spot_code, vehicle_type, status, floor_number, spot_number
+<span class="sql-keyword">FROM</span> spot_read_model
+<span class="sql-keyword">WHERE</span> id = ;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"id"</span>: <span class="string">"spot-uuid"</span>,
+  <span class="key">"spot_code"</span>: <span class="string">"F2-B05"</span>,
+  <span class="key">"vehicle_type"</span>: <span class="string">"motorcycle"</span>,
+  <span class="key">"status"</span>: <span class="string">"available"</span>,
+  <span class="key">"floor_number"</span>: <span class="number">2</span>,
+  <span class="key">"spot_number"</span>: <span class="number">29</span>
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>404</td><td>Spot not found</td><td>parking spot not found</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 13: GET /api/v1/payments/:id/status -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-payment-status">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#13</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/payments/:id/status</span>
+      <span class="endpoint-title">GetPaymentStatus</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Retrieves the current status and details of a payment record.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Extract payment <code>:id</code> from path, call gRPC GetPaymentStatus</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">gRPC Handler</div>
+          <div class="step-text">Validate <code>payment_id</code> format</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Usecase</div>
+          <div class="step-text"><code>repo.GetByID</code> → return payment record</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query</div>
+      <div class="sql-block"><span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> payments
+<span class="sql-keyword">WHERE</span> id = ;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"id"</span>: <span class="string">"payment-uuid"</span>,
+  <span class="key">"billing_id"</span>: <span class="string">"billing-uuid"</span>,
+  <span class="key">"amount"</span>: <span class="number">15000</span>,
+  <span class="key">"payment_method"</span>: <span class="string">"qris"</span>,
+  <span class="key">"payment_gateway"</span>: <span class="string">"midtrans"</span>,
+  <span class="key">"transaction_ref"</span>: <span class="string">"TXN-20260520-ABC123"</span>,
+  <span class="key">"idempotency_key"</span>: <span class="string">"idem-uuid"</span>,
+  <span class="key">"status"</span>: <span class="string">"success"</span>,
+  <span class="key">"paid_at"</span>: <span class="string">"2026-05-20T09:01:30Z"</span>
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>404</td><td>Payment not found</td><td>payment not found</td></tr>
+          <tr><td>400</td><td>Invalid payment_id format</td><td>invalid payment id</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 14: POST /api/v1/presence/stream -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="stream-presence">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#14</span>
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/presence/stream</span>
+      <span class="endpoint-title">StreamPresence</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Verifies driver physical presence at their reserved parking spot using sensor data. Gracefully degrades if sensor gateway is unavailable — assumes presence.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Gateway</div>
+          <div class="step-text">Parse JSON body, extract <code>driverID</code> from JWT. Body: {reservation_id, latitude, longitude, accuracy}</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">gRPC Handler</div>
+          <div class="step-text">Validate <code>driver_id</code> + <code>reservation_id</code> combination</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Sensor Check</div>
+          <div class="step-text"><code>sensor.CheckSpotOccupancy(floorNumber, spotNumber)</code>. External call to sensor gateway (currently stub).</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Result Mapping</div>
+          <div class="step-text">Map sensor response to verification result</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Body</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"reservation_id"</span>: <span class="string">"reservation-uuid"</span>,
+  <span class="key">"latitude"</span>: <span class="number">-6.2088</span>,
+  <span class="key">"longitude"</span>: <span class="number">106.8456</span>,
+  <span class="key">"accuracy"</span>: <span class="number">5.2</span>
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Sensor Response Matrix</div>
+      <table class="error-table">
+        <thead><tr><th>Sensor Result</th><th>verified</th><th>Message</th></tr></thead>
+        <tbody>
+          <tr><td style="color: var(--green-400);">Occupied</td><td style="color: var(--green-400);">true</td><td>presence confirmed</td></tr>
+          <tr><td style="color: var(--red-400);">Not occupied</td><td style="color: var(--red-400);">false</td><td>driver may be at wrong spot</td></tr>
+          <tr><td style="color: var(--amber-400);">Sensor unavailable</td><td style="color: var(--green-400);">true</td><td>sensor unavailable, presence assumed</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>No DB queries.</strong> This endpoint only communicates with the external sensor gateway. Currently stubbed — always returns "occupied" in development.
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+<span class="comment">// Presence confirmed</span>
+{ <span class="key">"verified"</span>: <span class="number">true</span>, <span class="key">"message"</span>: <span class="string">"presence confirmed"</span> }
+
+<span class="comment">// Sensor unavailable (graceful degradation)</span>
+{ <span class="key">"verified"</span>: <span class="number">true</span>, <span class="key">"message"</span>: <span class="string">"sensor unavailable, presence assumed"</span> }
+
+<span class="comment">// Not at spot</span>
+{ <span class="key">"verified"</span>: <span class="number">false</span>, <span class="key">"message"</span>: <span class="string">"driver may be at wrong spot"</span> }
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>400</td><td>Missing required fields</td><td>invalid request body</td></tr>
+          <tr><td>403</td><td>Driver doesn't own reservation</td><td>unauthorized access</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <!-- ============================================================ -->
+  <!-- NATS EVENT CONSUMERS -->
+  <!-- ============================================================ -->
+  <section class="nats-section" id="nats-consumers">
+    <div class="nats-header">NATS Event Consumers</div>
+    <p class="endpoint-desc" style="margin-bottom: 2rem;">
+      Background flows that react to domain events. These consumers run as long-lived goroutines subscribing to NATS JetStream subjects.
+    </p>
+
+    <!-- Search Consumer -->
+    <div class="consumer-card">
+      <div class="consumer-title">Search Consumer</div>
+      <div class="consumer-subject">Subject: reservation.search.spot-updated</div>
+
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Receive Event</div>
+          <div class="step-text">Unmarshal <code>SpotUpdatedEvent</code> from NATS message. Contains: spot_id, new_status, vehicle_type, floor_number.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Update Read Model</div>
+          <div class="step-text">Upsert <code>spot_read_model</code> with new status</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Invalidate Cache</div>
+          <div class="step-text">Delete Redis keys: <code>availability:*</code>, <code>floormap:*</code>. Forces next read to fetch fresh data from DB.</div>
+        </div>
+      </div>
+
+      <div class="sql-block"><span class="comment">-- Upsert spot read model</span>
+<span class="sql-keyword">INSERT INTO</span> spot_read_model (id, spot_code, vehicle_type, status, floor_number, spot_number)
+<span class="sql-keyword">VALUES</span> (, , , , , )
+<span class="sql-keyword">ON CONFLICT</span> (id) <span class="sql-keyword">DO UPDATE SET</span>
+    status = EXCLUDED.status;</div>
+    </div>
+
+    <!-- Reservation Consumer -->
+    <div class="consumer-card">
+      <div class="consumer-title">Reservation Consumer</div>
+      <div class="consumer-subject">Subjects: payment.reservation.success / payment.reservation.failed</div>
+
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Receive Event</div>
+          <div class="step-text">Unmarshal <code>PaymentResultEvent</code> from NATS message. Contains: reservation_id, payment_status, payment_id.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Success Path</div>
+          <div class="step-text">ConfirmReservation — set status=<code>confirmed</code>, confirmed_at=NOW()</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Failure Path</div>
+          <div class="step-text">FailReservation — set status=<code>payment_failed</code>, release spot</div>
+        </div>
+      </div>
+
+      <div class="sql-block"><span class="comment">-- On payment success</span>
+<span class="sql-keyword">UPDATE</span> reservations
+<span class="sql-keyword">SET</span> status = <span class="string">'confirmed'</span>, confirmed_at = NOW()
+<span class="sql-keyword">WHERE</span> id = ;
+
+<span class="comment">-- On payment failure</span>
+<span class="sql-keyword">UPDATE</span> reservations
+<span class="sql-keyword">SET</span> status = <span class="string">'payment_failed'</span>
+<span class="sql-keyword">WHERE</span> id = ;
+
+<span class="sql-keyword">UPDATE</span> parking_spots
+<span class="sql-keyword">SET</span> status = <span class="string">'available'</span>
+<span class="sql-keyword">WHERE</span> id = ;</div>
+    </div>
+
+    <!-- Analytics Consumer -->
+    <div class="consumer-card">
+      <div class="consumer-title">Analytics Consumer</div>
+      <div class="consumer-subject">Subject: reservation.analytics.*</div>
+
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Receive Event</div>
+          <div class="step-text">Unmarshal <code>ReservationEvent</code> from NATS message. Wildcard subscription catches: .created, .confirmed, .checked_in, .completed, .cancelled</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Record</div>
+          <div class="step-text">RecordEvent — INSERT into analytics table. Fire-and-forget: failures logged but don't block.</div>
+        </div>
+      </div>
+
+      <div class="sql-block"><span class="comment">-- Record analytics event</span>
+<span class="sql-keyword">INSERT INTO</span> reservation_analytics
+    (reservation_id, event_type, vehicle_type, floor_number, spot_id, occurred_at)
+<span class="sql-keyword">VALUES</span>
+    (, , , , , );</div>
+    </div>
+
+    <!-- NATS Architecture Diagram -->
+    <div class="endpoint-section" style="margin-top: 2rem;">
+      <div class="sub-section-title">Event Flow Architecture</div>
+      <div style="padding: 1.5rem 0; font-size: 0.8rem; line-height: 2.2;">
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 8px; text-align: center;">
+          <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; padding: 1rem;">
+            <div style="color: var(--green-400); font-weight: 600; font-size: 0.7rem;">PRODUCERS</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem; margin-top: 0.25rem;">Reservation Service</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem;">Payment Service</div>
+          </div>
+          <div style="color: var(--amber-400); font-size: 1.2rem;">→</div>
+          <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--border-amber); border-radius: 6px; padding: 1rem;">
+            <div style="color: var(--amber-400); font-weight: 600; font-size: 0.7rem;">NATS JETSTREAM</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem; margin-top: 0.25rem;">reservation.search.*</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem;">reservation.analytics.*</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem;">payment.reservation.*</div>
+          </div>
+          <div style="color: var(--amber-400); font-size: 1.2rem;">→</div>
+          <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 1rem;">
+            <div style="color: var(--purple-400); font-weight: 600; font-size: 0.7rem;">CONSUMERS</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem; margin-top: 0.25rem;">Search Consumer</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem;">Reservation Consumer</div>
+            <div style="color: var(--text-secondary); font-size: 0.7rem;">Analytics Consumer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="margin-top: 4rem; padding: 1.5rem 0; border-top: 1px solid var(--border); text-align: center;">
+    <p style="font-size: 0.7rem; color: var(--text-muted);">
+      Parkir Pintar API Documentation — All 14 Endpoints + NATS Consumers
+    </p>
+    <p style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">
+      Generated for internal engineering reference
+    </p>
+  </footer>
 </main>
 
 <!-- Active nav highlight script -->
 <script>
 (function() {
-  const sections = document.querySelectorAll('.endpoint-section');
+  const sections = document.querySelectorAll('.endpoint-section, .nats-section');
   const navLinks = document.querySelectorAll('.nav-link');
 
   function setActive() {
@@ -1138,10 +2123,5 @@ billingClient.GenerateInvoice(reservationID)
   setActive();
 })();
 </script>
-<div style="max-width:900px;margin:2rem auto;padding:0 2rem;">
-  <a href="endpoints-part2.html" style="display:inline-flex;align-items:center;gap:0.5rem;padding:1rem 2rem;background:var(--bg-tertiary);border:1px solid var(--border-accent);border-radius:var(--radius);color:var(--amber-400);text-decoration:none;font-family:var(--font-mono);font-size:0.9rem;transition:background 0.2s;">
-    Continue to Endpoints 6–14 + NATS Consumers →
-  </a>
-</div>
 </body>
 </html>

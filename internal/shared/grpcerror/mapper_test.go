@@ -15,7 +15,6 @@ import (
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	presenceerrors "parkir-pintar/internal/presence/errors"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
-	reservationmodel "parkir-pintar/internal/reservation/model"
 	searcherrors "parkir-pintar/internal/search/errors"
 	searchrepo "parkir-pintar/internal/search/repository"
 	"parkir-pintar/pkg/apperror"
@@ -37,7 +36,6 @@ func TestMapToGRPCError_ShouldReturnNotFound_WhenDomainNotFoundErrors(t *testing
 		{"billingerrors.ErrNotFound", billingerrors.ErrNotFound},
 		{"paymentrepo.ErrNotFound", paymentrepo.ErrNotFound},
 		{"paymenterrors.ErrNotFound", paymenterrors.ErrNotFound},
-		{"reservationmodel.ErrNotFound", reservationmodel.ErrNotFound},
 		{"reservationerrors.ErrNotFound", reservationerrors.ErrNotFound},
 	}
 
@@ -59,7 +57,6 @@ func TestMapToGRPCError_ShouldReturnAlreadyExists_WhenConflictErrors(t *testing.
 		name string
 		err  error
 	}{
-		{"reservationmodel.ErrConflict", reservationmodel.ErrConflict},
 		{"reservationerrors.ErrConflict", reservationerrors.ErrConflict},
 		{"reservationerrors.ErrAlreadyActive", reservationerrors.ErrAlreadyActive},
 		{"reservationerrors.ErrSpotLocked", reservationerrors.ErrSpotLocked},
@@ -86,9 +83,7 @@ func TestMapToGRPCError_ShouldReturnFailedPrecondition_WhenStateErrors(t *testin
 		name string
 		err  error
 	}{
-		{"reservationmodel.ErrInvalidTransition", reservationmodel.ErrInvalidTransition},
 		{"reservationerrors.ErrInvalidTransition", reservationerrors.ErrInvalidTransition},
-		{"reservationmodel.ErrSpotUnavailable", reservationmodel.ErrSpotUnavailable},
 		{"reservationerrors.ErrSpotUnavailable", reservationerrors.ErrSpotUnavailable},
 		{"reservationerrors.ErrNotPending", reservationerrors.ErrNotPending},
 		{"reservationerrors.ErrNotCheckedOut", reservationerrors.ErrNotCheckedOut},
@@ -265,7 +260,7 @@ func TestMapToGRPCError_ShouldHandleWrappedErrors(t *testing.T) {
 		},
 		{
 			name:         "wrapped FailedPrecondition",
-			err:          errors.Join(reservationmodel.ErrInvalidTransition, errors.New("extra context")),
+			err:          errors.Join(reservationerrors.ErrInvalidTransition, errors.New("extra context")),
 			expectedCode: codes.FailedPrecondition,
 		},
 	}

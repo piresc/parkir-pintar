@@ -289,7 +289,7 @@ func run() error {
 // --- Adapters (moved from bootstrap/adapters.go) ---
 
 type usecaseExpirerAdapter struct {
-	uc usecase.Usecase
+	uc reservation.Usecase
 }
 
 func (a *usecaseExpirerAdapter) ExpireReservation(ctx context.Context, reservationID string) error {
@@ -299,7 +299,7 @@ func (a *usecaseExpirerAdapter) ExpireReservation(ctx context.Context, reservati
 }
 
 type usecaseFailerAdapter struct {
-	uc usecase.Usecase
+	uc reservation.Usecase
 }
 
 func (a *usecaseFailerAdapter) FailReservation(ctx context.Context, reservationID string, _ string) error {

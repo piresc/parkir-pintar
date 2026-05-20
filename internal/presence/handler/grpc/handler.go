@@ -7,16 +7,16 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"parkir-pintar/internal/presence/usecase"
+	"parkir-pintar/internal/presence"
 	presencev1 "parkir-pintar/proto/presence/v1"
 )
 
 type Handler struct {
 	presencev1.UnimplementedPresenceServiceServer
-	uc usecase.Usecase
+	uc presence.Usecase
 }
 
-func NewHandler(uc usecase.Usecase) *Handler {
+func NewHandler(uc presence.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 

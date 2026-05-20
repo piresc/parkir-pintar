@@ -7,18 +7,18 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"parkir-pintar/internal/billing"
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/internal/billing/usecase"
 	"parkir-pintar/internal/shared/grpcerror"
 	billingv1 "parkir-pintar/proto/billing/v1"
 )
 
 type Handler struct {
 	billingv1.UnimplementedBillingServiceServer
-	uc usecase.Usecase
+	uc billing.Usecase
 }
 
-func NewHandler(uc usecase.Usecase) *Handler {
+func NewHandler(uc billing.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 

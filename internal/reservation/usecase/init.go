@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/gateway"
 	"parkir-pintar/internal/reservation/repository"
@@ -54,7 +55,7 @@ func NewUsecase(
 	eventPublisher gateway.EventPublisher,
 	expiryTimeoutMinutes int,
 	paymentTimeoutMinutes int,
-) Usecase {
+) reservation.Usecase {
 	timeout := time.Duration(expiryTimeoutMinutes) * time.Minute
 	if timeout <= 0 {
 		timeout = constants.DefaultExpiryTimeout

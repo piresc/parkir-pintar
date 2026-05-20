@@ -23,13 +23,7 @@ import (
 
 const paymentMethodQRIS = string(paymentconstants.PaymentMethodQRIS)
 
-//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/payment/usecase Usecase
-type Usecase interface {
-	ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error)
-	ProcessQRIS(ctx context.Context, req *model.ProcessQRISRequest) (*model.Payment, error)
-	RefundPayment(ctx context.Context, req *model.RefundPaymentRequest) (*model.Payment, error)
-	GetPaymentStatus(ctx context.Context, req *model.GetPaymentStatusRequest) (*model.Payment, error)
-}
+//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/payment Usecase
 
 //go:generate mockgen -destination=../mocks/mock_event_publisher.go -package=mocks parkir-pintar/internal/payment/usecase EventPublisher
 type EventPublisher interface {

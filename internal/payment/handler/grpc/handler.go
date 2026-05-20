@@ -8,18 +8,18 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"parkir-pintar/internal/payment"
 	"parkir-pintar/internal/payment/model"
-	"parkir-pintar/internal/payment/usecase"
 	"parkir-pintar/internal/shared/grpcerror"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
 type Handler struct {
 	paymentv1.UnimplementedPaymentServiceServer
-	uc usecase.Usecase
+	uc payment.Usecase
 }
 
-func NewHandler(uc usecase.Usecase) *Handler {
+func NewHandler(uc payment.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 

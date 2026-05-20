@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/internal/reservation/usecase"
 	"parkir-pintar/internal/shared/grpcerror"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 )
@@ -21,11 +21,11 @@ import (
 // Handler implements the reservationv1.ReservationServiceServer gRPC interface.
 type Handler struct {
 	reservationv1.UnimplementedReservationServiceServer
-	uc usecase.Usecase
+	uc reservation.Usecase
 }
 
 // NewHandler creates a new reservation gRPC Handler with the given usecase.
-func NewHandler(uc usecase.Usecase) *Handler {
+func NewHandler(uc reservation.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 

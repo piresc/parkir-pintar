@@ -8,17 +8,17 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"parkir-pintar/internal/analytics"
 	"parkir-pintar/internal/analytics/model"
-	"parkir-pintar/internal/analytics/usecase"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
 type Handler struct {
-	uc     usecase.Usecase
+	uc     analytics.Usecase
 	client *pkgnats.Client
 }
 
-func NewHandler(uc usecase.Usecase, client *pkgnats.Client) *Handler {
+func NewHandler(uc analytics.Usecase, client *pkgnats.Client) *Handler {
 	return &Handler{uc: uc, client: client}
 }
 

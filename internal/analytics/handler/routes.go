@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"parkir-pintar/internal/analytics"
 	grpchandler "parkir-pintar/internal/analytics/handler/grpc"
 	natshandler "parkir-pintar/internal/analytics/handler/nats"
-	"parkir-pintar/internal/analytics/usecase"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
@@ -14,11 +14,11 @@ type GRPCHandler = grpchandler.Handler
 type NATSHandler = natshandler.Handler
 
 // NewHandler creates a new gRPC handler for the analytics service.
-func NewHandler(uc usecase.Usecase) *GRPCHandler {
+func NewHandler(uc analytics.Usecase) *GRPCHandler {
 	return grpchandler.NewHandler(uc)
 }
 
 // NewNATSHandler creates a new NATS handler for the analytics service.
-func NewNATSHandler(uc usecase.Usecase, client *pkgnats.Client) *NATSHandler {
+func NewNATSHandler(uc analytics.Usecase, client *pkgnats.Client) *NATSHandler {
 	return natshandler.NewHandler(uc, client)
 }

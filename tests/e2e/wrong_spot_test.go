@@ -39,7 +39,7 @@ func (s *stubPresenceClient) VerifyPresence(_ context.Context, _ string, _ strin
 
 // newUsecaseWithPresence creates a reservation usecase wired with the given
 // presence client stub, reusing the shared test environment's repos and adapters.
-func newUsecaseWithPresence(presence reservationuc.PresenceClient) reservationuc.Usecase {
+func newUsecaseWithPresence(presence reservationuc.PresenceClient) reservation.Usecase {
 	redisAdapter := &reservationLockerAdapter{client: env.redisClient}
 	billAdapter := &billingAdapter{uc: env.billingUC}
 	payAdapter := &paymentAdapter{uc: env.paymentUC}

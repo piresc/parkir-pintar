@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"parkir-pintar/internal/presence/usecase"
+	"parkir-pintar/internal/presence"
 	presencev1 "parkir-pintar/proto/presence/v1"
 
 	"github.com/stretchr/testify/assert"
@@ -16,11 +16,11 @@ import (
 
 // mockUsecase implements usecase.Usecase for testing.
 type mockUsecase struct {
-	result *usecase.VerifyResult
+	result *presence.VerifyResult
 	err    error
 }
 
-func (m *mockUsecase) VerifyPresence(_ context.Context, _ string, _ int, _ int) (*usecase.VerifyResult, error) {
+func (m *mockUsecase) VerifyPresence(_ context.Context, _ string, _ int, _ int) (*presence.VerifyResult, error) {
 	return m.result, m.err
 }
 
@@ -86,7 +86,7 @@ func TestVerifyPresence_ShouldReturnInternal_WhenUsecaseFails(t *testing.T) {
 
 func TestVerifyPresence_ShouldReturnVerifiedResponse_WhenSuccess(t *testing.T) {
 	mock := &mockUsecase{
-		result: &usecase.VerifyResult{
+		result: &presence.VerifyResult{
 			Verified: true,
 			Message:  "spot occupied, presence confirmed",
 		},
@@ -109,7 +109,7 @@ func TestVerifyPresence_ShouldReturnVerifiedResponse_WhenSuccess(t *testing.T) {
 
 func TestVerifyPresence_ShouldReturnNotVerifiedResponse_WhenSpotEmpty(t *testing.T) {
 	mock := &mockUsecase{
-		result: &usecase.VerifyResult{
+		result: &presence.VerifyResult{
 			Verified: false,
 			Message:  "spot not occupied, driver may be at wrong spot",
 		},

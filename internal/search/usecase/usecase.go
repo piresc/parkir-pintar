@@ -21,12 +21,7 @@ type RedisClient interface {
 	Delete(ctx context.Context, key string) error
 }
 
-//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/search/usecase Usecase
-type Usecase interface {
-	GetAvailability(ctx context.Context, req *model.GetAvailabilityRequest) ([]model.FloorAvailability, error)
-	GetFloorMap(ctx context.Context, req *model.GetFloorMapRequest) ([]model.SpotDetails, error)
-	GetSpotDetails(ctx context.Context, req *model.GetSpotDetailsRequest) (*model.SpotDetails, error)
-}
+//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/search Usecase
 
 func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvailabilityRequest) ([]model.FloorAvailability, error) {
 	cacheKey := fmt.Sprintf("availability:%s", req.VehicleType)

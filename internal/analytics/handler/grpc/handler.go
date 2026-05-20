@@ -5,17 +5,17 @@ import (
 
 	"google.golang.org/grpc"
 
-	"parkir-pintar/internal/analytics/usecase"
+	"parkir-pintar/internal/analytics"
 	"parkir-pintar/internal/shared/grpcerror"
 	analyticsv1 "parkir-pintar/proto/analytics/v1"
 )
 
 type Handler struct {
 	analyticsv1.UnimplementedAnalyticsServiceServer
-	uc usecase.Usecase
+	uc analytics.Usecase
 }
 
-func NewHandler(uc usecase.Usecase) *Handler {
+func NewHandler(uc analytics.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 

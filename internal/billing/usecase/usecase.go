@@ -15,13 +15,7 @@ import (
 	"parkir-pintar/pkg/pricing"
 )
 
-//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/billing/usecase Usecase
-type Usecase interface {
-	StartBilling(ctx context.Context, req *model.StartBillingRequest) (*model.BillingRecord, error)
-	CalculateFee(ctx context.Context, req *model.CalculateFeeRequest) (*model.BillingRecord, error)
-	GenerateInvoice(ctx context.Context, req *model.GenerateInvoiceRequest) (*model.BillingRecord, error)
-	ApplyOvernightFee(ctx context.Context, req *model.ApplyOvernightFeeRequest) (*model.BillingRecord, error)
-}
+//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/billing Usecase
 
 func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBillingRequest) (*model.BillingRecord, error) {
 	res, err := idempotency.Check(ctx, req.IdempotencyKey, uc.repo.GetByIdempotencyKey, repository.ErrNotFound, "start billing")

@@ -29,11 +29,15 @@ import (
 
 	billingrepo "parkir-pintar/internal/billing/repository"
 	billinguc "parkir-pintar/internal/billing/usecase"
+	billing "parkir-pintar/internal/billing"
 	"parkir-pintar/internal/payment/gateway"
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	paymentuc "parkir-pintar/internal/payment/usecase"
+	payment "parkir-pintar/internal/payment"
+	reservation "parkir-pintar/internal/reservation"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
 	reservationuc "parkir-pintar/internal/reservation/usecase"
+	search "parkir-pintar/internal/search"
 	searchrepo "parkir-pintar/internal/search/repository"
 	searchuc "parkir-pintar/internal/search/usecase"
 )
@@ -44,10 +48,10 @@ import (
 type testEnvStruct struct {
 	db              *sqlx.DB
 	redisClient     *redis.Client
-	reservationUC   reservationuc.Usecase
-	billingUC       billinguc.Usecase
-	paymentUC       paymentuc.Usecase
-	searchUC        searchuc.Usecase
+	reservationUC   reservation.Usecase
+	billingUC       billing.Usecase
+	paymentUC       payment.Usecase
+	searchUC        search.Usecase
 	reservationRepo reservationrepo.Repository
 	billingRepo     billingrepo.Repository
 	paymentRepo     paymentrepo.Repository

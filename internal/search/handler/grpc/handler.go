@@ -7,8 +7,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"parkir-pintar/internal/search"
 	"parkir-pintar/internal/search/model"
-	"parkir-pintar/internal/search/usecase"
 	"parkir-pintar/internal/shared/grpcerror"
 	pkgconstants "parkir-pintar/pkg/constants"
 	searchv1 "parkir-pintar/proto/search/v1"
@@ -21,10 +21,10 @@ const (
 
 type Handler struct {
 	searchv1.UnimplementedSearchServiceServer
-	uc usecase.Usecase
+	uc search.Usecase
 }
 
-func NewHandler(uc usecase.Usecase) *Handler {
+func NewHandler(uc search.Usecase) *Handler {
 	return &Handler{uc: uc}
 }
 

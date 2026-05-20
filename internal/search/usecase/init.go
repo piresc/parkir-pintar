@@ -2,6 +2,7 @@
 package usecase
 
 import (
+	"parkir-pintar/internal/search"
 	"parkir-pintar/internal/search/repository"
 
 	"golang.org/x/sync/singleflight"
@@ -13,7 +14,7 @@ type searchUsecase struct {
 	sf    singleflight.Group
 }
 
-func NewUsecase(repo repository.Repository, redis RedisClient) Usecase {
+func NewUsecase(repo repository.Repository, redis RedisClient) search.Usecase {
 	return &searchUsecase{
 		repo:  repo,
 		redis: redis,

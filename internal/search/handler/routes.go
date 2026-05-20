@@ -1,10 +1,10 @@
 package handler
 
 import (
+	"parkir-pintar/internal/search"
 	grpchandler "parkir-pintar/internal/search/handler/grpc"
 	natshandler "parkir-pintar/internal/search/handler/nats"
 	"parkir-pintar/internal/search/sync"
-	"parkir-pintar/internal/search/usecase"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
@@ -15,7 +15,7 @@ type GRPCHandler = grpchandler.Handler
 type NATSHandler = natshandler.Handler
 
 // NewHandler creates a new gRPC handler for the search service.
-func NewHandler(uc usecase.Usecase) *GRPCHandler {
+func NewHandler(uc search.Usecase) *GRPCHandler {
 	return grpchandler.NewHandler(uc)
 }
 

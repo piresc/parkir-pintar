@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"parkir-pintar/internal/reservation"
 	grpchandler "parkir-pintar/internal/reservation/handler/grpc"
 	natshandler "parkir-pintar/internal/reservation/handler/nats"
-	"parkir-pintar/internal/reservation/usecase"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
@@ -14,7 +14,7 @@ type GRPCHandler = grpchandler.Handler
 type NATSHandler = natshandler.Handler
 
 // NewHandler creates a new gRPC handler for the reservation service.
-func NewHandler(uc usecase.Usecase) *GRPCHandler {
+func NewHandler(uc reservation.Usecase) *GRPCHandler {
 	return grpchandler.NewHandler(uc)
 }
 

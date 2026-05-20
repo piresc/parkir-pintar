@@ -16,18 +16,6 @@ const idleThreshold = 0.30
 
 const defaultLookbackDays = 30
 
-type Usecase interface {
-	GetPeakHours(ctx context.Context) ([]model.PeakHourStats, error)
-
-	GetIdleHours(ctx context.Context) ([]model.PeakHourStats, error)
-
-	PredictResources(ctx context.Context, horizon time.Duration) ([]model.ResourcePrediction, error)
-
-	GetUsagePatterns(ctx context.Context) (*model.UsagePattern, error)
-
-	RecordEvent(ctx context.Context, event model.ReservationEvent) error
-}
-
 func (uc *analyticsUsecase) GetPeakHours(ctx context.Context) ([]model.PeakHourStats, error) {
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -defaultLookbackDays)

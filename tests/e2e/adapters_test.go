@@ -19,9 +19,9 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	billingmodel "parkir-pintar/internal/billing/model"
-	billinguc "parkir-pintar/internal/billing/usecase"
+	billing "parkir-pintar/internal/billing"
 	paymentmodel "parkir-pintar/internal/payment/model"
-	paymentuc "parkir-pintar/internal/payment/usecase"
+	payment "parkir-pintar/internal/payment"
 	reservationuc "parkir-pintar/internal/reservation/usecase"
 )
 
@@ -33,7 +33,7 @@ import (
 // reservation.BillingClient interface so the reservation usecase can call
 // billing operations through the full usecase chain.
 type billingAdapter struct {
-	uc billinguc.Usecase
+	uc billing.Usecase
 }
 
 // StartBilling creates a billing record with the booking fee.
@@ -69,7 +69,7 @@ func (a *billingAdapter) GenerateInvoice(ctx context.Context, reservationID stri
 // paymentAdapter wraps a real payment.Usecase to satisfy the
 // reservation.PaymentClient interface.
 type paymentAdapter struct {
-	uc paymentuc.Usecase
+	uc payment.Usecase
 }
 
 // ProcessPayment processes a payment for the given billing record.

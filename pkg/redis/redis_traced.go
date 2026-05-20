@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-
 	"parkir-pintar/pkg/tracing"
 )
 
@@ -58,106 +56,6 @@ func (r *TracedRedisClient) Delete(ctx context.Context, key string) error {
 	ctx, done := r.tracer.StartDatabase(ctx, "DEL", "redis")
 	defer done()
 	return r.Client.Delete(ctx, key)
-}
-
-// HMSet sets multiple hash fields with automatic tracing.
-func (r *TracedRedisClient) HMSet(ctx context.Context, key string, values map[string]interface{}) error {
-	if !r.tracer.IsEnabled() {
-		return r.Client.HMSet(ctx, key, values)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "HMSET", "redis")
-	defer done()
-	return r.Client.HMSet(ctx, key, values)
-}
-
-// HGetAll gets all fields in a hash with automatic tracing.
-func (r *TracedRedisClient) HGetAll(ctx context.Context, key string) (map[string]string, error) {
-	if !r.tracer.IsEnabled() {
-		return r.Client.HGetAll(ctx, key)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "HGETALL", "redis")
-	defer done()
-	return r.Client.HGetAll(ctx, key)
-}
-
-// HMGet gets specified fields of a hash with automatic tracing.
-func (r *TracedRedisClient) HMGet(ctx context.Context, key string, fields ...string) ([]interface{}, error) {
-	if !r.tracer.IsEnabled() {
-		return r.Client.HMGet(ctx, key, fields...)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "HMGET", "redis")
-	defer done()
-	return r.Client.HMGet(ctx, key, fields...)
-}
-
-// GeoAdd adds geospatial data with automatic tracing.
-func (r *TracedRedisClient) GeoAdd(ctx context.Context, key string, longitude, latitude float64, member string) error {
-	if !r.tracer.IsEnabled() {
-		return r.Client.GeoAdd(ctx, key, longitude, latitude, member)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "GEOADD", "redis")
-	defer done()
-	return r.Client.GeoAdd(ctx, key, longitude, latitude, member)
-}
-
-// GeoRadius finds members within a radius with automatic tracing.
-func (r *TracedRedisClient) GeoRadius(ctx context.Context, key string, longitude, latitude, radius float64, unit string) ([]redis.GeoLocation, error) {
-	if !r.tracer.IsEnabled() {
-		return r.Client.GeoRadius(ctx, key, longitude, latitude, radius, unit)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "GEORADIUS", "redis")
-	defer done()
-	return r.Client.GeoRadius(ctx, key, longitude, latitude, radius, unit)
-}
-
-// SAdd adds members to a set with automatic tracing.
-func (r *TracedRedisClient) SAdd(ctx context.Context, key string, members ...interface{}) error {
-	if !r.tracer.IsEnabled() {
-		return r.Client.SAdd(ctx, key, members...)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "SADD", "redis")
-	defer done()
-	return r.Client.SAdd(ctx, key, members...)
-}
-
-// SIsMember checks if a value is a member of a set with automatic tracing.
-func (r *TracedRedisClient) SIsMember(ctx context.Context, key string, member interface{}) (bool, error) {
-	if !r.tracer.IsEnabled() {
-		return r.Client.SIsMember(ctx, key, member)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "SISMEMBER", "redis")
-	defer done()
-	return r.Client.SIsMember(ctx, key, member)
-}
-
-// SRem removes members from a set with automatic tracing.
-func (r *TracedRedisClient) SRem(ctx context.Context, key string, members ...interface{}) error {
-	if !r.tracer.IsEnabled() {
-		return r.Client.SRem(ctx, key, members...)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "SREM", "redis")
-	defer done()
-	return r.Client.SRem(ctx, key, members...)
-}
-
-// ZRem removes members from a sorted set with automatic tracing.
-func (r *TracedRedisClient) ZRem(ctx context.Context, key string, members ...interface{}) error {
-	if !r.tracer.IsEnabled() {
-		return r.Client.ZRem(ctx, key, members...)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "ZREM", "redis")
-	defer done()
-	return r.Client.ZRem(ctx, key, members...)
-}
-
-// Expire sets an expiration on a key with automatic tracing.
-func (r *TracedRedisClient) Expire(ctx context.Context, key string, expiration time.Duration) error {
-	if !r.tracer.IsEnabled() {
-		return r.Client.Expire(ctx, key, expiration)
-	}
-	ctx, done := r.tracer.StartDatabase(ctx, "EXPIRE", "redis")
-	defer done()
-	return r.Client.Expire(ctx, key, expiration)
 }
 
 // Close closes the Redis client.

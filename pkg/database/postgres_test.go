@@ -51,7 +51,6 @@ func TestNewTracedPostgresClient_ShouldReturnValidClient_WhenCreated(t *testing.
 	// Assert
 	require.NotNil(t, traced)
 	assert.Equal(t, pgClient, traced.PostgresClient)
-	assert.NotNil(t, traced.GetTracer())
 }
 
 func TestTracedPostgresClient_GetDB_ShouldDelegateToUnderlying(t *testing.T) {
@@ -63,13 +62,4 @@ func TestTracedPostgresClient_GetDB_ShouldDelegateToUnderlying(t *testing.T) {
 	assert.Nil(t, traced.GetDB())
 }
 
-func TestTracedPostgresClient_GetTracer_ShouldReturnTracer(t *testing.T) {
-	// Arrange
-	tracer := tracing.NewNoOpTracer()
-	pgClient := &PostgresClient{db: nil}
-	traced := NewTracedPostgresClient(pgClient, tracer)
 
-	// Act & Assert
-	assert.Equal(t, tracer, traced.GetTracer())
-	assert.False(t, traced.GetTracer().IsEnabled())
-}

@@ -40,7 +40,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 
 	// --- Phase 1: Create Reservation ---
 	repo.On("FindByIdempotencyKey", mock.Anything, "extended-key").Return(nil, model.ErrNotFound)

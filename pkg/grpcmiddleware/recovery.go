@@ -23,16 +23,6 @@ func (i *Interceptors) RecoveryUnaryInterceptor() grpc.UnaryServerInterceptor {
 	)
 }
 
-// RecoveryStreamInterceptor returns a grpc.StreamServerInterceptor that
-// recovers from panics in the stream handler chain. On panic, it logs the
-// panic value and stack trace at ERROR level and returns a gRPC Internal
-// status code with the message "internal server error".
-func (i *Interceptors) RecoveryStreamInterceptor() grpc.StreamServerInterceptor {
-	return recovery.StreamServerInterceptor(
-		recovery.WithRecoveryHandlerContext(i.panicHandler()),
-	)
-}
-
 // panicHandler returns a recovery handler that logs the panic and returns Internal.
 func (i *Interceptors) panicHandler() recovery.RecoveryHandlerFuncContext {
 	return func(ctx context.Context, p any) error {

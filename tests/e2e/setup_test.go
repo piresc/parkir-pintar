@@ -183,7 +183,7 @@ func TestMain(m *testing.M) {
 	billAdapter := &billingAdapter{uc: billUC}
 	payAdapter := &paymentAdapter{uc: payUC}
 
-	resUC := reservationuc.NewUsecase(resRepo, redisAdapter, billAdapter, payAdapter, nil, nil, nil, 60)
+	resUC := reservationuc.NewUsecase(resRepo, redisAdapter, billAdapter, payAdapter, nil, nil, nil, 60, 10)
 	srchUC := searchuc.NewUsecase(srchRepo, srchRedisAdapter)
 
 	// -----------------------------------------------------------------------

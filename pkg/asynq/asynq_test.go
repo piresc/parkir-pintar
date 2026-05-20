@@ -199,7 +199,7 @@ func TestPaymentHoldTimeoutHandler_ProcessTask_ShouldReturnError_WhenReservation
 	assert.False(t, failer.called)
 }
 
-func TestPaymentHoldTimeoutHandler_ProcessTask_ShouldReturnError_WhenPaymentIDEmpty(t *testing.T) {
+func TestPaymentHoldTimeoutHandler_ProcessTask_ShouldCallFailer_WhenPaymentIDEmpty(t *testing.T) {
 	failer := &mockFailer{}
 	handler := NewPaymentHoldTimeoutHandler(failer)
 
@@ -212,9 +212,8 @@ func TestPaymentHoldTimeoutHandler_ProcessTask_ShouldReturnError_WhenPaymentIDEm
 	task := asynq.NewTask(TypePaymentHoldTimeout, payload)
 	err = handler.ProcessTask(context.Background(), task)
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "payment_id is required")
-	assert.False(t, failer.called)
+	require.NoError(t, err)
+	assert.True(t, failer.called)
 }
 
 func TestPaymentHoldTimeoutHandler_ProcessTask_ShouldPropagateError_WhenFailerFails(t *testing.T) {

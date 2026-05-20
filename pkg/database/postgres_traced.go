@@ -1,8 +1,6 @@
 package database
 
 import (
-	"context"
-
 	"github.com/jmoiron/sqlx"
 
 	"parkir-pintar/pkg/tracing"
@@ -32,21 +30,4 @@ func (t *TracedPostgresClient) GetDB() *sqlx.DB {
 // Close closes the database connection pool.
 func (t *TracedPostgresClient) Close() error {
 	return t.PostgresClient.Close()
-}
-
-// Ping verifies the database connection with automatic tracing.
-func (t *TracedPostgresClient) Ping(ctx context.Context) error {
-	if !t.tracer.IsEnabled() {
-		return t.PostgresClient.Ping(ctx)
-	}
-
-	ctx, done := t.tracer.StartDatabase(ctx, "PING", "postgres")
-	defer done()
-
-	return t.PostgresClient.Ping(ctx)
-}
-
-// GetTracer returns the tracer instance for use in repository-level tracing.
-func (t *TracedPostgresClient) GetTracer() tracing.Tracer {
-	return t.tracer
 }

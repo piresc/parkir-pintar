@@ -60,7 +60,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-beta", "reserved").Return(nil).Once()
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 
 	req1 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",

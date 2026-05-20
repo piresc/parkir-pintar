@@ -40,7 +40,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 
 	// --- Phase 1: Create Reservation ---
 

@@ -85,12 +85,6 @@ func TestConvenienceConstructors_ShouldSetCorrectHTTPStatus_WhenCalled(t *testin
 			expectedCode:   "NOT_FOUND",
 			expectedStatus: http.StatusNotFound,
 		},
-		{
-			name:           "Unauthorized returns 401",
-			constructor:    Unauthorized,
-			expectedCode:   "UNAUTHORIZED",
-			expectedStatus: http.StatusUnauthorized,
-		},
 	}
 
 	for _, tt := range tests {

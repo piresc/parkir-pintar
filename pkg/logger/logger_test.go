@@ -248,15 +248,6 @@ func TestErr_ShouldReturnErrorAttr_WhenErrorProvided(t *testing.T) {
 	assert.Equal(t, "error", attr.Key)
 }
 
-func TestBool_ShouldReturnBoolAttr_WhenCalled(t *testing.T) {
-	// Act
-	attr := Bool("active", true)
-
-	// Assert
-	assert.Equal(t, "active", attr.Key)
-	assert.True(t, attr.Value.Bool())
-}
-
 func TestFloat64_ShouldReturnFloat64Attr_WhenCalled(t *testing.T) {
 	// Act
 	attr := Float64("rate", 3.14)

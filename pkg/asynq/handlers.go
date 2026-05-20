@@ -61,8 +61,5 @@ func (h *PaymentHoldTimeoutHandler) ProcessTask(ctx context.Context, t *asynq.Ta
 	if payload.ReservationID == "" {
 		return fmt.Errorf("reservation_id is required: %w", asynq.SkipRetry)
 	}
-	if payload.PaymentID == "" {
-		return fmt.Errorf("payment_id is required: %w", asynq.SkipRetry)
-	}
 	return h.failer.FailReservation(ctx, payload.ReservationID, payload.PaymentID)
 }

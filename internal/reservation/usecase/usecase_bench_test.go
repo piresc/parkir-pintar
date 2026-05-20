@@ -52,7 +52,7 @@ func BenchmarkCreateReservation(b *testing.B) {
 	repo.On("UpdateSpotStatusTx", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(billingRecord, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	ctx := context.Background()
 
 	b.ResetTimer()
@@ -98,7 +98,7 @@ func BenchmarkCancelReservation(b *testing.B) {
 		ID: "spot-1", FloorNumber: 1, SpotNumber: 1, VehicleType: "car", SpotCode: "F1-C-001", Status: "reserved",
 	}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	ctx := context.Background()
 
 	b.ResetTimer()

@@ -38,32 +38,6 @@ func (i *Interceptors) AuthUnaryInterceptor(publicMethods []string) grpc.UnarySe
 	}
 }
 
-// AuthStreamInterceptor returns a grpc.StreamServerInterceptor that validates
-// JWT Bearer tokens from the "authorization" metadata key. On success,
-// user_id and role claims are injected into the wrapped stream's context.
-// Methods listed in publicMethods bypass authentication entirely.
-func (i *Interceptors) AuthStreamInterceptor(publicMethods []string) grpc.StreamServerInterceptor {
-	public := toSet(publicMethods)
-
-	return func(
-		srv interface{},
-		ss grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
-	) error {
-		if _, ok := public[info.FullMethod]; ok {
-			return handler(srv, ss)
-		}
-
-		newCtx, err := i.authenticate(ss.Context())
-		if err != nil {
-			return err
-		}
-
-		return handler(srv, &wrappedStream{ServerStream: ss, ctx: newCtx})
-	}
-}
-
 // authenticate extracts and validates the Bearer token from gRPC metadata,
 // returning a new context with user_id and role injected, or a gRPC status
 // error on failure.

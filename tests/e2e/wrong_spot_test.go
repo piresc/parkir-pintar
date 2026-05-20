@@ -51,6 +51,7 @@ func newUsecaseWithPresence(presence reservationuc.PresenceClient) reservationuc
 		nil, // taskEnqueuer
 		nil, // eventPublisher
 		60,
+		10,
 	)
 }
 

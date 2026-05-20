@@ -56,8 +56,9 @@ func (c *Client) EnqueuePaymentHoldTimeout(ctx context.Context, reservationID st
 		return "", fmt.Errorf("marshal payment hold timeout payload: %w", err)
 	}
 
+	taskID := fmt.Sprintf("payment-hold:%s", reservationID)
 	task := asynq.NewTask(TypePaymentHoldTimeout, payload)
-	info, err := c.client.EnqueueContext(ctx, task, asynq.ProcessIn(delay))
+	info, err := c.client.EnqueueContext(ctx, task, asynq.ProcessIn(delay), asynq.TaskID(taskID))
 	if err != nil {
 		return "", fmt.Errorf("enqueue payment hold timeout task: %w", err)
 	}

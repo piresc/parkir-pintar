@@ -15,7 +15,6 @@ import (
 	"parkir-pintar/internal/reservation/model"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/internal/reservation/usecase"
-	"parkir-pintar/internal/reservation/worker"
 	taskqueue "parkir-pintar/pkg/asynq"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
@@ -184,13 +183,9 @@ func main() {
 		asynqClient,
 		eventPublisher,
 		cfg.Reservation.ExpiryTimeoutMinutes,
+		cfg.Reservation.PaymentTimeoutMinutes,
 	)
 	handler := reservationhandler.NewHandler(uc)
-
-	// Start legacy polling workers (fallback — catches anything Asynq misses).
-	workerCtx, workerCancel := context.WithCancel(context.Background())
-	go worker.RunExpiryWorker(workerCtx, cfg.Reservation.WorkerPollInterval, repo, uc)
-	go worker.RunPaymentTimeoutWorker(workerCtx, cfg.Reservation.WorkerPollInterval, repo, uc, cfg.Reservation.PaymentTimeoutMinutes)
 
 	expiryHandler := taskqueue.NewReservationExpiryHandler(&usecaseExpirerAdapter{uc: uc})
 	paymentHandler := taskqueue.NewPaymentHoldTimeoutHandler(&usecaseFailerAdapter{uc: uc})
@@ -203,7 +198,6 @@ func main() {
 	}()
 
 	shutdownMgr := server.NewShutdownManager(log)
-	shutdownMgr.Register(func(_ context.Context) error { workerCancel(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { asynqServer.Shutdown(); return nil })
 	shutdownMgr.Register(func(_ context.Context) error { return asynqClient.Close() })
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })

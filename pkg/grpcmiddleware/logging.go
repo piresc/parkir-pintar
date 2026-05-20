@@ -46,19 +46,6 @@ func (i *Interceptors) LoggingUnaryInterceptor() grpc.UnaryServerInterceptor {
 	)
 }
 
-// LoggingStreamInterceptor returns a grpc.StreamServerInterceptor that logs
-// the full method name, gRPC status code, and duration for each streaming RPC.
-func (i *Interceptors) LoggingStreamInterceptor() grpc.StreamServerInterceptor {
-	return logging.StreamServerInterceptor(
-		&slogInterceptorLogger{logger: i.logger},
-		logging.WithLogOnEvents(logging.FinishCall),
-		logging.WithFieldsFromContext(traceFieldsExtractor),
-		logging.WithDurationField(func(duration time.Duration) logging.Fields {
-			return logging.Fields{"duration_ms", duration.Milliseconds()}
-		}),
-	)
-}
-
 // traceFieldsExtractor extracts trace_id and span_id from context if available.
 func traceFieldsExtractor(ctx context.Context) logging.Fields {
 	// The tracing interceptor already handles span context propagation.

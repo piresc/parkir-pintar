@@ -196,11 +196,6 @@ func Any(key string, val any) slog.Attr {
 	return slog.Any(key, val)
 }
 
-// Bool creates a boolean slog.Attr.
-func Bool(key string, val bool) slog.Attr {
-	return slog.Bool(key, val)
-}
-
 // Float64 creates a float64 slog.Attr.
 func Float64(key string, val float64) slog.Attr {
 	return slog.Float64(key, val)

@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -124,156 +123,6 @@ func TestSetContextValues_ShouldFallbackAppVersion_WhenMobileHeader(t *testing.T
 	err := json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
 	assert.Equal(t, "2.0.0", body["app"])
-}
-
-// --- 5.3 NormalizeMsisdn ---
-
-func TestNormalizeMsisdn_ShouldNormalize_WhenVariousFormats(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{name: "empty_defaults_to_00000", input: "", expected: "00000"},
-		{name: "plus_prefix_stripped", input: "+6281234567890", expected: "6281234567890"},
-		{name: "zero_prefix_to_62", input: "081234567890", expected: "6281234567890"},
-		{name: "already_normalized", input: "6281234567890", expected: "6281234567890"},
-		{name: "short_number", input: "123", expected: "123"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mw := newTestMiddleware()
-			w := httptest.NewRecorder()
-			_, engine := gin.CreateTestContext(w)
-
-			engine.Use(mw.NormalizeMsisdn())
-			engine.GET("/test", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"header":  c.GetHeader("x-msisdn"),
-					"context": c.GetString(KeyMsisdn),
-				})
-			})
-
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
-			if tt.input != "" {
-				req.Header.Set("x-msisdn", tt.input)
-			}
-
-			engine.ServeHTTP(w, req)
-
-			assert.Equal(t, http.StatusOK, w.Code)
-
-			var body map[string]string
-			err := json.Unmarshal(w.Body.Bytes(), &body)
-			require.NoError(t, err)
-			assert.Equal(t, tt.expected, body["header"])
-			assert.Equal(t, tt.expected, body["context"])
-		})
-	}
-}
-
-// --- 5.4 GenerateTransactionID ---
-
-func TestGenerateTransactionID_ShouldGenerate_WhenCalled(t *testing.T) {
-	mw := newTestMiddleware()
-	w := httptest.NewRecorder()
-	_, engine := gin.CreateTestContext(w)
-
-	engine.Use(mw.GenerateTransactionID())
-	engine.GET("/test", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"txid": c.GetHeader("transactionid"),
-		})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("x-msisdn", "6281234567890")
-
-	engine.ServeHTTP(w, req)
-
-	var body map[string]string
-	err := json.Unmarshal(w.Body.Bytes(), &body)
-	require.NoError(t, err)
-
-	txID := body["txid"]
-	assert.NotEmpty(t, txID)
-	// Should start with "L" for local environment
-	assert.True(t, strings.HasPrefix(txID, "L"), "expected prefix L for local env, got: %s", txID)
-	// Should end with last 5 digits of MSISDN
-	assert.True(t, strings.HasSuffix(txID, "67890"), "expected suffix 67890, got: %s", txID)
-}
-
-func TestGenerateTransactionID_ShouldPreserveOld_WhenExisting(t *testing.T) {
-	mw := newTestMiddleware()
-	w := httptest.NewRecorder()
-	_, engine := gin.CreateTestContext(w)
-
-	engine.Use(mw.GenerateTransactionID())
-	engine.GET("/test", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"old": c.GetHeader("oldtransactionid"),
-			"new": c.GetHeader("transactionid"),
-		})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("transactionid", "OLD-TX-123")
-	req.Header.Set("x-msisdn", "6281234567890")
-
-	engine.ServeHTTP(w, req)
-
-	var body map[string]string
-	err := json.Unmarshal(w.Body.Bytes(), &body)
-	require.NoError(t, err)
-	assert.Equal(t, "OLD-TX-123", body["old"])
-	assert.NotEqual(t, "OLD-TX-123", body["new"])
-}
-
-func TestEnvAppID_ShouldReturnCorrectPrefix_WhenDifferentEnvironments(t *testing.T) {
-	tests := []struct {
-		env      string
-		expected string
-	}{
-		{"local", "L"},
-		{"development", "D"},
-		{"staging", "S"},
-		{"production", "P"},
-		{"unknown", "L"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.env, func(t *testing.T) {
-			cfg := &config.Config{App: config.AppConfig{Environment: tt.env}}
-			assert.Equal(t, tt.expected, envAppID(cfg))
-		})
-	}
-}
-
-func TestEnvAppID_ShouldReturnL_WhenNilConfig(t *testing.T) {
-	assert.Equal(t, "L", envAppID(nil))
-}
-
-// --- 5.5 LogResponse ---
-
-func TestLogResponse_ShouldNotPanic_WhenCalled(t *testing.T) {
-	mw := newTestMiddleware()
-	w := httptest.NewRecorder()
-	_, engine := gin.CreateTestContext(w)
-
-	engine.Use(mw.LogResponse())
-	engine.GET("/test", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("transactionid", "TX-LOG-TEST")
-	req.Header.Set("x-msisdn", "6281234567890")
-
-	assert.NotPanics(t, func() {
-		engine.ServeHTTP(w, req)
-	})
-	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 // --- 5.6 CorsHandler ---
@@ -583,61 +432,6 @@ func TestJWTAuth_ShouldReturn401_WhenAlgorithmIsNotHS256(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
 
-// --- 5.9 APIKeyAuth ---
-
-func TestAPIKeyAuth_ShouldPass_WhenValidKey(t *testing.T) {
-	mw := newTestMiddleware()
-	w := httptest.NewRecorder()
-	_, engine := gin.CreateTestContext(w)
-
-	keys := map[string]string{"service-a": "key-abc-123"}
-	engine.Use(mw.APIKeyAuth(keys))
-	engine.GET("/api", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api", nil)
-	req.Header.Set("X-API-Key", "key-abc-123")
-	engine.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestAPIKeyAuth_ShouldReturn401_WhenMissingKey(t *testing.T) {
-	mw := newTestMiddleware()
-	w := httptest.NewRecorder()
-	_, engine := gin.CreateTestContext(w)
-
-	keys := map[string]string{"service-a": "key-abc-123"}
-	engine.Use(mw.APIKeyAuth(keys))
-	engine.GET("/api", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api", nil)
-	engine.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
-func TestAPIKeyAuth_ShouldReturn401_WhenInvalidKey(t *testing.T) {
-	mw := newTestMiddleware()
-	w := httptest.NewRecorder()
-	_, engine := gin.CreateTestContext(w)
-
-	keys := map[string]string{"service-a": "key-abc-123"}
-	engine.Use(mw.APIKeyAuth(keys))
-	engine.GET("/api", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"ok": true})
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api", nil)
-	req.Header.Set("X-API-Key", "wrong-key")
-	engine.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnauthorized, w.Code)
-}
-
 // --- Integration: Full middleware chain ---
 
 func TestMiddlewareChain_ShouldWorkTogether_WhenAllApplied(t *testing.T) {
@@ -646,11 +440,8 @@ func TestMiddlewareChain_ShouldWorkTogether_WhenAllApplied(t *testing.T) {
 	_, engine := gin.CreateTestContext(w)
 
 	engine.Use(mw.RecoveryHandler())
-	engine.Use(mw.NormalizeMsisdn())
-	engine.Use(mw.GenerateTransactionID())
 	engine.Use(mw.SetContextValues())
 	engine.Use(mw.TracingHandler())
-	engine.Use(mw.LogResponse())
 
 	engine.GET("/chain", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -669,10 +460,8 @@ func TestMiddlewareChain_ShouldWorkTogether_WhenAllApplied(t *testing.T) {
 	var body map[string]string
 	err := json.Unmarshal(w.Body.Bytes(), &body)
 	require.NoError(t, err)
-	// MSISDN should be normalized
-	assert.Equal(t, "6281234567890", body["msisdn"])
-	// Transaction ID should be generated
-	assert.NotEmpty(t, body["txid"])
+	// MSISDN should be passed through from header via SetContextValues
+	assert.Equal(t, "081234567890", body["msisdn"])
 }
 
 // --- 5.10 RateLimiter ---

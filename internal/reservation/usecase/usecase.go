@@ -82,6 +82,8 @@ type Locker interface {
 //go:generate mockgen -destination=../mocks/mock_task_enqueuer.go -package=mocks parkir-pintar/internal/reservation/usecase TaskEnqueuer
 type TaskEnqueuer interface {
 	EnqueueReservationExpiry(ctx context.Context, reservationID string, delay time.Duration) (string, error)
+	EnqueuePaymentHoldTimeout(ctx context.Context, reservationID string, paymentID string, delay time.Duration) (string, error)
+	CancelTask(ctx context.Context, taskID string) error
 }
 
 type lockerAdapter struct {
@@ -127,6 +129,7 @@ type reservationUsecase struct {
 	taskEnqueuer   TaskEnqueuer
 	eventPublisher gateway.EventPublisher
 	expiryTimeout  time.Duration
+	paymentTimeout time.Duration
 }
 
 // NewUsecase creates a new reservation Usecase with all required dependencies.
@@ -142,10 +145,15 @@ func NewUsecase(
 	taskEnqueuer TaskEnqueuer,
 	eventPublisher gateway.EventPublisher,
 	expiryTimeoutMinutes int,
+	paymentTimeoutMinutes int,
 ) Usecase {
 	timeout := time.Duration(expiryTimeoutMinutes) * time.Minute
 	if timeout <= 0 {
 		timeout = 60 * time.Minute
+	}
+	paymentTimeout := time.Duration(paymentTimeoutMinutes) * time.Minute
+	if paymentTimeout <= 0 {
+		paymentTimeout = 10 * time.Minute
 	}
 	return &reservationUsecase{
 		repo:           repo,
@@ -156,6 +164,7 @@ func NewUsecase(
 		taskEnqueuer:   taskEnqueuer,
 		eventPublisher: eventPublisher,
 		expiryTimeout:  timeout,
+		paymentTimeout: paymentTimeout,
 	}
 }
 
@@ -284,6 +293,15 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		}
 	}
 
+	// Step 7b: Enqueue payment hold timeout (fails reservation if payment not completed in time)
+	if uc.taskEnqueuer != nil {
+		if _, err := uc.taskEnqueuer.EnqueuePaymentHoldTimeout(ctx, reservation.ID, "", uc.paymentTimeout); err != nil {
+			slog.Error("failed to enqueue payment hold timeout",
+				slog.String("reservation_id", reservation.ID),
+				slog.Any("error", err))
+		}
+	}
+
 	// Step 8: Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, spotStatusReserved)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCreated, reservation, "created")
@@ -376,6 +394,16 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Publish analytics event (best-effort)
 	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsConfirmed, reservation, "confirmed")
+
+	// Cancel payment hold timeout — driver paid in time
+	if uc.taskEnqueuer != nil {
+		// Best-effort: if cancel fails, the handler will see status=confirmed and skip
+		if err := uc.taskEnqueuer.CancelTask(ctx, fmt.Sprintf("payment-hold:%s", reservation.ID)); err != nil {
+			slog.Warn("failed to cancel payment hold timeout (non-critical)",
+				slog.String("reservation_id", reservation.ID),
+				slog.Any("error", err))
+		}
+	}
 
 	return reservation, nil
 }

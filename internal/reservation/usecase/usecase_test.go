@@ -233,7 +233,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *t
 	}
 	repo.On("FindByIdempotencyKey", mock.Anything, "idem-key-1").Return(existing, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -281,7 +281,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-42", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -328,7 +328,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-99", "reserved").Return(nil)
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-2",
 		VehicleType:    "motorcycle",
@@ -367,7 +367,7 @@ func TestCreateReservation_ShouldReturnConflict_WhenLockContention(t *testing.T)
 	}, nil)
 	locker.On("Acquire", mock.Anything, "spot:spot-locked").Return(nil, redislock.ErrLockUnavailable)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-3",
 		VehicleType:    "car",
@@ -398,7 +398,7 @@ func TestCreateReservation_ShouldReturnConflict_WhenNoAvailableSpots(t *testing.
 	repo.On("FindByIdempotencyKey", mock.Anything, "no-spots-key").Return(nil, model.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(nil, model.ErrNotFound)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-4",
 		VehicleType:    "car",
@@ -439,7 +439,7 @@ func TestCancelReservation_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-5", "available").Return(nil)
 	// No ApplyPenalty call expected since penalty system is removed
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CancelReservationRequest{ReservationID: "res-cancel-free"}
 
 	// Act
@@ -473,7 +473,7 @@ func TestCancelReservation_ShouldChargeFee_WhenCancelledAfter2Min(t *testing.T) 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-cancel-paid").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-6", "available").Return(nil)
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CancelReservationRequest{ReservationID: "res-cancel-paid"}
 
 	// Act
@@ -507,7 +507,7 @@ func TestCancelReservation_ShouldReturnError_WhenInvalidState(t *testing.T) {
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-checked-in").Return(reservation, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CancelReservationRequest{ReservationID: "res-checked-in"}
 
 	// Act
@@ -543,7 +543,7 @@ func TestCheckIn_ShouldTransitionToCheckedIn_WhenConfirmedState(t *testing.T) {
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-8", "occupied").Return(nil)
 	billing.On("StartBilling", mock.Anything, "res-checkin", int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CheckInRequest{ReservationID: "res-checkin"}
 
 	// Act
@@ -575,7 +575,7 @@ func TestCheckIn_ShouldReturnError_WhenPendingState(t *testing.T) {
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-pending").Return(reservation, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CheckInRequest{ReservationID: "res-pending"}
 
 	// Act
@@ -618,7 +618,7 @@ func TestCheckOut_ShouldCalculateFeeAndProcess_WhenCheckedInState(t *testing.T) 
 	billing.On("CalculateFee", mock.Anything, "res-checkout", checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
 	billing.On("GenerateInvoice", mock.Anything, "res-checkout", mock.AnythingOfType("string")).Return(billingRecord, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CheckOutRequest{ReservationID: "res-checkout"}
 
 	// Act
@@ -662,7 +662,7 @@ func TestExpireReservation_ShouldReleaseSpot_WhenConfirmedState(t *testing.T) {
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-11", "available").Return(nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.ExpireReservationRequest{ReservationID: "res-expire"}
 
 	// Act
@@ -715,7 +715,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 	// Retry idempotency lookup returns the existing reservation
 	repo.On("FindByIdempotencyKey", mock.Anything, "dup-key").Return(existing, nil).Once()
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -764,7 +764,7 @@ func TestCreateReservation_ShouldReturnError_WhenNonUniqueConstraintError(t *tes
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).
 		Return(fmt.Errorf("connection refused"))
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
@@ -793,7 +793,7 @@ func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) 
 	locker := new(MockLocker)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 
 	// A motorcycle spot.
 	motorcycleSpot := &model.ParkingSpot{
@@ -846,7 +846,7 @@ func TestConfirmReservation_ShouldTransitionToConfirmed_WhenWaitingPayment(t *te
 	billing.On("StartBilling", mock.Anything, "res-confirm", pricing.BookingFee, mock.AnythingOfType("string")).Return(billingRecord, nil)
 	payment.On("ProcessPayment", mock.Anything, "billing-1", pricing.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-1", nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	result, err := uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{ReservationID: "res-confirm"})
 
 	require.NoError(t, err)
@@ -873,7 +873,7 @@ func TestConfirmReservation_ShouldReturnError_WhenNotWaitingPayment(t *testing.T
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-confirm").Return(reservation, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	_, err := uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{ReservationID: "res-confirm"})
 
 	require.Error(t, err)
@@ -910,7 +910,7 @@ func TestCompleteCheckout_ShouldProcessPaymentAndReleaseSpot_WhenCheckedOut(t *t
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "available").Return(nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	result, err := uc.CompleteCheckout(t.Context(), &model.CompleteCheckoutRequest{ReservationID: "res-complete"})
 
 	require.NoError(t, err)
@@ -939,7 +939,7 @@ func TestCompleteCheckout_ShouldReturnError_WhenNotCheckedOut(t *testing.T) {
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-complete").Return(reservation, nil)
 
-	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60)
+	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	_, err := uc.CompleteCheckout(t.Context(), &model.CompleteCheckoutRequest{ReservationID: "res-complete"})
 
 	require.Error(t, err)

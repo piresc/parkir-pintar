@@ -76,7 +76,4 @@ func NotFound(message string) *AppError {
 	return New("NOT_FOUND", message, http.StatusNotFound)
 }
 
-// Unauthorized creates an AppError for unauthorized errors (HTTP 401).
-func Unauthorized(message string) *AppError {
-	return New("UNAUTHORIZED", message, http.StatusUnauthorized)
-}
+

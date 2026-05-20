@@ -96,28 +96,6 @@ func TestRecoveryUnaryInterceptor_ShouldPassThrough_WhenNoPanic(t *testing.T) {
 	assert.Equal(t, "ok", resp)
 }
 
-func TestRecoveryStreamInterceptor_ShouldReturnInternal_WhenPanic(t *testing.T) {
-	// Arrange
-	interceptors := NewInterceptors("", nil, nil, nil)
-	interceptor := interceptors.RecoveryStreamInterceptor()
-	info := &grpc.StreamServerInfo{FullMethod: "/test.Service/StreamMethod"}
-	ss := &mockServerStream{ctx: context.Background()}
-
-	handler := func(_ interface{}, _ grpc.ServerStream) error {
-		panic("stream panic")
-	}
-
-	// Act
-	err := interceptor(nil, ss, info, handler)
-
-	// Assert
-	require.Error(t, err)
-	st, ok := status.FromError(err)
-	require.True(t, ok)
-	assert.Equal(t, codes.Internal, st.Code())
-	assert.Equal(t, "internal server error", st.Message())
-}
-
 // ---------------------------------------------------------------------------
 // Tracing interceptor tests
 // ---------------------------------------------------------------------------
@@ -390,36 +368,6 @@ func TestLoggingUnaryInterceptor_ShouldLogError_WhenFailure(t *testing.T) {
 	assert.Equal(t, "WARN", entry["level"])
 	assert.Equal(t, "DeleteUser", entry["grpc.method"])
 	assert.Equal(t, "PermissionDenied", entry["grpc.code"])
-}
-
-func TestLoggingStreamInterceptor_ShouldLogInfo_WhenSuccess(t *testing.T) {
-	// Arrange
-	var buf bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-
-	interceptors := NewInterceptors("", logger, nil, nil)
-	interceptor := interceptors.LoggingStreamInterceptor()
-	info := &grpc.StreamServerInfo{FullMethod: "/test.Service/StreamData"}
-	ss := &mockServerStream{ctx: context.Background()}
-
-	handler := func(_ interface{}, _ grpc.ServerStream) error {
-		return nil
-	}
-
-	// Act
-	err := interceptor(nil, ss, info, handler)
-
-	// Assert
-	require.NoError(t, err)
-
-	lines := bytes.Split(bytes.TrimSpace(buf.Bytes()), []byte("\n"))
-	require.Len(t, lines, 1)
-
-	var entry map[string]interface{}
-	require.NoError(t, json.Unmarshal(lines[0], &entry))
-	assert.Equal(t, "INFO", entry["level"])
-	assert.Equal(t, "StreamData", entry["grpc.method"])
-	assert.Equal(t, "OK", entry["grpc.code"])
 }
 
 // ---------------------------------------------------------------------------

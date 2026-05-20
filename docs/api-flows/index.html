@@ -686,6 +686,18 @@ code {
   </div>
 
   <div class="nav-section">
+    <div class="nav-section-title">Analytics</div>
+    <a href="#get-peak-hours" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/analytics/peak-hours</span>
+    </a>
+    <a href="#get-occupancy" class="nav-link">
+      <span class="method-badge-sm get">GET</span>
+      <span>/analytics/occupancy</span>
+    </a>
+  </div>
+
+  <div class="nav-section">
     <div class="nav-section-title">Background Flows</div>
     <a href="#nats-consumers" class="nav-link">
       <span class="method-badge-sm event">EVT</span>
@@ -1964,6 +1976,188 @@ Invalidation: NATS consumer on spot-updated events
     </div>
   </section>
   <!-- ============================================================ -->
+  <!-- ENDPOINT: GET /api/v1/analytics/peak-hours -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-peak-hours">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#14</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/analytics/peak-hours</span>
+      <span class="endpoint-title">GetPeakHours</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Returns peak hour statistics aggregated from historical reservation data. Shows average occupancy and reservation count per hour/day-of-week combination, with a computed peak score. Used by lot operators to understand demand patterns.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step-h">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">JWT auth check, proxy to analytics gRPC</div>
+          </div>
+          <div class="flow-step-h">
+            <div class="flow-step-label">gRPC Handler</div>
+            <div class="flow-step-content">Delegate to usecase.GetPeakHours()</div>
+          </div>
+          <div class="flow-step-h">
+            <div class="flow-step-label">Usecase</div>
+            <div class="flow-step-content">Call repo.GetHourlyStats()</div>
+          </div>
+          <div class="flow-step-h">
+            <div class="flow-step-label">Repository</div>
+            <div class="flow-step-content">Aggregate SQL on reservations table</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query</div>
+      <div class="sql-block"><span class="comment">-- Aggregate peak hours from reservation history</span>
+<span class="sql-keyword">SELECT</span>
+    <span class="sql-keyword">EXTRACT</span>(HOUR <span class="sql-keyword">FROM</span> created_at) <span class="sql-keyword">AS</span> hour,
+    <span class="sql-keyword">EXTRACT</span>(DOW <span class="sql-keyword">FROM</span> created_at) <span class="sql-keyword">AS</span> day_of_week,
+    <span class="sql-keyword">COUNT</span>(*) <span class="sql-keyword">AS</span> reservation_count,
+    <span class="sql-keyword">AVG</span>(occupancy_rate) <span class="sql-keyword">AS</span> avg_occupancy
+<span class="sql-keyword">FROM</span> reservations
+<span class="sql-keyword">WHERE</span> created_at >= NOW() - <span class="sql-keyword">INTERVAL</span> <span class="string">'30 days'</span>
+<span class="sql-keyword">GROUP BY</span> hour, day_of_week
+<span class="sql-keyword">ORDER BY</span> reservation_count <span class="sql-keyword">DESC</span>;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"status"</span>: <span class="string">"success"</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"stats"</span>: [
+      {
+        <span class="key">"hour"</span>: <span class="number">8</span>,
+        <span class="key">"dayOfWeek"</span>: <span class="number">1</span>,
+        <span class="key">"avgOccupancy"</span>: <span class="number">0.85</span>,
+        <span class="key">"avgReservations"</span>: <span class="number">42</span>,
+        <span class="key">"peakScore"</span>: <span class="number">0.92</span>
+      },
+      {
+        <span class="key">"hour"</span>: <span class="number">17</span>,
+        <span class="key">"dayOfWeek"</span>: <span class="number">5</span>,
+        <span class="key">"avgOccupancy"</span>: <span class="number">0.78</span>,
+        <span class="key">"avgReservations"</span>: <span class="number">38</span>,
+        <span class="key">"peakScore"</span>: <span class="number">0.84</span>
+      }
+    ]
+  }
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>401</td><td>Missing or invalid JWT token</td><td>missing authorization header</td></tr>
+          <tr><td>503</td><td>Analytics service unavailable</td><td>analytics service unavailable</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Performance note.</strong> This query aggregates over the last 30 days of reservation data. Results are computed on-demand — no caching layer yet. For high-traffic lots, consider adding Redis cache with TTL.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT: GET /api/v1/analytics/occupancy -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="get-occupancy">
+    <div class="endpoint-header">
+      <span class="endpoint-number">#15</span>
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/api/v1/analytics/occupancy</span>
+      <span class="endpoint-title">GetUsagePatterns</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Returns aggregated usage patterns: average utilization percentage, identified peak hours, and idle hours over the last 30 days. Provides a high-level operational overview for lot operators and capacity planning.
+    </p>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step-h">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">JWT auth check, proxy to analytics gRPC</div>
+          </div>
+          <div class="flow-step-h">
+            <div class="flow-step-label">gRPC Handler</div>
+            <div class="flow-step-content">Delegate to usecase.GetUsagePatterns()</div>
+          </div>
+          <div class="flow-step-h">
+            <div class="flow-step-label">Usecase</div>
+            <div class="flow-step-content">Call repo.GetDailyOccupancy()</div>
+          </div>
+          <div class="flow-step-h">
+            <div class="flow-step-label">Repository</div>
+            <div class="flow-step-content">Aggregate SQL on reservations + parking_spots</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Query</div>
+      <div class="sql-block"><span class="comment">-- Daily occupancy aggregation</span>
+<span class="sql-keyword">SELECT</span>
+    <span class="sql-keyword">EXTRACT</span>(HOUR <span class="sql-keyword">FROM</span> r.created_at) <span class="sql-keyword">AS</span> hour,
+    <span class="sql-keyword">COUNT</span>(r.id)::float / <span class="sql-keyword">NULLIF</span>(
+        (<span class="sql-keyword">SELECT COUNT</span>(*) <span class="sql-keyword">FROM</span> parking_spots), 0
+    ) <span class="sql-keyword">AS</span> utilization_rate
+<span class="sql-keyword">FROM</span> reservations r
+<span class="sql-keyword">WHERE</span> r.created_at >= NOW() - <span class="sql-keyword">INTERVAL</span> <span class="string">'30 days'</span>
+    <span class="sql-keyword">AND</span> r.status <span class="sql-keyword">IN</span> (<span class="string">'confirmed'</span>, <span class="string">'checked_in'</span>, <span class="string">'completed'</span>)
+<span class="sql-keyword">GROUP BY</span> hour
+<span class="sql-keyword">ORDER BY</span> hour;</div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"status"</span>: <span class="string">"success"</span>,
+  <span class="key">"data"</span>: {
+    <span class="key">"period"</span>: <span class="string">"last_30_days"</span>,
+    <span class="key">"avgUtilization"</span>: <span class="number">0.62</span>,
+    <span class="key">"peakHours"</span>: [<span class="number">8</span>, <span class="number">9</span>, <span class="number">12</span>, <span class="number">17</span>, <span class="number">18</span>],
+    <span class="key">"idleHours"</span>: [<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">22</span>, <span class="number">23</span>]
+  }
+}
+      </div>
+    </div>
+
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead><tr><th>Status</th><th>Condition</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td>401</td><td>Missing or invalid JWT token</td><td>missing authorization header</td></tr>
+          <tr><td>503</td><td>Analytics service unavailable</td><td>analytics service unavailable</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <strong>Data pipeline.</strong> The analytics service also consumes NATS events (<code>reservation.analytics.*</code>) to record reservation lifecycle events into the <code>reservation_events</code> table. This enables future time-series analysis beyond the current aggregation queries.
+    </div>
+  </section>
+  <!-- ============================================================ -->
   <!-- NATS EVENT CONSUMERS -->
   <!-- ============================================================ -->
   <section class="nats-section" id="nats-consumers">
@@ -2089,7 +2283,7 @@ Invalidation: NATS consumer on spot-updated events
   <!-- Footer -->
   <footer style="margin-top: 4rem; padding: 1.5rem 0; border-top: 1px solid var(--border); text-align: center;">
     <p style="font-size: 0.7rem; color: var(--text-muted);">
-      Parkir Pintar API Documentation — All 14 Endpoints + NATS Consumers
+      Parkir Pintar API Documentation — All 16 Endpoints + NATS Consumers
     </p>
     <p style="font-size: 0.65rem; color: var(--text-muted); margin-top: 0.25rem;">
       Generated for internal engineering reference

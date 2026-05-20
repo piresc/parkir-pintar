@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 )
@@ -156,7 +157,7 @@ func TestCreateReservation(t *testing.T) {
 				IdempotencyKey: "idem-res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrNotFound,
+			mockErr:    reservationerrors.ErrNotFound,
 			wantCode:   codes.NotFound,
 		},
 		{
@@ -167,7 +168,7 @@ func TestCreateReservation(t *testing.T) {
 				IdempotencyKey: "idem-res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrConflict,
+			mockErr:    reservationerrors.ErrConflict,
 			wantCode:   codes.AlreadyExists,
 		},
 		{
@@ -178,7 +179,7 @@ func TestCreateReservation(t *testing.T) {
 				IdempotencyKey: "idem-res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrSpotUnavailable,
+			mockErr:    reservationerrors.ErrSpotUnavailable,
 			wantCode:   codes.FailedPrecondition,
 		},
 		{
@@ -256,7 +257,7 @@ func TestGetReservation(t *testing.T) {
 				ReservationId: "res-999",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrNotFound,
+			mockErr:    reservationerrors.ErrNotFound,
 			wantCode:   codes.NotFound,
 		},
 	}
@@ -320,7 +321,7 @@ func TestCancelReservation(t *testing.T) {
 				ReservationId: "res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrInvalidTransition,
+			mockErr:    reservationerrors.ErrInvalidTransition,
 			wantCode:   codes.FailedPrecondition,
 		},
 	}
@@ -387,7 +388,7 @@ func TestCheckIn(t *testing.T) {
 				ReservationId: "res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrInvalidTransition,
+			mockErr:    reservationerrors.ErrInvalidTransition,
 			wantCode:   codes.FailedPrecondition,
 		},
 	}
@@ -459,7 +460,7 @@ func TestCheckOut(t *testing.T) {
 				ReservationId: "res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrInvalidTransition,
+			mockErr:    reservationerrors.ErrInvalidTransition,
 			wantCode:   codes.FailedPrecondition,
 		},
 	}
@@ -598,7 +599,7 @@ func TestCompleteCheckout(t *testing.T) {
 				ReservationId: "res-123",
 			},
 			mockResult: nil,
-			mockErr:    model.ErrNotFound,
+			mockErr:    reservationerrors.ErrNotFound,
 			wantCode:   codes.NotFound,
 		},
 	}
@@ -658,7 +659,7 @@ func TestExpireReservation(t *testing.T) {
 			req: &reservationv1.ExpireReservationRequest{
 				ReservationId: "res-123",
 			},
-			mockErr:  model.ErrNotFound,
+			mockErr:  reservationerrors.ErrNotFound,
 			wantCode: codes.NotFound,
 		},
 	}

@@ -13,7 +13,6 @@ import (
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	presenceerrors "parkir-pintar/internal/presence/errors"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
-	reservationmodel "parkir-pintar/internal/reservation/model"
 	searcherrors "parkir-pintar/internal/search/errors"
 	searchrepo "parkir-pintar/internal/search/repository"
 	"parkir-pintar/pkg/apperror"
@@ -34,14 +33,12 @@ func MapToGRPCError(err error) error {
 		errors.Is(err, billingerrors.ErrNotFound) ||
 		errors.Is(err, paymentrepo.ErrNotFound) ||
 		errors.Is(err, paymenterrors.ErrNotFound) ||
-		errors.Is(err, reservationmodel.ErrNotFound) ||
 		errors.Is(err, reservationerrors.ErrNotFound) {
 		return status.Error(codes.NotFound, err.Error())
 	}
 
 	// Check conflict/already-exists errors.
-	if errors.Is(err, reservationmodel.ErrConflict) ||
-		errors.Is(err, reservationerrors.ErrConflict) ||
+	if errors.Is(err, reservationerrors.ErrConflict) ||
 		errors.Is(err, reservationerrors.ErrAlreadyActive) ||
 		errors.Is(err, reservationerrors.ErrSpotLocked) ||
 		errors.Is(err, reservationerrors.ErrConcurrentChange) ||
@@ -51,9 +48,7 @@ func MapToGRPCError(err error) error {
 	}
 
 	// Check precondition/state errors.
-	if errors.Is(err, reservationmodel.ErrInvalidTransition) ||
-		errors.Is(err, reservationerrors.ErrInvalidTransition) ||
-		errors.Is(err, reservationmodel.ErrSpotUnavailable) ||
+	if errors.Is(err, reservationerrors.ErrInvalidTransition) ||
 		errors.Is(err, reservationerrors.ErrSpotUnavailable) ||
 		errors.Is(err, reservationerrors.ErrNotPending) ||
 		errors.Is(err, reservationerrors.ErrNotCheckedOut) ||

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
-
 	"parkir-pintar/internal/analytics/model"
 )
 
@@ -16,14 +14,6 @@ type Repository interface {
 	GetDailyOccupancy(ctx context.Context, days int) ([]model.DailyOccupancy, error)
 
 	RecordEvent(ctx context.Context, event model.ReservationEvent) error
-}
-
-type sqlxRepository struct {
-	db *sqlx.DB
-}
-
-func NewRepository(db *sqlx.DB) Repository {
-	return &sqlxRepository{db: db}
 }
 
 func (r *sqlxRepository) GetHourlyStats(ctx context.Context, startDate, endDate time.Time) ([]model.PeakHourStats, error) {

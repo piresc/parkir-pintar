@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"parkir-pintar/internal/analytics/model"
-	"parkir-pintar/internal/analytics/repository"
 	"parkir-pintar/pkg/apperror"
 )
 
@@ -26,14 +25,6 @@ type Usecase interface {
 	GetUsagePatterns(ctx context.Context) (*model.UsagePattern, error)
 
 	RecordEvent(ctx context.Context, event model.ReservationEvent) error
-}
-
-type analyticsUsecase struct {
-	repo repository.Repository
-}
-
-func NewUsecase(repo repository.Repository) Usecase {
-	return &analyticsUsecase{repo: repo}
 }
 
 func (uc *analyticsUsecase) GetPeakHours(ctx context.Context) ([]model.PeakHourStats, error) {

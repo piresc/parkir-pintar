@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 )
 
 // Reservation represents a parking reservation domain entity.
@@ -66,13 +67,13 @@ var allowedTransitions = map[string][]string{
 func ValidateTransition(from, to string) error {
 	targets, ok := allowedTransitions[from]
 	if !ok {
-		return fmt.Errorf("%w: no transitions from terminal state %q", ErrInvalidTransition, from)
+		return fmt.Errorf("%w: no transitions from terminal state %q", reservationerrors.ErrInvalidTransition, from)
 	}
 
 	if slices.Contains(targets, to) {
 		return nil
 	}
-	return fmt.Errorf("%w: invalid transition from %q to %q", ErrInvalidTransition, from, to)
+	return fmt.Errorf("%w: invalid transition from %q to %q", reservationerrors.ErrInvalidTransition, from, to)
 }
 
 // CreateReservationRequest is the payload for creating a new reservation.

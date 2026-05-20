@@ -16,6 +16,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/gateway"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/apperror"
@@ -94,7 +95,7 @@ type Usecase interface {
 func (uc *reservationUsecase) GetReservation(ctx context.Context, id string, callerID string) (*model.Reservation, error) {
 	reservation, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, model.ErrNotFound) {
+		if errors.Is(err, reservationerrors.ErrNotFound) {
 			return nil, apperror.NotFound("reservation not found")
 		}
 		return nil, fmt.Errorf("get reservation: %w", err)
@@ -237,7 +238,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("confirm reservation get: %w", err)
@@ -253,7 +254,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("confirm reservation: %w", err)
 	}
 
 	// Re-call StartBilling (idempotent) to obtain billing record
@@ -369,7 +370,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("cancel reservation get: %w", err)
@@ -393,7 +394,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cancel reservation: %w", err)
 	}
 
 	// Publish events (best-effort)
@@ -414,7 +415,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("check-in get: %w", err)
@@ -438,7 +439,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusOccupied)
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("check in: %w", err)
 	}
 
 	// Notify billing to activate (non-critical, outside transaction)
@@ -491,7 +492,7 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("check-out get: %w", err)
@@ -512,7 +513,7 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 
 		return uc.repo.UpdateReservationTx(ctx, tx, reservation)
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("check out: %w", err)
 	}
 
 	// Phase 2: Calculate fee and generate invoice (outside the row lock)
@@ -550,7 +551,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("complete checkout get: %w", err)
@@ -566,7 +567,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("complete checkout: %w", err)
 	}
 
 	// Re-generate invoice (idempotent) to obtain billing record
@@ -623,7 +624,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("expire reservation get: %w", err)
@@ -642,7 +643,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
-		return err
+		return fmt.Errorf("expire reservation: %w", err)
 	}
 
 	// No additional no-show penalty is applied. Per PRD, the booking fee
@@ -666,7 +667,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
+			if errors.Is(err, reservationerrors.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("fail reservation get: %w", err)
@@ -685,7 +686,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
-		return err
+		return fmt.Errorf("fail reservation: %w", err)
 	}
 
 	// Publish events (best-effort)

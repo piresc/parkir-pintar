@@ -21,6 +21,7 @@ import (
 
 	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/redislock"
 )
@@ -103,7 +104,7 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			payment := new(MockPaymentClient)
 
 			// No existing reservation for this key
-			repo.On("FindByIdempotencyKey", mock.Anything, key).Return(nil, model.ErrNotFound)
+			repo.On("FindByIdempotencyKey", mock.Anything, key).Return(nil, reservationerrors.ErrNotFound)
 			repo.On("ListByDriverID", mock.Anything, "driver-1", "").Return([]*model.Reservation{}, nil)
 			repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 				ID:          "spot-1",
@@ -167,7 +168,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		payment := new(MockPaymentClient)
 
 		spotID := "spot-prop9"
-		repo.On("FindByIdempotencyKey", mock.Anything, mock.Anything).Return(nil, model.ErrNotFound)
+		repo.On("FindByIdempotencyKey", mock.Anything, mock.Anything).Return(nil, reservationerrors.ErrNotFound)
 		repo.On("ListByDriverID", mock.Anything, "driver-prop9", "").Return([]*model.Reservation{}, nil)
 		repo.On("FindAvailableSpot", mock.Anything, vehicleType).Return(&model.ParkingSpot{
 			ID:          spotID,
@@ -238,7 +239,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		billing1 := new(MockBillingClient)
 		payment1 := new(MockPaymentClient)
 
-		repo1.On("FindByIdempotencyKey", mock.Anything, "key-first").Return(nil, model.ErrNotFound)
+		repo1.On("FindByIdempotencyKey", mock.Anything, "key-first").Return(nil, reservationerrors.ErrNotFound)
 		repo1.On("ListByDriverID", mock.Anything, "driver-first", "").Return([]*model.Reservation{}, nil)
 		repo1.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 			ID:          spotID,
@@ -277,7 +278,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		billing2 := new(MockBillingClient)
 		payment2 := new(MockPaymentClient)
 
-		repo2.On("FindByIdempotencyKey", mock.Anything, "key-second").Return(nil, model.ErrNotFound)
+		repo2.On("FindByIdempotencyKey", mock.Anything, "key-second").Return(nil, reservationerrors.ErrNotFound)
 		repo2.On("ListByDriverID", mock.Anything, "driver-second", "").Return([]*model.Reservation{}, nil)
 		repo2.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 			ID:          spotID,

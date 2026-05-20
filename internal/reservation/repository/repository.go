@@ -8,6 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
 )
 
@@ -38,7 +39,7 @@ func (r *sqlxRepository) FindByIdempotencyKey(ctx context.Context, key string) (
 	err := r.db.GetContext(ctx, &reservation, "SELECT * FROM reservations WHERE idempotency_key = $1", key)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: idempotency_key=%s", model.ErrNotFound, key)
+			return nil, fmt.Errorf("%w: idempotency_key=%s", reservationerrors.ErrNotFound, key)
 		}
 		return nil, fmt.Errorf("find reservation by idempotency key: %w", err)
 	}
@@ -58,7 +59,7 @@ func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: vehicle_type=%s", model.ErrNotFound, vehicleType)
+			return nil, fmt.Errorf("%w: vehicle_type=%s", reservationerrors.ErrNotFound, vehicleType)
 		}
 		return nil, fmt.Errorf("find available spot: %w", err)
 	}
@@ -79,7 +80,7 @@ func (r *sqlxRepository) FindAvailableSpotTx(ctx context.Context, tx *sqlx.Tx, v
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: vehicle_type=%s", model.ErrNotFound, vehicleType)
+			return nil, fmt.Errorf("%w: vehicle_type=%s", reservationerrors.ErrNotFound, vehicleType)
 		}
 		return nil, fmt.Errorf("find available spot tx: %w", err)
 	}
@@ -92,7 +93,7 @@ func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model
 	err := r.db.GetContext(ctx, &spot, "SELECT * FROM parking_spots WHERE id = $1", spotID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: spot_id=%s", model.ErrNotFound, spotID)
+			return nil, fmt.Errorf("%w: spot_id=%s", reservationerrors.ErrNotFound, spotID)
 		}
 		return nil, fmt.Errorf("get spot by id: %w", err)
 	}
@@ -105,7 +106,7 @@ func (r *sqlxRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*
 	err := r.db.GetContext(ctx, &spot, "SELECT * FROM parking_spots WHERE id = $1 FOR UPDATE", spotID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: spot_id=%s", model.ErrNotFound, spotID)
+			return nil, fmt.Errorf("%w: spot_id=%s", reservationerrors.ErrNotFound, spotID)
 		}
 		return nil, fmt.Errorf("get spot for update: %w", err)
 	}
@@ -118,7 +119,7 @@ func (r *sqlxRepository) GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, sp
 	err := tx.GetContext(ctx, &spot, "SELECT * FROM parking_spots WHERE id = $1 FOR UPDATE", spotID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: spot_id=%s", model.ErrNotFound, spotID)
+			return nil, fmt.Errorf("%w: spot_id=%s", reservationerrors.ErrNotFound, spotID)
 		}
 		return nil, fmt.Errorf("get spot for update tx: %w", err)
 	}
@@ -172,7 +173,7 @@ func (r *sqlxRepository) GetByID(ctx context.Context, id string) (*model.Reserva
 	err := r.db.GetContext(ctx, &reservation, "SELECT * FROM reservations WHERE id = $1", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: id=%s", model.ErrNotFound, id)
+			return nil, fmt.Errorf("%w: id=%s", reservationerrors.ErrNotFound, id)
 		}
 		return nil, fmt.Errorf("get reservation by id: %w", err)
 	}
@@ -186,7 +187,7 @@ func (r *sqlxRepository) GetByIDForUpdate(ctx context.Context, tx *sqlx.Tx, id s
 	err := tx.GetContext(ctx, &reservation, "SELECT * FROM reservations WHERE id = $1 FOR UPDATE", id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: id=%s", model.ErrNotFound, id)
+			return nil, fmt.Errorf("%w: id=%s", reservationerrors.ErrNotFound, id)
 		}
 		return nil, fmt.Errorf("get reservation for update: %w", err)
 	}

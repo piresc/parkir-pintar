@@ -17,7 +17,7 @@ server:
     - "https://staging.parkir-pintar.id"
 
 database:
-  schema: public
+  schema: reservation
   ssl_mode: require
   max_conns: 25
   idle_conns: 5

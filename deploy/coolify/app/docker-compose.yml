@@ -221,13 +221,12 @@ services:
       APP_NAME: parkir-pintar-analytics
       APP_ENV: staging
       GRPC_SERVER_PORT: "9095"
-      JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
-      DB_SCHEMA: analytics
+      DB_SCHEMA: reservation
       DB_SSL_MODE: disable
       TRACING_ENABLED: "true"
       TRACING_EXPORTER: "otlp-grpc"

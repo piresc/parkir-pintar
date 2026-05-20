@@ -1,4 +1,11 @@
--- 000001_init.down.sql
--- Revert initial migration: drop examples table.
+BEGIN;
 
-DROP TABLE IF EXISTS examples;
+DROP SCHEMA IF EXISTS presence CASCADE;
+DROP SCHEMA IF EXISTS search CASCADE;
+DROP SCHEMA IF EXISTS payment CASCADE;
+DROP SCHEMA IF EXISTS billing CASCADE;
+DROP SCHEMA IF EXISTS reservation CASCADE;
+
+DROP EXTENSION IF EXISTS "uuid-ossp";
+
+COMMIT;

@@ -13,7 +13,7 @@ docker compose -p "$PROJECT" pull --ignore-pull-failures
 
 echo "=== Recreating services (rolling) ==="
 # Order matters: infra-dependent first, then dependents, then gateway last
-for svc in billing search presence payment reservation frontend gateway; do
+for svc in billing search presence payment reservation analytics frontend gateway; do
   echo "--- Restarting $svc ---"
   docker compose -p "$PROJECT" up -d --no-deps --force-recreate "$svc"
   # Wait for healthy

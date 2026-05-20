@@ -38,7 +38,7 @@ func TestExtendedStay_ShouldBillActualDuration_WhenStayExceedsReservation(t *tes
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)

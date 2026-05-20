@@ -249,7 +249,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	createReq := &model.CreateReservationRequest{
 		DriverID:       "driver-integ-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "integ-key-1",
 	}
 	reservation, err := uc.CreateReservation(t.Context(), createReq)
@@ -257,7 +257,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	// Assert: reservation created with waiting_payment status
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, constants.StatusWaitingPayment, reservation.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), reservation.Status)
 	assert.Equal(t, "spot-integ-1", reservation.SpotID)
 
 	// Verify billing StartBilling was called with booking_fee=5000
@@ -269,7 +269,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-integ-1",
 		SpotID:      "spot-integ-1",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -277,11 +277,11 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-integ-1",
 		SpotID:      "spot-integ-1",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusConfirmed
+		return r.Status == string(constants.StatusConfirmed)
 	})).Return(nil).Once()
 	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
@@ -290,7 +290,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	})
 	require.NoError(t, err)
 	require.NotNil(t, confirmed)
-	assert.Equal(t, constants.StatusConfirmed, confirmed.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), confirmed.Status)
 
 	// --- Phase 2: Check-In ---
 
@@ -299,11 +299,11 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-integ-1",
 		SpotID:      "spot-integ-1",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusCheckedIn
+		return r.Status == string(constants.StatusCheckedIn)
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-integ-1", "occupied").Return(nil)
 	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
@@ -315,7 +315,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	// Assert: reservation transitioned to checked_in
 	require.NoError(t, err)
 	require.NotNil(t, checkedIn)
-	assert.Equal(t, constants.StatusCheckedIn, checkedIn.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedIn), checkedIn.Reservation.Status)
 	assert.NotNil(t, checkedIn.Reservation.CheckedInAt)
 
 	// Verify billing activation was called (StartBilling with 0 fee)
@@ -336,12 +336,12 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 		ID:          reservation.ID,
 		DriverID:    "driver-integ-1",
 		SpotID:      "spot-integ-1",
-		Status:      constants.StatusCheckedIn,
+		Status:      string(constants.StatusCheckedIn),
 		ConfirmedAt: &confirmedAt,
 		CheckedInAt: &checkedInAt,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusCheckedOut
+		return r.Status == string(constants.StatusCheckedOut)
 	})).Return(nil).Once()
 	billing.On("CalculateFee", mock.Anything, reservation.ID, checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
 	billing.On("GenerateInvoice", mock.Anything, reservation.ID, mock.AnythingOfType("string")).Return(billingRecord, nil)
@@ -353,7 +353,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	// Assert: reservation transitioned to checked_out with billing details
 	require.NoError(t, err)
 	require.NotNil(t, checkOutResult)
-	assert.Equal(t, constants.StatusCheckedOut, checkOutResult.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedOut), checkOutResult.Reservation.Status)
 	assert.Equal(t, int64(15000), checkOutResult.TotalAmount)
 	assert.Equal(t, "billing-integ-1", checkOutResult.BillingID)
 	assert.Equal(t, "", checkOutResult.PaymentID)

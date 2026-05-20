@@ -61,7 +61,7 @@ func TestContention_ShouldSerializeAccess_WhenMultipleDriversSelectSameSpot(t *t
 			res, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentUserSelected,
+				AssignmentMode: string(constants.AssignmentUserSelected),
 				SpotID:         spotID,
 				IdempotencyKey: uuid.New().String(),
 			})

@@ -66,7 +66,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-extended",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "extended-key",
 	})
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		ID:          reservation.ID,
 		DriverID:    "driver-extended",
 		SpotID:      "spot-extended",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -86,11 +86,11 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		ID:          reservation.ID,
 		DriverID:    "driver-extended",
 		SpotID:      "spot-extended",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusConfirmed
+		return r.Status == string(constants.StatusConfirmed)
 	})).Return(nil).Once()
 	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
@@ -104,11 +104,11 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		ID:          reservation.ID,
 		DriverID:    "driver-extended",
 		SpotID:      "spot-extended",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusCheckedIn
+		return r.Status == string(constants.StatusCheckedIn)
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "occupied").Return(nil)
 	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
@@ -129,12 +129,12 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		ID:          reservation.ID,
 		DriverID:    "driver-extended",
 		SpotID:      "spot-extended",
-		Status:      constants.StatusCheckedIn,
+		Status:      string(constants.StatusCheckedIn),
 		ConfirmedAt: &confirmedAt,
 		CheckedInAt: &checkedInAt,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusCheckedOut
+		return r.Status == string(constants.StatusCheckedOut)
 	})).Return(nil).Once()
 	billing.On("CalculateFee", mock.Anything, reservation.ID, checkedInAt, mock.AnythingOfType("time.Time")).Return(billingRecord, nil)
 	billing.On("GenerateInvoice", mock.Anything, reservation.ID, mock.AnythingOfType("string")).Return(billingRecord, nil)
@@ -142,7 +142,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	checkOutResult, err := uc.CheckOut(t.Context(), &model.CheckOutRequest{ReservationID: reservation.ID})
 	require.NoError(t, err)
 	require.NotNil(t, checkOutResult)
-	assert.Equal(t, constants.StatusCheckedOut, checkOutResult.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedOut), checkOutResult.Reservation.Status)
 	assert.Equal(t, int64(25000), checkOutResult.TotalAmount, "PRD Example 4: 4-hour overstay total should be 25,000 IDR (no penalty)")
 
 	// Verify: no penalty was applied (penalty system removed)

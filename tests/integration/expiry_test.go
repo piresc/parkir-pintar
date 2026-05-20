@@ -64,7 +64,7 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-expire-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "expire-key-1",
 	})
 	require.NoError(t, err)
@@ -76,7 +76,7 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",
 		SpotID:      "spot-expire-1",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -84,11 +84,11 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",
 		SpotID:      "spot-expire-1",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusConfirmed
+		return r.Status == string(constants.StatusConfirmed)
 	})).Return(nil).Once()
 	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
@@ -105,12 +105,12 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 		ID:          reservation.ID,
 		DriverID:    "driver-expire-1",
 		SpotID:      "spot-expire-1",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 		ExpiresAt:   &expiresAt,
 	}, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusExpired
+		return r.Status == string(constants.StatusExpired)
 	})).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-expire-1", "available").Return(nil)
 

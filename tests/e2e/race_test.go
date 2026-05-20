@@ -61,7 +61,7 @@ func TestRace_ConcurrentReservationCreation_ShouldNotDoubleBook(t *testing.T) {
 			res, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			results[idx] = result{reservation: res, err: resErr}
@@ -126,7 +126,7 @@ func TestRace_SameSpotContention_ShouldAllowExactlyOne(t *testing.T) {
 			_, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentUserSelected,
+				AssignmentMode: string(constants.AssignmentUserSelected),
 				SpotID:         spotID,
 				IdempotencyKey: uuid.New().String(),
 			})
@@ -183,7 +183,7 @@ func TestRace_ConcurrentIdempotency_ShouldReturnSameReservation(t *testing.T) {
 			res, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverID,
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: idempotencyKey,
 			})
 			results[idx] = result{reservation: res, err: resErr}
@@ -233,7 +233,7 @@ func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
@@ -290,7 +290,7 @@ func TestRace_ConcurrentLifecycleOnSameReservation_ShouldNotCorrupt(t *testing.T
 		"SELECT status FROM reservations WHERE id = $1", reservation.ID).Scan(&finalStatus)
 	require.NoError(t, err)
 
-	validStates := []string{constants.StatusCheckedIn, constants.StatusCancelled, constants.StatusExpired}
+	validStates := []string{string(constants.StatusCheckedIn), string(constants.StatusCancelled), string(constants.StatusExpired)}
 	assert.Contains(t, validStates, finalStatus,
 		"final status should be one of checked_in, cancelled, or expired")
 
@@ -324,7 +324,7 @@ func TestRace_ConcurrentCreateAndCancel_ShouldMaintainInventory(t *testing.T) {
 			res, createErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "motorcycle",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			if createErr != nil {
@@ -381,7 +381,7 @@ func TestRace_MixedVehicleTypes_ShouldNotCrossAssign(t *testing.T) {
 			res, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverID,
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			results[idx] = result{reservation: res, vehicleType: "car", err: resErr}
@@ -395,7 +395,7 @@ func TestRace_MixedVehicleTypes_ShouldNotCrossAssign(t *testing.T) {
 			res, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverID,
 				VehicleType:    "motorcycle",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			results[idx] = result{reservation: res, vehicleType: "motorcycle", err: resErr}
@@ -438,7 +438,7 @@ func TestRace_ConcurrentCheckouts_ShouldNotDuplicatePayments(t *testing.T) {
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)

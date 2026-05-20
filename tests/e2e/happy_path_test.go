@@ -39,14 +39,14 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: uuid.New().String(),
 	})
 
 	// Assert — Step 1: Reservation waiting payment, spot reserved
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, constants.StatusWaitingPayment, reservation.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), reservation.Status)
 	assert.NotEmpty(t, reservation.SpotID)
 
 	// Act — Step 2: Confirm reservation
@@ -57,7 +57,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	// Assert — Step 2: Reservation confirmed
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, constants.StatusConfirmed, reservation.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), reservation.Status)
 
 	var spotStatus string
 	err = env.db.QueryRowContext(ctx,
@@ -80,7 +80,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 
 	// Assert — Step 4: CHECKED_IN, spot occupied
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusCheckedIn, checkedIn.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedIn), checkedIn.Reservation.Status)
 
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)
@@ -95,7 +95,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	// Assert — Step 5: CHECKED_OUT, billing calculated (spot still occupied until CompleteCheckout)
 	require.NoError(t, err)
 	require.NotNil(t, checkoutResp)
-	assert.Equal(t, constants.StatusCheckedOut, checkoutResp.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedOut), checkoutResp.Reservation.Status)
 	assert.Greater(t, checkoutResp.TotalAmount, int64(0))
 
 	err = env.db.QueryRowContext(ctx,
@@ -111,7 +111,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 	// Assert — Step 6: Payment processed, spot available, status completed
 	require.NoError(t, err)
 	require.NotNil(t, completeResp)
-	assert.Equal(t, constants.StatusCompleted, completeResp.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCompleted), completeResp.Reservation.Status)
 
 	err = env.db.QueryRowContext(ctx,
 		"SELECT status FROM parking_spots WHERE id = $1", reservation.SpotID).Scan(&spotStatus)

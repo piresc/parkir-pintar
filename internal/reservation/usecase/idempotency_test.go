@@ -66,14 +66,14 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	req1 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "key-alpha",
 	}
 
 	req2 := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "key-beta",
 	}
 

@@ -81,7 +81,7 @@ func BenchmarkCancelReservation(b *testing.B) {
 		DriverID:    "driver-1",
 		SpotID:      "spot-1",
 		VehicleType: "car",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ExpiresAt:   timePtr(time.Now().Add(10 * time.Minute)),
 		CreatedAt:   time.Now().Add(-5 * time.Minute),
 	}

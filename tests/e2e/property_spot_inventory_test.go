@@ -55,7 +55,7 @@ func TestProperty1_SpotInventoryConservation(t *testing.T) {
 				res, createErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 					DriverID:       driverID,
 					VehicleType:    vt,
-					AssignmentMode: constants.AssignmentSystemAssigned,
+					AssignmentMode: string(constants.AssignmentSystemAssigned),
 					IdempotencyKey: uuid.New().String(),
 				})
 				if createErr == nil && res != nil {

@@ -229,7 +229,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *t
 		ID:             "existing-id",
 		DriverID:       "driver-1",
 		SpotID:         "spot-1",
-		Status:         constants.StatusConfirmed,
+		Status:         string(constants.StatusConfirmed),
 		IdempotencyKey: "idem-key-1",
 	}
 	repo.On("FindByIdempotencyKey", mock.Anything, "idem-key-1").Return(existing, nil)
@@ -238,7 +238,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *t
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "idem-key-1",
 	}
 
@@ -248,7 +248,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *t
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "existing-id", result.ID)
-	assert.Equal(t, constants.StatusConfirmed, result.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), result.Status)
 	// No other mocks should have been called (no side effects)
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
@@ -286,7 +286,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "new-key",
 	}
 
@@ -295,10 +295,10 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusWaitingPayment, result.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), result.Status)
 	assert.Equal(t, "spot-42", result.SpotID)
 	assert.Equal(t, "driver-1", result.DriverID)
-	assert.Equal(t, constants.AssignmentSystemAssigned, result.AssignmentMode)
+	assert.Equal(t, string(constants.AssignmentSystemAssigned), result.AssignmentMode)
 	assert.Nil(t, result.ConfirmedAt)
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
@@ -333,7 +333,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-2",
 		VehicleType:    "motorcycle",
-		AssignmentMode: constants.AssignmentUserSelected,
+		AssignmentMode: string(constants.AssignmentUserSelected),
 		SpotID:         "spot-99",
 		IdempotencyKey: "user-key",
 	}
@@ -343,9 +343,9 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusWaitingPayment, result.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), result.Status)
 	assert.Equal(t, "spot-99", result.SpotID)
-	assert.Equal(t, constants.AssignmentUserSelected, result.AssignmentMode)
+	assert.Equal(t, string(constants.AssignmentUserSelected), result.AssignmentMode)
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
 	billing.AssertExpectations(t)
@@ -372,7 +372,7 @@ func TestCreateReservation_ShouldReturnConflict_WhenLockContention(t *testing.T)
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-3",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "lock-key",
 	}
 
@@ -403,7 +403,7 @@ func TestCreateReservation_ShouldReturnConflict_WhenNoAvailableSpots(t *testing.
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-4",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "no-spots-key",
 	}
 
@@ -431,7 +431,7 @@ func TestCancelReservation_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing
 		ID:          "res-cancel-free",
 		DriverID:    "driver-5",
 		SpotID:      "spot-5",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 	}
 
@@ -448,7 +448,7 @@ func TestCancelReservation_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusCancelled, result.Status)
+	assert.Equal(t, string(constants.StatusCancelled), result.Status)
 	assert.NotNil(t, result.CancelledAt)
 	repo.AssertExpectations(t)
 }
@@ -467,7 +467,7 @@ func TestCancelReservation_ShouldChargeFee_WhenCancelledAfter2Min(t *testing.T) 
 		ID:          "res-cancel-paid",
 		DriverID:    "driver-6",
 		SpotID:      "spot-6",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 	}
 
@@ -482,7 +482,7 @@ func TestCancelReservation_ShouldChargeFee_WhenCancelledAfter2Min(t *testing.T) 
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusCancelled, result.Status)
+	assert.Equal(t, string(constants.StatusCancelled), result.Status)
 	repo.AssertExpectations(t)
 }
 
@@ -501,7 +501,7 @@ func TestCancelReservation_ShouldReturnError_WhenInvalidState(t *testing.T) {
 		ID:          "res-checked-in",
 		DriverID:    "driver-7",
 		SpotID:      "spot-7",
-		Status:      constants.StatusCheckedIn,
+		Status:      string(constants.StatusCheckedIn),
 		ConfirmedAt: &confirmedAt,
 		CheckedInAt: &checkedInAt,
 	}
@@ -535,7 +535,7 @@ func TestCheckIn_ShouldTransitionToCheckedIn_WhenConfirmedState(t *testing.T) {
 		ID:          "res-checkin",
 		DriverID:    "driver-8",
 		SpotID:      "spot-8",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 	}
 
@@ -552,7 +552,7 @@ func TestCheckIn_ShouldTransitionToCheckedIn_WhenConfirmedState(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusCheckedIn, result.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedIn), result.Reservation.Status)
 	assert.NotNil(t, result.Reservation.CheckedInAt)
 	repo.AssertExpectations(t)
 	billing.AssertExpectations(t)
@@ -571,7 +571,7 @@ func TestCheckIn_ShouldReturnError_WhenPendingState(t *testing.T) {
 		ID:       "res-pending",
 		DriverID: "driver-9",
 		SpotID:   "spot-9",
-		Status:   constants.StatusPending,
+		Status:   string(constants.StatusPending),
 	}
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-pending").Return(reservation, nil)
@@ -604,7 +604,7 @@ func TestCheckOut_ShouldCalculateFeeAndProcess_WhenCheckedInState(t *testing.T) 
 		ID:          "res-checkout",
 		DriverID:    "driver-10",
 		SpotID:      "spot-10",
-		Status:      constants.StatusCheckedIn,
+		Status:      string(constants.StatusCheckedIn),
 		ConfirmedAt: &confirmedAt,
 		CheckedInAt: &checkedInAt,
 	}
@@ -627,7 +627,7 @@ func TestCheckOut_ShouldCalculateFeeAndProcess_WhenCheckedInState(t *testing.T) 
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusCheckedOut, result.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCheckedOut), result.Reservation.Status)
 	assert.NotNil(t, result.Reservation.CheckedOutAt)
 	assert.Equal(t, int64(15000), result.TotalAmount)
 	assert.Equal(t, "billing-1", result.BillingID)
@@ -654,7 +654,7 @@ func TestExpireReservation_ShouldReleaseSpot_WhenConfirmedState(t *testing.T) {
 		ID:          "res-expire",
 		DriverID:    "driver-11",
 		SpotID:      "spot-11",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 		ExpiresAt:   &expiresAt,
 	}
@@ -691,8 +691,8 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 		DriverID:       "driver-1",
 		SpotID:         "spot-42",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
-		Status:         constants.StatusConfirmed,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
+		Status:         string(constants.StatusConfirmed),
 		IdempotencyKey: "dup-key",
 	}
 
@@ -720,7 +720,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "dup-key",
 	}
 
@@ -730,7 +730,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 	// Assert
 	require.NoError(t, err)
 	assert.Equal(t, "existing-concurrent-id", result.ID)
-	assert.Equal(t, constants.StatusConfirmed, result.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), result.Status)
 	assert.Equal(t, "dup-key", result.IdempotencyKey)
 	repo.AssertExpectations(t)
 	locker.AssertExpectations(t)
@@ -769,7 +769,7 @@ func TestCreateReservation_ShouldReturnError_WhenNonUniqueConstraintError(t *tes
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "err-key",
 	}
 
@@ -812,7 +812,7 @@ func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) 
 	_, err := uc.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       "driver-001",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentUserSelected,
+		AssignmentMode: string(constants.AssignmentUserSelected),
 		SpotID:         "spot-moto-001",
 		IdempotencyKey: "idem-mismatch-001",
 	})
@@ -837,7 +837,7 @@ func TestConfirmReservation_ShouldTransitionToConfirmed_WhenWaitingPayment(t *te
 		ID:       "res-confirm",
 		DriverID: "driver-1",
 		SpotID:   "spot-1",
-		Status:   constants.StatusWaitingPayment,
+		Status:   string(constants.StatusWaitingPayment),
 	}
 
 	billingRecord := &billingmodel.BillingRecord{ID: "billing-1"}
@@ -851,7 +851,7 @@ func TestConfirmReservation_ShouldTransitionToConfirmed_WhenWaitingPayment(t *te
 	result, err := uc.ConfirmReservation(t.Context(), &model.ConfirmReservationRequest{ReservationID: "res-confirm"})
 
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusConfirmed, result.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), result.Status)
 	assert.NotNil(t, result.ConfirmedAt)
 	repo.AssertExpectations(t)
 	billing.AssertExpectations(t)
@@ -869,7 +869,7 @@ func TestConfirmReservation_ShouldReturnError_WhenNotWaitingPayment(t *testing.T
 
 	reservation := &model.Reservation{
 		ID:     "res-confirm",
-		Status: constants.StatusConfirmed,
+		Status: string(constants.StatusConfirmed),
 	}
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-confirm").Return(reservation, nil)
@@ -896,7 +896,7 @@ func TestCompleteCheckout_ShouldProcessPaymentAndReleaseSpot_WhenCheckedOut(t *t
 		ID:           "res-complete",
 		DriverID:     "driver-1",
 		SpotID:       "spot-1",
-		Status:       constants.StatusCheckedOut,
+		Status:       string(constants.StatusCheckedOut),
 		CheckedOutAt: &checkedOutAt,
 	}
 
@@ -915,7 +915,7 @@ func TestCompleteCheckout_ShouldProcessPaymentAndReleaseSpot_WhenCheckedOut(t *t
 	result, err := uc.CompleteCheckout(t.Context(), &model.CompleteCheckoutRequest{ReservationID: "res-complete"})
 
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusCompleted, result.Reservation.Status)
+	assert.Equal(t, string(constants.StatusCompleted), result.Reservation.Status)
 	assert.Equal(t, int64(15000), result.TotalAmount)
 	assert.Equal(t, "pay-2", result.PaymentID)
 	assert.Equal(t, "billing-2", result.BillingID)
@@ -935,7 +935,7 @@ func TestCompleteCheckout_ShouldReturnError_WhenNotCheckedOut(t *testing.T) {
 
 	reservation := &model.Reservation{
 		ID:     "res-complete",
-		Status: constants.StatusCheckedIn,
+		Status: string(constants.StatusCheckedIn),
 	}
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-complete").Return(reservation, nil)

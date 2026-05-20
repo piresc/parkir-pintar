@@ -117,7 +117,7 @@ func TestCreateReservation(t *testing.T) {
 				SpotID:         "spot-1",
 				VehicleType:    "car",
 				AssignmentMode: "system_assigned",
-				Status:         constants.StatusWaitingPayment,
+				Status:         string(constants.StatusWaitingPayment),
 				IdempotencyKey: "idem-res-123",
 			},
 			wantCode: codes.OK,
@@ -240,7 +240,7 @@ func TestGetReservation(t *testing.T) {
 			mockResult: &model.Reservation{
 				ID:       "res-123",
 				DriverID: "driver-123",
-				Status:   constants.StatusConfirmed,
+				Status:   string(constants.StatusConfirmed),
 			},
 			wantCode: codes.OK,
 		},
@@ -304,7 +304,7 @@ func TestCancelReservation(t *testing.T) {
 			},
 			mockResult: &model.Reservation{
 				ID:     "res-123",
-				Status: constants.StatusCancelled,
+				Status: string(constants.StatusCancelled),
 			},
 			wantCode: codes.OK,
 		},
@@ -370,7 +370,7 @@ func TestCheckIn(t *testing.T) {
 			mockResult: &model.CheckInResponse{
 				Reservation: &model.Reservation{
 					ID:     "res-123",
-					Status: constants.StatusCheckedIn,
+					Status: string(constants.StatusCheckedIn),
 				},
 			},
 			wantCode: codes.OK,
@@ -437,7 +437,7 @@ func TestCheckOut(t *testing.T) {
 			mockResult: &model.CheckOutResponse{
 				Reservation: &model.Reservation{
 					ID:     "res-123",
-					Status: constants.StatusCheckedOut,
+					Status: string(constants.StatusCheckedOut),
 				},
 				TotalAmount:  25000,
 				BillingID:    "bill-123",
@@ -510,7 +510,7 @@ func TestConfirmReservation(t *testing.T) {
 			},
 			mockResult: &model.Reservation{
 				ID:     "res-123",
-				Status: constants.StatusConfirmed,
+				Status: string(constants.StatusConfirmed),
 			},
 			wantCode: codes.OK,
 		},
@@ -576,7 +576,7 @@ func TestCompleteCheckout(t *testing.T) {
 			mockResult: &model.CheckOutResponse{
 				Reservation: &model.Reservation{
 					ID:     "res-123",
-					Status: constants.StatusCheckedOut,
+					Status: string(constants.StatusCheckedOut),
 				},
 				TotalAmount: 25000,
 				BillingID:   "bill-123",
@@ -705,8 +705,8 @@ func TestListByDriver(t *testing.T) {
 				Status:   "confirmed",
 			},
 			mockResult: []*model.Reservation{
-				{ID: "res-1", DriverID: "driver-123", Status: constants.StatusConfirmed},
-				{ID: "res-2", DriverID: "driver-123", Status: constants.StatusConfirmed},
+				{ID: "res-1", DriverID: "driver-123", Status: string(constants.StatusConfirmed)},
+				{ID: "res-2", DriverID: "driver-123", Status: string(constants.StatusConfirmed)},
 			},
 			wantCode: codes.OK,
 		},

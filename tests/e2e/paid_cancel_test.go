@@ -42,7 +42,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 	})
 	require.NoError(t, err)
 	require.NotNil(t, reservation)
-	assert.Equal(t, constants.StatusConfirmed, reservation.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), reservation.Status)
 
 	// Verify booking fee was charged
 	var bookingFee int64
@@ -79,7 +79,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 	// Assert — CANCELLED status
 	require.NoError(t, err)
 	require.NotNil(t, cancelled)
-	assert.Equal(t, constants.StatusCancelled, cancelled.Status)
+	assert.Equal(t, string(constants.StatusCancelled), cancelled.Status)
 
 	// Assert — Spot back to "available"
 	var spotStatus string

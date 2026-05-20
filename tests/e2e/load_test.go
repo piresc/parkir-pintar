@@ -64,7 +64,7 @@ func TestLoad_100ConcurrentReservations_ShouldAllSucceed(t *testing.T) {
 			_, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			results[idx] = loadResult{duration: time.Since(opStart), err: resErr}
@@ -141,7 +141,7 @@ func TestLoad_FullLifecycleThroughput(t *testing.T) {
 			res, createErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "motorcycle",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			if createErr != nil {
@@ -255,7 +255,7 @@ func TestLoad_SustainedCreateCancelCycles(t *testing.T) {
 				res, createErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 					DriverID:       driverIDs[idx],
 					VehicleType:    "car",
-					AssignmentMode: constants.AssignmentSystemAssigned,
+					AssignmentMode: string(constants.AssignmentSystemAssigned),
 					IdempotencyKey: uuid.New().String(),
 				})
 				if createErr != nil {
@@ -327,7 +327,7 @@ func TestLoad_MixedOperations_ShouldMaintainConsistency(t *testing.T) {
 			res, createErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    vt,
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			if createErr != nil {
@@ -416,7 +416,7 @@ func TestLoad_AvailabilityQueryUnderReservationPressure(t *testing.T) {
 			_, _ = env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverID,
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 		}(i)
@@ -488,7 +488,7 @@ func TestLoad_SpotExhaustion_ShouldGracefullyReject(t *testing.T) {
 			_, resErr := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 				DriverID:       driverIDs[idx],
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: uuid.New().String(),
 			})
 			if resErr == nil {

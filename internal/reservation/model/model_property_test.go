@@ -19,40 +19,41 @@ import (
 	"pgregory.net/rapid"
 
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 )
 
 // allStatuses is the complete set of reservation statuses.
 var allStatuses = []string{
-	constants.StatusPending,
-	constants.StatusWaitingPayment,
-	constants.StatusConfirmed,
-	constants.StatusCheckedIn,
-	constants.StatusCheckedOut,
-	constants.StatusCompleted,
-	constants.StatusExpired,
-	constants.StatusCancelled,
-	constants.StatusFailed,
+	string(string(constants.StatusPending)),
+	string(string(constants.StatusWaitingPayment)),
+	string(string(constants.StatusConfirmed)),
+	string(string(constants.StatusCheckedIn)),
+	string(string(constants.StatusCheckedOut)),
+	string(string(constants.StatusCompleted)),
+	string(string(constants.StatusExpired)),
+	string(string(constants.StatusCancelled)),
+	string(string(constants.StatusFailed)),
 }
 
 // validTransitionPairs enumerates every allowed (from, to) pair.
 var validTransitionPairs = [][2]string{
-	{constants.StatusPending, constants.StatusConfirmed},
-	{constants.StatusWaitingPayment, constants.StatusConfirmed},
-	{constants.StatusWaitingPayment, constants.StatusFailed},
-	{constants.StatusWaitingPayment, constants.StatusCancelled},
-	{constants.StatusConfirmed, constants.StatusCheckedIn},
-	{constants.StatusConfirmed, constants.StatusExpired},
-	{constants.StatusConfirmed, constants.StatusCancelled},
-	{constants.StatusCheckedIn, constants.StatusCheckedOut},
-	{constants.StatusCheckedOut, constants.StatusCompleted},
+	{string(string(constants.StatusPending)), string(string(constants.StatusConfirmed))},
+	{string(string(constants.StatusWaitingPayment)), string(string(constants.StatusConfirmed))},
+	{string(string(constants.StatusWaitingPayment)), string(string(constants.StatusFailed))},
+	{string(string(constants.StatusWaitingPayment)), string(string(constants.StatusCancelled))},
+	{string(string(constants.StatusConfirmed)), string(string(constants.StatusCheckedIn))},
+	{string(string(constants.StatusConfirmed)), string(string(constants.StatusExpired))},
+	{string(string(constants.StatusConfirmed)), string(string(constants.StatusCancelled))},
+	{string(string(constants.StatusCheckedIn)), string(string(constants.StatusCheckedOut))},
+	{string(string(constants.StatusCheckedOut)), string(string(constants.StatusCompleted))},
 }
 
 // terminalStatuses are statuses with no outgoing transitions.
 var terminalStatuses = []string{
-	constants.StatusCompleted,
-	constants.StatusExpired,
-	constants.StatusCancelled,
-	constants.StatusFailed,
+	string(string(constants.StatusCompleted)),
+	string(string(constants.StatusExpired)),
+	string(string(constants.StatusCancelled)),
+	string(string(constants.StatusFailed)),
 }
 
 // validTransitionSet builds a lookup set for O(1) membership checks.
@@ -140,7 +141,7 @@ func TestProperty4_InvalidTransitionsAlwaysFail(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err, "invalid transition %q -> %q should fail", from, to)
-		assert.True(t, errors.Is(err, ErrInvalidTransition),
+		assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition),
 			"error for %q -> %q should wrap ErrInvalidTransition", from, to)
 	})
 }
@@ -163,7 +164,7 @@ func TestProperty4_TerminalStatesHaveNoOutgoingTransitions(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err, "transition from terminal state %q to %q should fail", from, to)
-		assert.True(t, errors.Is(err, ErrInvalidTransition),
+		assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition),
 			"error for terminal %q -> %q should wrap ErrInvalidTransition", from, to)
 	})
 }

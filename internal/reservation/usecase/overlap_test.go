@@ -52,7 +52,7 @@ func TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved(t *testing.T) {
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "overlap-key",
 	}
 
@@ -104,7 +104,7 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "diff-spot-key",
 	}
 
@@ -113,10 +113,10 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusWaitingPayment, result.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), result.Status)
 	assert.Equal(t, "spot-a", result.SpotID)
 	assert.Equal(t, "driver-1", result.DriverID)
-	assert.Equal(t, constants.AssignmentSystemAssigned, result.AssignmentMode)
+	assert.Equal(t, string(constants.AssignmentSystemAssigned), result.AssignmentMode)
 	assert.Nil(t, result.ConfirmedAt)
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)
@@ -158,7 +158,7 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	req := &model.CreateReservationRequest{
 		DriverID:       "driver-1",
 		VehicleType:    "motorcycle",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "boundary-key",
 	}
 
@@ -167,10 +167,10 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 
 	// Assert
 	require.NoError(t, err)
-	assert.Equal(t, constants.StatusWaitingPayment, result.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), result.Status)
 	assert.Equal(t, "spot-boundary", result.SpotID)
 	assert.Equal(t, "motorcycle", result.VehicleType)
-	assert.Equal(t, constants.AssignmentSystemAssigned, result.AssignmentMode)
+	assert.Equal(t, string(constants.AssignmentSystemAssigned), result.AssignmentMode)
 	assert.Nil(t, result.ConfirmedAt)
 	assert.Nil(t, result.ExpiresAt)
 	repo.AssertExpectations(t)

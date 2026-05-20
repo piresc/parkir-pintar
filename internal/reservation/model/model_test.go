@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"parkir-pintar/internal/reservation/constants"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 )
 
 func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) {
@@ -24,12 +25,12 @@ func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) 
 		from string
 		to   string
 	}{
-		{name: "pending to confirmed", from: constants.StatusPending, to: constants.StatusConfirmed},
-		{name: "confirmed to checked_in", from: constants.StatusConfirmed, to: constants.StatusCheckedIn},
-		{name: "confirmed to expired", from: constants.StatusConfirmed, to: constants.StatusExpired},
-		{name: "confirmed to cancelled", from: constants.StatusConfirmed, to: constants.StatusCancelled},
-		{name: "checked_in to checked_out", from: constants.StatusCheckedIn, to: constants.StatusCheckedOut},
-		{name: "checked_out to completed", from: constants.StatusCheckedOut, to: constants.StatusCompleted},
+		{name: "pending to confirmed", from: string(constants.StatusPending), to: string(constants.StatusConfirmed)},
+		{name: "confirmed to checked_in", from: string(constants.StatusConfirmed), to: string(constants.StatusCheckedIn)},
+		{name: "confirmed to expired", from: string(constants.StatusConfirmed), to: string(constants.StatusExpired)},
+		{name: "confirmed to cancelled", from: string(constants.StatusConfirmed), to: string(constants.StatusCancelled)},
+		{name: "checked_in to checked_out", from: string(constants.StatusCheckedIn), to: string(constants.StatusCheckedOut)},
+		{name: "checked_out to completed", from: string(constants.StatusCheckedOut), to: string(constants.StatusCompleted)},
 	}
 
 	for _, tt := range tests {
@@ -52,17 +53,17 @@ func TestValidateTransition_ShouldReturnError_WhenTransitionIsInvalid(t *testing
 		from string
 		to   string
 	}{
-		{name: "pending to checked_in", from: constants.StatusPending, to: constants.StatusCheckedIn},
-		{name: "pending to checked_out", from: constants.StatusPending, to: constants.StatusCheckedOut},
-		{name: "pending to expired", from: constants.StatusPending, to: constants.StatusExpired},
-		{name: "pending to cancelled", from: constants.StatusPending, to: constants.StatusCancelled},
-		{name: "confirmed to pending", from: constants.StatusConfirmed, to: constants.StatusPending},
-		{name: "confirmed to confirmed", from: constants.StatusConfirmed, to: constants.StatusConfirmed},
-		{name: "confirmed to checked_out", from: constants.StatusConfirmed, to: constants.StatusCheckedOut},
-		{name: "checked_in to pending", from: constants.StatusCheckedIn, to: constants.StatusPending},
-		{name: "checked_in to confirmed", from: constants.StatusCheckedIn, to: constants.StatusConfirmed},
-		{name: "checked_in to expired", from: constants.StatusCheckedIn, to: constants.StatusExpired},
-		{name: "checked_in to cancelled", from: constants.StatusCheckedIn, to: constants.StatusCancelled},
+		{name: "pending to checked_in", from: string(constants.StatusPending), to: string(constants.StatusCheckedIn)},
+		{name: "pending to checked_out", from: string(constants.StatusPending), to: string(constants.StatusCheckedOut)},
+		{name: "pending to expired", from: string(constants.StatusPending), to: string(constants.StatusExpired)},
+		{name: "pending to cancelled", from: string(constants.StatusPending), to: string(constants.StatusCancelled)},
+		{name: "confirmed to pending", from: string(constants.StatusConfirmed), to: string(constants.StatusPending)},
+		{name: "confirmed to confirmed", from: string(constants.StatusConfirmed), to: string(constants.StatusConfirmed)},
+		{name: "confirmed to checked_out", from: string(constants.StatusConfirmed), to: string(constants.StatusCheckedOut)},
+		{name: "checked_in to pending", from: string(constants.StatusCheckedIn), to: string(constants.StatusPending)},
+		{name: "checked_in to confirmed", from: string(constants.StatusCheckedIn), to: string(constants.StatusConfirmed)},
+		{name: "checked_in to expired", from: string(constants.StatusCheckedIn), to: string(constants.StatusExpired)},
+		{name: "checked_in to cancelled", from: string(constants.StatusCheckedIn), to: string(constants.StatusCancelled)},
 	}
 
 	for _, tt := range tests {
@@ -75,16 +76,16 @@ func TestValidateTransition_ShouldReturnError_WhenTransitionIsInvalid(t *testing
 
 			// Assert
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, ErrInvalidTransition))
+			assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition))
 		})
 	}
 }
 
 func TestValidateTransition_ShouldReturnError_WhenFromTerminalState(t *testing.T) {
-	terminalStates := []string{constants.StatusCompleted, constants.StatusExpired, constants.StatusCancelled, constants.StatusFailed}
+	terminalStates := []string{string(constants.StatusCompleted), string(constants.StatusExpired), string(constants.StatusCancelled), string(constants.StatusFailed)}
 	allStatuses := []string{
-		constants.StatusPending, constants.StatusConfirmed, constants.StatusCheckedIn,
-		constants.StatusCheckedOut, constants.StatusCompleted, constants.StatusExpired, constants.StatusCancelled, constants.StatusFailed,
+		string(constants.StatusPending), string(constants.StatusConfirmed), string(constants.StatusCheckedIn),
+		string(constants.StatusCheckedOut), string(constants.StatusCompleted), string(constants.StatusExpired), string(constants.StatusCancelled), string(constants.StatusFailed),
 	}
 
 	for _, terminal := range terminalStates {
@@ -99,7 +100,7 @@ func TestValidateTransition_ShouldReturnError_WhenFromTerminalState(t *testing.T
 
 				// Assert
 				assert.Error(t, err)
-				assert.True(t, errors.Is(err, ErrInvalidTransition))
+				assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition))
 			})
 		}
 	}

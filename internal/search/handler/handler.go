@@ -9,12 +9,13 @@ import (
 	"parkir-pintar/internal/search/model"
 	"parkir-pintar/internal/search/usecase"
 	"parkir-pintar/internal/shared/grpcerror"
+	pkgconstants "parkir-pintar/pkg/constants"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
 
 const (
-	vehicleTypeCar        = "car"
-	vehicleTypeMotorcycle = "motorcycle"
+	vehicleTypeCar        = string(pkgconstants.VehicleTypeCar)
+	vehicleTypeMotorcycle = string(pkgconstants.VehicleTypeMotorcycle)
 )
 
 type Handler struct {

@@ -16,9 +16,11 @@ import (
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
 	"parkir-pintar/pkg/idempotency"
+
+	paymentconstants "parkir-pintar/internal/payment/constants"
 )
 
-const paymentMethodQRIS = "qris"
+const paymentMethodQRIS = string(paymentconstants.PaymentMethodQRIS)
 
 //go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/payment/usecase Usecase
 type Usecase interface {

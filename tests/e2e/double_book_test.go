@@ -47,7 +47,7 @@ func TestDoubleBook_ShouldRejectSecond_WhenSameSpotConcurrent(t *testing.T) {
 	res1, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driver1ID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentUserSelected,
+		AssignmentMode: string(constants.AssignmentUserSelected),
 		SpotID:         spotID,
 		IdempotencyKey: uuid.New().String(),
 	})
@@ -55,7 +55,7 @@ func TestDoubleBook_ShouldRejectSecond_WhenSameSpotConcurrent(t *testing.T) {
 	// Assert — First reservation succeeds with waiting payment status
 	require.NoError(t, err)
 	require.NotNil(t, res1)
-	assert.Equal(t, constants.StatusWaitingPayment, res1.Status)
+	assert.Equal(t, string(constants.StatusWaitingPayment), res1.Status)
 
 	// Confirm the first reservation
 	res1, err = env.reservationUC.ConfirmReservation(ctx, &model.ConfirmReservationRequest{
@@ -63,13 +63,13 @@ func TestDoubleBook_ShouldRejectSecond_WhenSameSpotConcurrent(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, res1)
-	assert.Equal(t, constants.StatusConfirmed, res1.Status)
+	assert.Equal(t, string(constants.StatusConfirmed), res1.Status)
 
 	// Act — Second driver attempts same spot
 	res2, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driver2ID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentUserSelected,
+		AssignmentMode: string(constants.AssignmentUserSelected),
 		SpotID:         spotID,
 		IdempotencyKey: uuid.New().String(),
 	})

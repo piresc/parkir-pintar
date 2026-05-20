@@ -87,8 +87,8 @@ func (inv *spotInventory) createReservation(vehicleType string) *model.Reservati
 		DriverID:       uuid.New().String(),
 		SpotID:         spot.ID,
 		VehicleType:    vehicleType,
-		AssignmentMode: constants.AssignmentSystemAssigned,
-		Status:         constants.StatusConfirmed,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
+		Status:         string(constants.StatusConfirmed),
 		IdempotencyKey: uuid.New().String(),
 		ConfirmedAt:    &now,
 		ExpiresAt:      &expiresAt,
@@ -100,13 +100,13 @@ func (inv *spotInventory) createReservation(vehicleType string) *model.Reservati
 // checkIn simulates CheckIn: spot → "occupied".
 func (inv *spotInventory) checkIn(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != constants.StatusConfirmed {
+	if !ok || r.Status != string(constants.StatusConfirmed) {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, constants.StatusCheckedIn); err != nil {
+	if err := model.ValidateTransition(r.Status, string(constants.StatusCheckedIn)); err != nil {
 		return false
 	}
-	r.Status = constants.StatusCheckedIn
+	r.Status = string(constants.StatusCheckedIn)
 	now := time.Now()
 	r.CheckedInAt = &now
 	inv.spots[r.SpotID].Status = "occupied"
@@ -116,13 +116,13 @@ func (inv *spotInventory) checkIn(reservationID string) bool {
 // checkOut simulates CheckOut: spot → "available".
 func (inv *spotInventory) checkOut(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != constants.StatusCheckedIn {
+	if !ok || r.Status != string(constants.StatusCheckedIn) {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, constants.StatusCheckedOut); err != nil {
+	if err := model.ValidateTransition(r.Status, string(constants.StatusCheckedOut)); err != nil {
 		return false
 	}
-	r.Status = constants.StatusCheckedOut
+	r.Status = string(constants.StatusCheckedOut)
 	now := time.Now()
 	r.CheckedOutAt = &now
 	inv.spots[r.SpotID].Status = "available"
@@ -132,13 +132,13 @@ func (inv *spotInventory) checkOut(reservationID string) bool {
 // cancel simulates CancelReservation: spot → "available".
 func (inv *spotInventory) cancel(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != constants.StatusConfirmed {
+	if !ok || r.Status != string(constants.StatusConfirmed) {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, constants.StatusCancelled); err != nil {
+	if err := model.ValidateTransition(r.Status, string(constants.StatusCancelled)); err != nil {
 		return false
 	}
-	r.Status = constants.StatusCancelled
+	r.Status = string(constants.StatusCancelled)
 	now := time.Now()
 	r.CancelledAt = &now
 	inv.spots[r.SpotID].Status = "available"
@@ -148,13 +148,13 @@ func (inv *spotInventory) cancel(reservationID string) bool {
 // expire simulates ExpireReservation: spot → "available".
 func (inv *spotInventory) expire(reservationID string) bool {
 	r, ok := inv.reservations[reservationID]
-	if !ok || r.Status != constants.StatusConfirmed {
+	if !ok || r.Status != string(constants.StatusConfirmed) {
 		return false
 	}
-	if err := model.ValidateTransition(r.Status, constants.StatusExpired); err != nil {
+	if err := model.ValidateTransition(r.Status, string(constants.StatusExpired)); err != nil {
 		return false
 	}
-	r.Status = constants.StatusExpired
+	r.Status = string(constants.StatusExpired)
 	inv.spots[r.SpotID].Status = "available"
 	return true
 }
@@ -185,7 +185,7 @@ func (inv *spotInventory) verifyInvariants(t *testing.T) {
 	activeBySpot := make(map[string]*model.Reservation)
 	for _, r := range inv.reservations {
 		switch r.Status {
-		case constants.StatusConfirmed, constants.StatusCheckedIn:
+		case string(constants.StatusConfirmed), string(constants.StatusCheckedIn):
 			activeBySpot[r.SpotID] = r
 		}
 	}
@@ -193,10 +193,10 @@ func (inv *spotInventory) verifyInvariants(t *testing.T) {
 	for spotID, r := range activeBySpot {
 		spot := inv.spots[spotID]
 		switch r.Status {
-		case constants.StatusConfirmed:
+		case string(constants.StatusConfirmed):
 			require.Equal(t, "reserved", spot.Status,
 				"spot %s should be reserved for confirmed reservation %s", spot.ID, r.ID)
-		case constants.StatusCheckedIn:
+		case string(constants.StatusCheckedIn):
 			require.Equal(t, "occupied", spot.Status,
 				"spot %s should be occupied for checked_in reservation %s", spot.ID, r.ID)
 		}

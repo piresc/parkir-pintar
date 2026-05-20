@@ -49,7 +49,7 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 		reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 			DriverID:       driverID,
 			VehicleType:    "car",
-			AssignmentMode: constants.AssignmentSystemAssigned,
+			AssignmentMode: string(constants.AssignmentSystemAssigned),
 			IdempotencyKey: uuid.New().String(),
 		})
 		require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestProperty3_StateMachineEnforcement(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotNil(t, reservation)
-		require.Equal(t, constants.StatusConfirmed, reservation.Status)
+		require.Equal(t, string(constants.StatusConfirmed), reservation.Status)
 
 		// Move to a random terminal state
 		terminalOp := rapid.SampledFrom([]string{"expire", "cancel"}).Draw(rt, "terminalOp")

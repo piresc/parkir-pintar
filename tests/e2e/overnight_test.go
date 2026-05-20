@@ -44,7 +44,7 @@ func TestOvernight_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing
 	reservation, err := env.reservationUC.CreateReservation(ctx, &model.CreateReservationRequest{
 		DriverID:       driverID,
 		VehicleType:    "car",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: uuid.New().String(),
 	})
 	require.NoError(t, err)

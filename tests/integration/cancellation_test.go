@@ -65,7 +65,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
 		DriverID:       "driver-cancel-1",
 		VehicleType:    "motorcycle",
-		AssignmentMode: constants.AssignmentSystemAssigned,
+		AssignmentMode: string(constants.AssignmentSystemAssigned),
 		IdempotencyKey: "cancel-free-key",
 	})
 	require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	// Second GetByIDForUpdate: re-check inside confirmation transaction (TOCTOU fix)
@@ -85,11 +85,11 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      constants.StatusWaitingPayment,
+		Status:      string(constants.StatusWaitingPayment),
 		ConfirmedAt: nil,
 	}, nil).Once()
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusConfirmed
+		return r.Status == string(constants.StatusConfirmed)
 	})).Return(nil).Once()
 	payment.On("ProcessPayment", mock.Anything, "billing-test-id", constants.BookingFee, "qris", mock.AnythingOfType("string")).Return("pay-booking", nil).Once()
 
@@ -105,11 +105,11 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 		ID:          reservation.ID,
 		DriverID:    "driver-cancel-1",
 		SpotID:      "spot-cancel-1",
-		Status:      constants.StatusConfirmed,
+		Status:      string(constants.StatusConfirmed),
 		ConfirmedAt: &confirmedAt,
 	}, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.MatchedBy(func(r *model.Reservation) bool {
-		return r.Status == constants.StatusCancelled
+		return r.Status == string(constants.StatusCancelled)
 	})).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-cancel-1", "available").Return(nil)
 
@@ -121,7 +121,7 @@ func TestCancellationFlow_ShouldNotChargeFee_WhenCancelledWithin2Min(t *testing.
 	// Assert: cancellation succeeded with no fee
 	require.NoError(t, err)
 	require.NotNil(t, cancelled)
-	assert.Equal(t, constants.StatusCancelled, cancelled.Status)
+	assert.Equal(t, string(constants.StatusCancelled), cancelled.Status)
 	assert.NotNil(t, cancelled.CancelledAt)
 
 	// Verify: spot released to "available"

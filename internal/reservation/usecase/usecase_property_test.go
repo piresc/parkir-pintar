@@ -50,8 +50,8 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 			DriverID:       "driver-1",
 			SpotID:         "spot-1",
 			VehicleType:    "car",
-			AssignmentMode: constants.AssignmentSystemAssigned,
-			Status:         constants.StatusConfirmed,
+			AssignmentMode: string(constants.AssignmentSystemAssigned),
+			Status:         string(constants.StatusConfirmed),
 			IdempotencyKey: key,
 		}
 
@@ -62,7 +62,7 @@ func TestProperty5_SameIdempotencyKeyReturnsSameReservationID(t *testing.T) {
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-1",
 			VehicleType:    "car",
-			AssignmentMode: constants.AssignmentSystemAssigned,
+			AssignmentMode: string(constants.AssignmentSystemAssigned),
 			IdempotencyKey: key,
 		}
 
@@ -126,7 +126,7 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			req := &model.CreateReservationRequest{
 				DriverID:       "driver-1",
 				VehicleType:    "car",
-				AssignmentMode: constants.AssignmentSystemAssigned,
+				AssignmentMode: string(constants.AssignmentSystemAssigned),
 				IdempotencyKey: key,
 			}
 			return uc.CreateReservation(t.Context(), req)
@@ -190,7 +190,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		req := &model.CreateReservationRequest{
 			DriverID:       "driver-prop9",
 			VehicleType:    vehicleType,
-			AssignmentMode: constants.AssignmentSystemAssigned,
+			AssignmentMode: string(constants.AssignmentSystemAssigned),
 			IdempotencyKey: "prop9-key",
 		}
 
@@ -206,7 +206,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 			"reservation vehicle type should match requested %q", vehicleType)
 
 		// Postcondition 2: status is "waiting_payment"
-		assert.Equal(rt, constants.StatusWaitingPayment, result.Status,
+		assert.Equal(rt, string(constants.StatusWaitingPayment), result.Status,
 			"reservation status should be waiting_payment")
 
 		// Postcondition 3: confirmed_at and expires_at are nil until payment
@@ -261,7 +261,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		req1 := &model.CreateReservationRequest{
 			DriverID:       "driver-first",
 			VehicleType:    "car",
-			AssignmentMode: constants.AssignmentSystemAssigned,
+			AssignmentMode: string(constants.AssignmentSystemAssigned),
 			IdempotencyKey: "key-first",
 		}
 
@@ -270,7 +270,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		// Assert first reservation succeeds
 		assert.NoError(rt, err1)
 		assert.NotNil(rt, res1)
-		assert.Equal(rt, constants.StatusWaitingPayment, res1.Status)
+		assert.Equal(rt, string(constants.StatusWaitingPayment), res1.Status)
 
 		// --- Second reservation for same spot: fails due to lock contention ---
 		repo2 := new(MockRepository)
@@ -292,7 +292,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		req2 := &model.CreateReservationRequest{
 			DriverID:       "driver-second",
 			VehicleType:    "car",
-			AssignmentMode: constants.AssignmentSystemAssigned,
+			AssignmentMode: string(constants.AssignmentSystemAssigned),
 			IdempotencyKey: "key-second",
 		}
 

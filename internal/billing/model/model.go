@@ -8,10 +8,10 @@ import (
 
 // Re-export typed constants for backward compatibility with existing consumers.
 const (
-	BillingStatusPending    = constants.BillingStatusPending
-	BillingStatusCalculated = constants.BillingStatusCalculated
-	BillingStatusInvoiced   = constants.BillingStatusInvoiced
-	BillingStatusPaid       = constants.BillingStatusPaid
+	BillingStatusPending    string = string(constants.BillingStatusPending)
+	BillingStatusCalculated string = string(constants.BillingStatusCalculated)
+	BillingStatusInvoiced   string = string(constants.BillingStatusInvoiced)
+	BillingStatusPaid       string = string(constants.BillingStatusPaid)
 )
 
 type BillingRecord struct {

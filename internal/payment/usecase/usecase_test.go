@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"parkir-pintar/internal/payment/model"
 	paymentconstants "parkir-pintar/internal/payment/constants"
+	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
 )
 

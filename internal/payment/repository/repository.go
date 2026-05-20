@@ -16,10 +16,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 
 	"parkir-pintar/internal/payment/model"
+	"parkir-pintar/pkg/database"
 )
 
 // ErrNotFound is returned when a payment record is not found.
@@ -61,8 +61,7 @@ func (r *sqlxRepository) CreatePayment(ctx context.Context, payment *model.Payme
 		payment,
 	)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if database.IsUniqueViolation(err) {
 			return ErrConflict
 		}
 		return fmt.Errorf("create payment: %w", err)

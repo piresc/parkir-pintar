@@ -14,6 +14,7 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
+	"parkir-pintar/pkg/idempotency"
 	"parkir-pintar/pkg/pricing"
 )
 
@@ -42,12 +43,12 @@ func NewUsecase(repo repository.Repository) Usecase {
 // StartBilling creates a billing record with the booking fee when a reservation
 // is confirmed. It performs an idempotency check via the idempotency key.
 func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBillingRequest) (*model.BillingRecord, error) {
-	existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
-	if err == nil && existing != nil {
-		return existing, nil
+	res, err := idempotency.Check(ctx, req.IdempotencyKey, uc.repo.GetByIdempotencyKey, repository.ErrNotFound, "start billing")
+	if err != nil {
+		return nil, err
 	}
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		return nil, fmt.Errorf("start billing idempotency check: %w", err)
+	if res.Found {
+		return res.Record, nil
 	}
 
 	existingByReservation, err := uc.repo.GetByReservationID(ctx, req.ReservationID)

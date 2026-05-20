@@ -23,6 +23,7 @@ import (
 	"parkir-pintar/internal/payment/gateway"
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
+	"parkir-pintar/pkg/idempotency"
 )
 
 // paymentMethodQRIS is the constant for the QRIS payment method.
@@ -62,12 +63,12 @@ func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway, pub Event
 // pattern (retry 3x with exponential backoff 100ms/200ms/400ms).
 func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error) {
 	// Idempotency check
-	existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
-	if err == nil && existing != nil {
-		return existing, nil
+	res, err := idempotency.Check(ctx, req.IdempotencyKey, uc.repo.GetByIdempotencyKey, repository.ErrNotFound, "process payment")
+	if err != nil {
+		return nil, err
 	}
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
-		return nil, fmt.Errorf("process payment check idempotency: %w", err)
+	if res.Found {
+		return res.Record, nil
 	}
 
 	now := time.Now()
@@ -187,12 +188,12 @@ func (uc *paymentUsecase) ProcessQRIS(ctx context.Context, req *model.ProcessQRI
 // RefundPayment refunds a previously completed payment via the gateway.
 func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPaymentRequest) (*model.Payment, error) {
 	if req.IdempotencyKey != "" {
-		existing, err := uc.repo.GetByIdempotencyKey(ctx, req.IdempotencyKey)
-		if err == nil && existing != nil {
-			return existing, nil
+		res, err := idempotency.Check(ctx, req.IdempotencyKey, uc.repo.GetByIdempotencyKey, repository.ErrNotFound, "refund payment")
+		if err != nil {
+			return nil, err
 		}
-		if err != nil && !errors.Is(err, repository.ErrNotFound) {
-			return nil, fmt.Errorf("refund payment check idempotency: %w", err)
+		if res.Found {
+			return res.Record, nil
 		}
 	}
 

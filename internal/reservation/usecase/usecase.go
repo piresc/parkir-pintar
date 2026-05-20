@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 
 	billingmodel "parkir-pintar/internal/billing/model"
@@ -20,6 +19,7 @@ import (
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/pkg/database"
 	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
@@ -257,17 +257,14 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		}
 
 		if err := uc.repo.CreateReservationTx(ctx, tx, reservation); err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
-				pgErr.ConstraintName == "idx_reservations_one_active_per_driver" {
+			if database.IsUniqueViolationOn(err, "idx_reservations_one_active_per_driver") {
 				return apperror.New("CONFLICT", "driver already has an active reservation", 409)
 			}
 			return err
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, spotStatusReserved)
 	}); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if database.IsUniqueViolation(err) {
 			existing, findErr := uc.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
 			if findErr == nil && existing != nil {
 				return existing, nil

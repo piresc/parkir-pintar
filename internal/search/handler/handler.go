@@ -54,7 +54,7 @@ func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabi
 		VehicleType: req.GetVehicleType(),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	protoFloors := make([]*searchv1.FloorAvailability, len(floors))
@@ -99,7 +99,7 @@ func (h *Handler) GetFloorMap(ctx context.Context, req *searchv1.GetFloorMapRequ
 		FloorNumber: int(req.GetFloorNumber()),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	protoSpots := make([]*searchv1.SpotInfo, len(spots))
@@ -127,7 +127,7 @@ func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetai
 		SpotID: req.GetSpotId(),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	return &searchv1.SpotDetailsResponse{
@@ -140,7 +140,4 @@ func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetai
 	}, nil
 }
 
-// mapError maps domain errors to gRPC status codes.
-func mapError(err error) error {
-	return grpcerror.MapToGRPCError(err)
-}
+

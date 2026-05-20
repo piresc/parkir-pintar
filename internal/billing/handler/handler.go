@@ -47,7 +47,7 @@ func (h *Handler) StartBilling(ctx context.Context, req *billingv1.StartBillingR
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -71,7 +71,7 @@ func (h *Handler) CalculateFee(ctx context.Context, req *billingv1.CalculateFeeR
 		CheckOutAt:    req.GetCheckOutAt().AsTime(),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -91,7 +91,7 @@ func (h *Handler) GenerateInvoice(ctx context.Context, req *billingv1.GenerateIn
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -107,7 +107,7 @@ func (h *Handler) ApplyOvernightFee(ctx context.Context, req *billingv1.ApplyOve
 		ReservationID: req.GetReservationId(),
 	})
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -134,7 +134,4 @@ func billingRecordToProto(r *model.BillingRecord) *billingv1.BillingResponse {
 	}
 }
 
-// mapError maps domain errors to gRPC status codes.
-func mapError(err error) error {
-	return grpcerror.MapToGRPCError(err)
-}
+

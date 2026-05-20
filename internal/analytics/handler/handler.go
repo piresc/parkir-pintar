@@ -4,14 +4,11 @@ package handler
 
 import (
 	"context"
-	"errors"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/analytics/usecase"
-	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/internal/shared/grpcerror"
 	analyticsv1 "parkir-pintar/proto/analytics/v1"
 )
 
@@ -35,7 +32,7 @@ func (h *Handler) RegisterService(s *grpc.Server) {
 func (h *Handler) GetPeakHours(ctx context.Context, _ *analyticsv1.GetPeakHoursRequest) (*analyticsv1.GetPeakHoursResponse, error) {
 	stats, err := h.uc.GetPeakHours(ctx)
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	protoStats := make([]*analyticsv1.PeakHourStats, 0, len(stats))
@@ -56,7 +53,7 @@ func (h *Handler) GetPeakHours(ctx context.Context, _ *analyticsv1.GetPeakHoursR
 func (h *Handler) GetUsagePatterns(ctx context.Context, _ *analyticsv1.GetUsagePatternsRequest) (*analyticsv1.GetUsagePatternsResponse, error) {
 	pattern, err := h.uc.GetUsagePatterns(ctx)
 	if err != nil {
-		return nil, mapError(err)
+		return nil, grpcerror.MapToGRPCError(err)
 	}
 
 	peakHours := make([]int32, 0, len(pattern.PeakHours))
@@ -75,25 +72,4 @@ func (h *Handler) GetUsagePatterns(ctx context.Context, _ *analyticsv1.GetUsageP
 		PeakHours:      peakHours,
 		IdleHours:      idleHours,
 	}, nil
-}
-
-// mapError maps domain errors to gRPC status codes.
-func mapError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	var appErr *apperror.AppError
-	if errors.As(err, &appErr) {
-		switch appErr.HTTPStatus {
-		case 404:
-			return status.Error(codes.NotFound, appErr.Message)
-		case 400:
-			return status.Error(codes.InvalidArgument, appErr.Message)
-		default:
-			return status.Error(codes.Internal, appErr.Message)
-		}
-	}
-
-	return status.Error(codes.Internal, err.Error())
 }

@@ -140,10 +140,10 @@ func LoadConfig(serviceName string) (*Config, error) {
 
 	v := viper.New()
 
-	// Load YAML config file: config/<service>.<env>.yaml
-	v.SetConfigName(fmt.Sprintf("%s.%s", serviceName, env))
+	// Load YAML config file: config/<env>/<service>.yaml
+	v.SetConfigName(serviceName)
 	v.SetConfigType("yaml")
-	v.AddConfigPath("config/")
+	v.AddConfigPath(fmt.Sprintf("config/%s/", env))
 	v.AddConfigPath(".")
 
 	if err := v.ReadInConfig(); err != nil {

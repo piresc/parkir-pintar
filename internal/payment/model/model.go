@@ -1,14 +1,7 @@
 package model
 
 import (
-	"errors"
 	"time"
-)
-
-var (
-	ErrPaymentNotFound = errors.New("payment not found")
-	ErrPaymentConflict = errors.New("payment conflict")
-	ErrPaymentFailed   = errors.New("payment failed")
 )
 
 type Payment struct {

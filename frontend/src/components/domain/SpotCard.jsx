@@ -5,8 +5,8 @@ export default function SpotCard({ spot, isSelected, onClick }) {
     spot.status === 'available'
       ? 'var(--success)'
       : spot.status === 'reserved'
-      ? 'var(--danger)'
-      : 'var(--warning)';
+      ? 'var(--warning)'
+      : 'var(--danger)';
 
   return (
     <div

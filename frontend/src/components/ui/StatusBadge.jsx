@@ -5,7 +5,7 @@ const STATUS_COLORS = {
   expired: 'var(--danger)',
   cancelled: 'var(--danger)',
   available: 'var(--success)',
-  reserved: 'var(--danger)',
+  reserved: 'var(--warning)',
   success: 'var(--success)',
   failed: 'var(--danger)',
   pending: 'var(--warning)',

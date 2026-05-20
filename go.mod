@@ -4,8 +4,8 @@ go 1.25.10
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/alicebob/miniredis/v2 v2.37.0
-	github.com/bsm/redislock v0.9.4
+	github.com/alicebob/miniredis/v2 v2.38.0
+	github.com/bsm/redislock v0.10.0
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1

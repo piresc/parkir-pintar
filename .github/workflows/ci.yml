@@ -209,7 +209,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service: [gateway, reservation, billing, payment, search, presence]
+        service: [gateway, reservation, billing, payment, search, presence, analytics]
     steps:
       - uses: actions/checkout@v4
 

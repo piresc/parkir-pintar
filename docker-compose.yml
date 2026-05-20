@@ -303,6 +303,43 @@ services:
       retries: 3
       start_period: 15s
 
+  analytics:
+    build:
+      context: .
+      dockerfile: cmd/analytics/Dockerfile
+    container_name: parkir-analytics
+    ports:
+      - "11006:9095"
+    environment:
+      APP_NAME: parkir-pintar-analytics
+      APP_ENV: local
+      GRPC_SERVER_PORT: "9095"
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_SCHEMA: analytics
+      DB_SSL_MODE: disable
+      TRACING_ENABLED: "false"
+      NATS_ENABLED: "true"
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9095 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
 volumes:
   postgres_data:
   redis_data:

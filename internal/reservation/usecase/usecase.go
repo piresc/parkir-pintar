@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"time"
 
 	"github.com/google/uuid"
@@ -151,7 +152,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if unlockErr := lock.Release(releaseCtx); unlockErr != nil {
-			slog.Error("failed to release spot lock", slog.String("lock_key", lockKey), slog.Any("error", unlockErr))
+			slog.Error("failed to release spot lock", slog.String("lock_key", lockKey), logger.Err(unlockErr))
 		}
 	}()
 
@@ -199,7 +200,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 	// Step 6: Create billing record with booking fee
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
 	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey); err != nil {
-		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
+		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.New("PAYMENT_FAILED", "unable to create billing record", 402)
 	}
@@ -209,7 +210,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		if _, err := uc.taskEnqueuer.EnqueueReservationExpiry(ctx, reservation.ID, uc.expiryTimeout); err != nil {
 			slog.Error("failed to enqueue reservation expiry task",
 				slog.String("reservation_id", reservation.ID),
-				slog.Any("error", err))
+				logger.Err(err))
 		}
 	}
 
@@ -218,7 +219,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 		if _, err := uc.taskEnqueuer.EnqueuePaymentHoldTimeout(ctx, reservation.ID, "", uc.paymentTimeout); err != nil {
 			slog.Error("failed to enqueue payment hold timeout",
 				slog.String("reservation_id", reservation.ID),
-				slog.Any("error", err))
+				logger.Err(err))
 		}
 	}
 
@@ -261,7 +262,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
 	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey)
 	if err != nil {
-		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
+		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		return nil, apperror.New("PAYMENT_FAILED", "unable to retrieve billing record", 402)
 	}
 
@@ -272,7 +273,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	if payErr != nil {
 		slog.Error("booking fee payment failed",
 			slog.String("reservation_id", reservation.ID),
-			slog.Any("error", payErr))
+			logger.Err(payErr))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.New("PAYMENT_FAILED", "booking fee payment failed", 402)
 	}
@@ -292,7 +293,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 				slog.Error("failed to refund orphaned payment",
 					slog.String("payment_id", paymentID),
 					slog.String("reservation_id", reservation.ID),
-					slog.Any("error", refundErr))
+					logger.Err(refundErr))
 			}
 			return apperror.New("CONFLICT", "reservation status changed concurrently", 409)
 		}
@@ -308,7 +309,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	}); err != nil {
 		slog.Error("failed to confirm reservation after payment",
 			slog.String("reservation_id", reservation.ID),
-			slog.Any("error", err))
+			logger.Err(err))
 		return nil, fmt.Errorf("confirm reservation: %w", err)
 	}
 
@@ -321,7 +322,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		if err := uc.taskEnqueuer.CancelTask(ctx, fmt.Sprintf("payment-hold:%s", reservation.ID)); err != nil {
 			slog.Warn("failed to cancel payment hold timeout (non-critical)",
 				slog.String("reservation_id", reservation.ID),
-				slog.Any("error", err))
+				logger.Err(err))
 		}
 	}
 
@@ -353,7 +354,7 @@ func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reser
 	}); txErr != nil {
 		slog.Error("failed to release spot on payment failure",
 			slog.String("reservation_id", reservation.ID),
-			slog.Any("error", txErr))
+			logger.Err(txErr))
 	}
 }
 
@@ -445,7 +446,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 	// Notify billing to activate (non-critical, outside transaction)
 	billingIdempotencyKey := fmt.Sprintf("checkin-billing-%s", reservation.ID)
 	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, 0, billingIdempotencyKey); err != nil {
-		slog.Error("failed to activate billing on check-in", slog.String("reservation_id", reservation.ID), slog.Any("error", err))
+		slog.Error("failed to activate billing on check-in", slog.String("reservation_id", reservation.ID), logger.Err(err))
 	}
 
 	// Presence verification (non-blocking, graceful degradation)
@@ -456,13 +457,13 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		if spotErr != nil {
 			slog.Warn("failed to look up spot for presence verification, skipping",
 				slog.String("reservation_id", reservation.ID),
-				slog.Any("error", spotErr))
+				logger.Err(spotErr))
 		} else {
 			presenceResult, err := uc.presenceClient.VerifyPresence(ctx, reservation.DriverID, reservation.ID, spot.FloorNumber, spot.SpotNumber)
 			if err != nil {
 				slog.Warn("presence verification failed, skipping",
 					slog.String("reservation_id", reservation.ID),
-					slog.Any("error", err))
+					logger.Err(err))
 			} else if !presenceResult.Verified {
 				response.WrongSpotWarning = true
 				slog.Warn("driver checked in at wrong spot",
@@ -596,7 +597,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 	}); err != nil {
 		slog.Error("failed to complete reservation after payment",
 			slog.String("reservation_id", reservation.ID),
-			slog.Any("error", err))
+			logger.Err(err))
 		return nil, fmt.Errorf("complete checkout release spot: %w", err)
 	}
 
@@ -710,7 +711,7 @@ func (uc *reservationUsecase) publishSpotUpdated(ctx context.Context, spotID, st
 	if err != nil {
 		slog.Error("failed to get spot for event publishing",
 			slog.String("spot_id", spotID),
-			slog.Any("error", err))
+			logger.Err(err))
 		return
 	}
 	event := gateway.SpotUpdatedEvent{
@@ -726,7 +727,7 @@ func (uc *reservationUsecase) publishSpotUpdated(ctx context.Context, spotID, st
 		slog.Error("failed to publish spot updated event",
 			slog.String("spot_id", spotID),
 			slog.String("status", status),
-			slog.Any("error", err))
+			logger.Err(err))
 	}
 }
 
@@ -747,6 +748,6 @@ func (uc *reservationUsecase) publishAnalyticsEvent(ctx context.Context, subject
 		slog.Error("failed to publish reservation analytics event",
 			slog.String("reservation_id", reservation.ID),
 			slog.String("subject", subject),
-			slog.Any("error", err))
+			logger.Err(err))
 	}
 }

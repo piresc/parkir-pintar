@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -65,7 +66,7 @@ func (h *NATSHandler) handleMessage(msg jetstream.Msg) {
 	var event PaymentResultEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.Error("failed to unmarshal payment result event",
-			slog.Any("error", err),
+			logger.Err(err),
 			slog.String("subject", msg.Subject()),
 		)
 		// Nak so the message can be redelivered or sent to dead-letter
@@ -102,7 +103,7 @@ func (h *NATSHandler) handleMessage(msg jetstream.Msg) {
 		slog.Error("failed to process payment result",
 			slog.String("reservation_id", event.ReservationID),
 			slog.String("status", event.Status),
-			slog.Any("error", err),
+			logger.Err(err),
 		)
 		_ = msg.Nak()
 		return

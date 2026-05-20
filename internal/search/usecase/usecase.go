@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"time"
 
 	"parkir-pintar/internal/search/model"
@@ -37,7 +38,7 @@ func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvai
 		if jsonErr == nil {
 			return floors, nil
 		}
-		slog.Warn("search: failed to unmarshal cached availability", slog.Any("error", jsonErr))
+		slog.Warn("search: failed to unmarshal cached availability", logger.Err(jsonErr))
 	}
 
 	// Use detached context to prevent first-caller cancellation from affecting
@@ -52,7 +53,7 @@ func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvai
 
 		if data, jsonErr := json.Marshal(floors); jsonErr == nil {
 			if setErr := uc.redis.Set(sfCtx, cacheKey, string(data), cacheTTL); setErr != nil {
-				slog.Warn("search: failed to cache availability", slog.Any("error", setErr))
+				slog.Warn("search: failed to cache availability", logger.Err(setErr))
 			}
 		}
 
@@ -79,7 +80,7 @@ func (uc *searchUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMap
 		if jsonErr == nil {
 			return spots, nil
 		}
-		slog.Warn("search: failed to unmarshal cached floor map", slog.Any("error", jsonErr))
+		slog.Warn("search: failed to unmarshal cached floor map", logger.Err(jsonErr))
 	}
 
 	// Use detached context to prevent first-caller cancellation from affecting
@@ -94,7 +95,7 @@ func (uc *searchUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMap
 
 		if data, jsonErr := json.Marshal(spots); jsonErr == nil {
 			if setErr := uc.redis.Set(sfCtx, cacheKey, string(data), cacheTTL); setErr != nil {
-				slog.Warn("search: failed to cache floor map", slog.Any("error", setErr))
+				slog.Warn("search: failed to cache floor map", logger.Err(setErr))
 			}
 		}
 

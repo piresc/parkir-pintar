@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 )
 
 type VerifyResult struct {
@@ -22,7 +23,7 @@ func (uc *presenceUsecase) VerifyPresence(ctx context.Context, reservationID str
 			slog.String("reservation_id", reservationID),
 			slog.Int("floor_number", floorNumber),
 			slog.Int("spot_number", spotNumber),
-			slog.Any("error", err))
+			logger.Err(err))
 		return &VerifyResult{
 			Verified: true,
 			Message:  "sensor unavailable, presence assumed",

@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"os/signal"
 	"syscall"
 	"time"
@@ -150,7 +151,7 @@ func New() (*App, error) {
 func (a *App) Run() error {
 	go func() {
 		if err := a.messaging.AsynqServer.Start(); err != nil {
-			a.log.Error("asynq server error", slog.Any("error", err))
+			a.log.Error("asynq server error", logger.Err(err))
 		}
 	}()
 
@@ -173,14 +174,14 @@ func (a *App) Run() error {
 		a.log.Info("shutdown signal received")
 	case err := <-serverErr:
 		if err != nil {
-			a.log.Error("gRPC server error", slog.Any("error", err))
+			a.log.Error("gRPC server error", logger.Err(err))
 		}
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), a.cfg.GRPC.Server.ShutdownTimeout)
 	defer cancel()
 	if err := a.shutdownMgr.Shutdown(shutdownCtx); err != nil {
-		a.log.Error("shutdown error", slog.Any("error", err))
+		a.log.Error("shutdown error", logger.Err(err))
 	}
 
 	select {

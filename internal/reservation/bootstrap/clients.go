@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/grpcclient"
@@ -62,7 +63,7 @@ func initClients(cfg *config.Config, tracer tracing.Tracer, log *slog.Logger) (*
 	clientCfg.Target = presenceTarget
 	presenceConn, presenceErr := grpcclient.Dial(context.Background(), clientCfg)
 	if presenceErr != nil {
-		log.Warn("presence service unavailable, presence verification disabled", slog.Any("error", presenceErr))
+		log.Warn("presence service unavailable, presence verification disabled", logger.Err(presenceErr))
 	} else {
 		clients.PresenceConn = presenceConn
 		clients.PresenceGRPC = presencev1.NewPresenceServiceClient(presenceConn)

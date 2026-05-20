@@ -3,13 +3,16 @@ package model
 import (
 	"errors"
 	"time"
+
+	"parkir-pintar/internal/payment/constants"
 )
 
+// Re-export typed constants for backward compatibility with existing consumers.
 const (
-	PaymentStatusPending  = "pending"
-	PaymentStatusSuccess  = "success"
-	PaymentStatusFailed   = "failed"
-	PaymentStatusRefunded = "refunded"
+	PaymentStatusPending  = constants.PaymentStatusPending
+	PaymentStatusSuccess  = constants.PaymentStatusSuccess
+	PaymentStatusFailed   = constants.PaymentStatusFailed
+	PaymentStatusRefunded = constants.PaymentStatusRefunded
 )
 
 var (

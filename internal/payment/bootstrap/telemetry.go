@@ -28,7 +28,7 @@ func initTelemetry(cfg *config.Config) (*Telemetry, error) {
 		TraceSampleRate: cfg.Tracing.SampleRate,
 	})
 	if telErr != nil {
-		slog.Warn("telemetry init failed, continuing with noop", slog.Any("error", telErr))
+		slog.Warn("telemetry init failed, continuing with noop", logger.Err(telErr))
 	}
 
 	var log *slog.Logger
@@ -44,7 +44,7 @@ func initTelemetry(cfg *config.Config) (*Telemetry, error) {
 		OTLPEndpoint: cfg.Tracing.OTLPEndpoint,
 	})
 	if err != nil {
-		log.Warn("tracer init failed", slog.Any("error", err))
+		log.Warn("tracer init failed", logger.Err(err))
 		tracer = tracing.NewNoOpTracer()
 	}
 

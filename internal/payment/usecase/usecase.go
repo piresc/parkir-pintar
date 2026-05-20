@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"time"
 
 	"github.com/google/uuid"
@@ -77,7 +78,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		}
 		slog.Warn("payment gateway charge failed, retrying",
 			slog.Int("attempt", i+1),
-			slog.Any("error", chargeErr))
+			logger.Err(chargeErr))
 		if i < 2 {
 			select {
 			case <-time.After(backoffs[i]):
@@ -88,7 +89,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 				if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
 					slog.Error("failed to update payment status on context cancel",
 						slog.String("payment_id", payment.ID),
-						slog.Any("error", updateErr))
+						logger.Err(updateErr))
 				}
 				cleanupCancel()
 				return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, ctx.Err())
@@ -100,7 +101,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		payment.Status = model.PaymentStatusFailed
 		payment.UpdatedAt = time.Now()
 		if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
-			slog.Error("failed to update payment status to failed", slog.Any("error", updateErr))
+			slog.Error("failed to update payment status to failed", logger.Err(updateErr))
 		}
 		if uc.eventPublisher != nil {
 			pubErr := uc.eventPublisher.PublishPaymentFailed(ctx, gateway.PaymentResultEvent{
@@ -110,7 +111,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 			if pubErr != nil {
 				slog.Error("failed to publish payment failed event",
 					slog.String("payment_id", payment.ID),
-					slog.Any("error", pubErr))
+					logger.Err(pubErr))
 			}
 		}
 		return payment, nil
@@ -134,7 +135,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if pubErr != nil {
 			slog.Error("failed to publish payment success event",
 				slog.String("payment_id", payment.ID),
-				slog.Any("error", pubErr))
+				logger.Err(pubErr))
 		}
 	}
 
@@ -188,7 +189,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		slog.Warn("payment gateway refund failed, retrying",
 			slog.String("payment_id", payment.ID),
 			slog.Int("attempt", i+1),
-			slog.Any("error", refundErr))
+			logger.Err(refundErr))
 		if i < 2 {
 			select {
 			case <-time.After(backoffs[i]):
@@ -200,7 +201,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 				if revertErr := uc.repo.UpdatePayment(revertCtx, payment); revertErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
 					slog.Error("failed to revert payment status after context cancel",
 						slog.String("payment_id", payment.ID),
-						slog.Any("error", revertErr))
+						logger.Err(revertErr))
 				}
 				revertCancel()
 				return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, ctx.Err())
@@ -213,7 +214,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		if revertErr := uc.repo.UpdatePayment(ctx, payment); revertErr != nil {
 			slog.Error("failed to revert payment status after gateway failure",
 				slog.String("payment_id", payment.ID),
-				slog.Any("error", revertErr))
+				logger.Err(revertErr))
 		}
 		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrRefundFailed, refundErr)
 	}

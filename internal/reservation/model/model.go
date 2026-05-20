@@ -55,11 +55,11 @@ type Driver struct {
 // allowedTransitions defines the valid reservation state transitions.
 // Terminal states (completed, expired, cancelled, failed) have no outgoing transitions.
 var allowedTransitions = map[string][]string{
-	constants.StatusPending:        {constants.StatusConfirmed},
-	constants.StatusWaitingPayment: {constants.StatusConfirmed, constants.StatusFailed, constants.StatusCancelled},
-	constants.StatusConfirmed:      {constants.StatusCheckedIn, constants.StatusExpired, constants.StatusCancelled},
-	constants.StatusCheckedIn:      {constants.StatusCheckedOut},
-	constants.StatusCheckedOut:     {constants.StatusCompleted},
+	string(constants.StatusPending):        {string(constants.StatusConfirmed)},
+	string(constants.StatusWaitingPayment): {string(constants.StatusConfirmed), string(constants.StatusFailed), string(constants.StatusCancelled)},
+	string(constants.StatusConfirmed):      {string(constants.StatusCheckedIn), string(constants.StatusExpired), string(constants.StatusCancelled)},
+	string(constants.StatusCheckedIn):      {string(constants.StatusCheckedOut)},
+	string(constants.StatusCheckedOut):     {string(constants.StatusCompleted)},
 }
 
 // ValidateTransition checks if a reservation status transition is allowed.

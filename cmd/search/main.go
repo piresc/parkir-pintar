@@ -3,6 +3,7 @@ package main
 
 import (
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"os"
 
 	"parkir-pintar/internal/search/bootstrap"
@@ -11,12 +12,12 @@ import (
 func main() {
 	app, err := bootstrap.New()
 	if err != nil {
-		slog.Error("failed to initialize app", slog.Any("error", err))
+		slog.Error("failed to initialize app", logger.Err(err))
 		os.Exit(1)
 	}
 
 	if err := app.Run(); err != nil {
-		slog.Error("app exited with error", slog.Any("error", err))
+		slog.Error("app exited with error", logger.Err(err))
 		os.Exit(1)
 	}
 }

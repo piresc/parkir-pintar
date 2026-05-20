@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"math"
 	"time"
 
@@ -34,7 +35,7 @@ func (uc *analyticsUsecase) GetPeakHours(ctx context.Context) ([]model.PeakHourS
 	stats, err := uc.repo.GetHourlyStats(ctx, startDate, endDate)
 	if err != nil {
 		slog.Error("failed to get hourly stats for peak hours",
-			slog.Any("error", err))
+			logger.Err(err))
 		return nil, apperror.Internal("failed to retrieve peak hour data")
 	}
 
@@ -65,7 +66,7 @@ func (uc *analyticsUsecase) GetIdleHours(ctx context.Context) ([]model.PeakHourS
 	stats, err := uc.repo.GetHourlyStats(ctx, startDate, endDate)
 	if err != nil {
 		slog.Error("failed to get hourly stats for idle hours",
-			slog.Any("error", err))
+			logger.Err(err))
 		return nil, apperror.Internal("failed to retrieve idle hour data")
 	}
 
@@ -91,7 +92,7 @@ func (uc *analyticsUsecase) PredictResources(ctx context.Context, horizon time.D
 	dailyOccupancy, err := uc.repo.GetDailyOccupancy(ctx, defaultLookbackDays)
 	if err != nil {
 		slog.Error("failed to get daily occupancy for prediction",
-			slog.Any("error", err))
+			logger.Err(err))
 		return nil, apperror.Internal("failed to retrieve occupancy data for prediction")
 	}
 
@@ -136,7 +137,7 @@ func (uc *analyticsUsecase) GetUsagePatterns(ctx context.Context) (*model.UsageP
 	stats, err := uc.repo.GetHourlyStats(ctx, startDate, endDate)
 	if err != nil {
 		slog.Error("failed to get hourly stats for usage patterns",
-			slog.Any("error", err))
+			logger.Err(err))
 		return nil, apperror.Internal("failed to retrieve usage pattern data")
 	}
 
@@ -190,7 +191,7 @@ func (uc *analyticsUsecase) RecordEvent(ctx context.Context, event model.Reserva
 		slog.Error("failed to record reservation event",
 			slog.String("reservation_id", event.ReservationID),
 			slog.String("status", event.Status),
-			slog.Any("error", err))
+			logger.Err(err))
 		return apperror.Internal("failed to record reservation event")
 	}
 	return nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"parkir-pintar/pkg/logger"
 	"os/signal"
 	"syscall"
 	"time"
@@ -136,14 +137,14 @@ func (a *App) Run() error {
 		a.log.Info("shutdown signal received")
 	case err := <-serverErr:
 		if err != nil {
-			a.log.Error("gRPC server error", slog.Any("error", err))
+			a.log.Error("gRPC server error", logger.Err(err))
 		}
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), a.cfg.GRPC.Server.ShutdownTimeout)
 	defer cancel()
 	if err := a.shutdownMgr.Shutdown(shutdownCtx); err != nil {
-		a.log.Error("shutdown error", slog.Any("error", err))
+		a.log.Error("shutdown error", logger.Err(err))
 	}
 
 	select {

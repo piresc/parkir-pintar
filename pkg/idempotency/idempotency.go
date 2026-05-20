@@ -10,11 +10,11 @@ import (
 type LookupFunc[T any] func(ctx context.Context, key string) (*T, error)
 
 type Result[T any] struct {
-	Found bool
+	Found  bool
 	Record *T
 }
 
-//   - Otherwise wraps and returns the unexpected error with the provided operation context.
+// - Otherwise wraps and returns the unexpected error with the provided operation context.
 func Check[T any](ctx context.Context, key string, lookupFn LookupFunc[T], errNotFound error, operation string) (Result[T], error) {
 	existing, err := lookupFn(ctx, key)
 	if err == nil && existing != nil {

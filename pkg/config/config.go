@@ -12,6 +12,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	defaultEnv                 = "local"
+	defaultAllowedOrigin       = "http://localhost:3000"
+	defaultHealthEndpoint      = "/health"
+	defaultHealthLiveEndpoint  = "/health/live"
+	defaultHealthReadyEndpoint = "/health/ready"
+)
+
 type Config struct {
 	App         AppConfig         `yaml:"app"`
 	Server      ServerConfig      `yaml:"server"`
@@ -78,8 +86,8 @@ type AppConfig struct {
 type ServerConfig struct {
 	Host            string   `yaml:"host"`
 	Port            int      `yaml:"port"`
-	ReadTimeout     int      `yaml:"read_timeout"`  // seconds
-	WriteTimeout    int      `yaml:"write_timeout"` // seconds
+	ReadTimeout     int      `yaml:"read_timeout"`     // seconds
+	WriteTimeout    int      `yaml:"write_timeout"`    // seconds
 	ShutdownTimeout int      `yaml:"shutdown_timeout"` // seconds
 	AllowedOrigins  []string `yaml:"allowed_origins"`
 }
@@ -138,10 +146,10 @@ type LoggerConfig struct {
 func LoadConfig(serviceName string) (*Config, error) {
 	env := os.Getenv("APP_ENV")
 	if env == "" {
-		env = "local"
+		env = defaultEnv
 	}
 
-	if env == "local" {
+	if env == defaultEnv {
 		_ = godotenv.Load(".env")
 	}
 
@@ -149,7 +157,7 @@ func LoadConfig(serviceName string) (*Config, error) {
 
 	yamlLoaded := false
 	yamlPath := filepath.Join("config", fmt.Sprintf("%s.%s.yaml", serviceName, env))
-	data, err := os.ReadFile(yamlPath)
+	data, err := os.ReadFile(filepath.Clean(yamlPath))
 	if err == nil {
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse config file %s: %w", yamlPath, err)
@@ -198,7 +206,7 @@ func overlayEnvSecrets(cfg *Config, yamlLoaded bool) {
 	// --- Non-secret fields: only overlay if YAML was NOT loaded (full backward compat) ---
 	if !yamlLoaded {
 		cfg.App.Name = getEnv("APP_NAME", "parkir-pintar")
-		cfg.App.Environment = getEnv("APP_ENV", "local")
+		cfg.App.Environment = getEnv("APP_ENV", defaultEnv)
 		cfg.App.Debug = getEnvAsBool("APP_DEBUG", false)
 		cfg.App.Version = getEnv("APP_VERSION", "0.0.1")
 
@@ -207,7 +215,7 @@ func overlayEnvSecrets(cfg *Config, yamlLoaded bool) {
 		cfg.Server.ReadTimeout = getEnvAsInt("SERVER_READ_TIMEOUT", 15)
 		cfg.Server.WriteTimeout = getEnvAsInt("SERVER_WRITE_TIMEOUT", 15)
 		cfg.Server.ShutdownTimeout = getEnvAsInt("SERVER_SHUTDOWN_TIMEOUT", 30)
-		cfg.Server.AllowedOrigins = getEnvAsSlice("SERVER_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
+		cfg.Server.AllowedOrigins = getEnvAsSlice("SERVER_ALLOWED_ORIGINS", []string{defaultAllowedOrigin})
 
 		cfg.Database.Schema = getEnv("DB_SCHEMA", "public")
 		cfg.Database.SSLMode = getEnv("DB_SSL_MODE", "disable")
@@ -224,7 +232,7 @@ func overlayEnvSecrets(cfg *Config, yamlLoaded bool) {
 		cfg.Tracing.Enabled = getEnvAsBool("TRACING_ENABLED", false)
 		cfg.Tracing.ServiceName = getEnv("TRACING_SERVICE_NAME", cfg.App.Name)
 		cfg.Tracing.SampleRate = getEnvAsFloat("TRACING_SAMPLE_RATE", 1.0)
-		cfg.Tracing.ExcludePaths = getEnvAsSlice("TRACING_EXCLUDE_PATHS", []string{"/health", "/health/live", "/health/ready"})
+		cfg.Tracing.ExcludePaths = getEnvAsSlice("TRACING_EXCLUDE_PATHS", []string{defaultHealthEndpoint, defaultHealthLiveEndpoint, defaultHealthReadyEndpoint})
 		cfg.Tracing.Exporter = getEnv("TRACING_EXPORTER", "noop")
 		cfg.Tracing.NewRelic.Enabled = getEnvAsBool("NEW_RELIC_ENABLED", false)
 
@@ -256,7 +264,7 @@ func overlayEnvSecrets(cfg *Config, yamlLoaded bool) {
 // Deprecated: Use LoadConfig(serviceName) for YAML-based configuration.
 func Load(envPath string) (*Config, error) {
 	env := os.Getenv("APP_ENV")
-	if env == "" || env == "local" {
+	if env == "" || env == defaultEnv {
 		if envPath != "" {
 			_ = godotenv.Load(envPath)
 		}
@@ -265,7 +273,7 @@ func Load(envPath string) (*Config, error) {
 	cfg := &Config{}
 
 	cfg.App.Name = getEnv("APP_NAME", "parkir-pintar")
-	cfg.App.Environment = getEnv("APP_ENV", "local")
+	cfg.App.Environment = getEnv("APP_ENV", defaultEnv)
 	cfg.App.Debug = getEnvAsBool("APP_DEBUG", false)
 	cfg.App.Version = getEnv("APP_VERSION", "0.0.1")
 
@@ -274,7 +282,7 @@ func Load(envPath string) (*Config, error) {
 	cfg.Server.ReadTimeout = getEnvAsInt("SERVER_READ_TIMEOUT", 15)
 	cfg.Server.WriteTimeout = getEnvAsInt("SERVER_WRITE_TIMEOUT", 15)
 	cfg.Server.ShutdownTimeout = getEnvAsInt("SERVER_SHUTDOWN_TIMEOUT", 30)
-	cfg.Server.AllowedOrigins = getEnvAsSlice("SERVER_ALLOWED_ORIGINS", []string{"http://localhost:3000"})
+	cfg.Server.AllowedOrigins = getEnvAsSlice("SERVER_ALLOWED_ORIGINS", []string{defaultAllowedOrigin})
 
 	cfg.Database.Host = getEnv("DB_HOST", "localhost")
 	cfg.Database.Port = getEnvAsInt("DB_PORT", 5432)
@@ -302,7 +310,7 @@ func Load(envPath string) (*Config, error) {
 	cfg.Tracing.Enabled = getEnvAsBool("TRACING_ENABLED", false)
 	cfg.Tracing.ServiceName = getEnv("TRACING_SERVICE_NAME", cfg.App.Name)
 	cfg.Tracing.SampleRate = getEnvAsFloat("TRACING_SAMPLE_RATE", 1.0)
-	cfg.Tracing.ExcludePaths = getEnvAsSlice("TRACING_EXCLUDE_PATHS", []string{"/health", "/health/live", "/health/ready"})
+	cfg.Tracing.ExcludePaths = getEnvAsSlice("TRACING_EXCLUDE_PATHS", []string{defaultHealthEndpoint, defaultHealthLiveEndpoint, defaultHealthReadyEndpoint})
 	cfg.Tracing.Exporter = getEnv("TRACING_EXPORTER", "noop")
 	cfg.Tracing.OTLPEndpoint = getEnv("TRACING_OTLP_ENDPOINT", "")
 	cfg.Tracing.NewRelic.LicenseKey = getEnv("NEW_RELIC_LICENSE_KEY", "")
@@ -354,7 +362,7 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("JWT_SECRET is required")
 	}
 
-	if cfg.App.Environment != "local" && cfg.App.Environment != "test" && len(cfg.JWT.Secret) < 32 {
+	if cfg.App.Environment != defaultEnv && cfg.App.Environment != "test" && len(cfg.JWT.Secret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 characters in non-local environments")
 	}
 

@@ -57,7 +57,7 @@ func TestProperty1_AuthJWTRoundTrip(t *testing.T) {
 		enrichedCtx, ok := resp.(context.Context)
 		require.True(t, ok, "handler must return context")
 
-	assert.NotNil(t, enrichedCtx, "enriched context must not be nil")
+		assert.NotNil(t, enrichedCtx, "enriched context must not be nil")
 	})
 }
 

@@ -26,7 +26,7 @@ const (
 )
 
 type IdempotencyConfig struct {
-	TTL time.Duration
+	TTL     time.Duration
 	Methods []string
 }
 

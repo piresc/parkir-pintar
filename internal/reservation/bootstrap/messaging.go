@@ -51,7 +51,7 @@ func initMessaging(cfg *config.Config) (*Messaging, error) {
 
 	publisher := pkgnats.NewPublisher(natsClient)
 	m.NATSClient = natsClient
-	m.EventPublisher = natsgateway.NewNATSEventPublisher(publisher)
+	m.EventPublisher = natsgateway.NewPublisher(publisher)
 
 	return m, nil
 }

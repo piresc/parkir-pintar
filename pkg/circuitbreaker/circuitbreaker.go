@@ -32,11 +32,11 @@ func (s State) String() string {
 var ErrCircuitOpen = gobreaker.ErrOpenState
 
 type Config struct {
-	Name string
-	FailureThreshold int
-	OpenTimeout time.Duration
+	Name              string
+	FailureThreshold  int
+	OpenTimeout       time.Duration
 	HalfOpenMaxProbes int
-	Interval time.Duration
+	Interval          time.Duration
 }
 
 type CircuitBreaker struct {

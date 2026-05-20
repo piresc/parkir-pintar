@@ -11,8 +11,8 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/internal/reservation/constants"
+	"parkir-pintar/pkg/pricing"
 )
 
 type MockRepository struct {
@@ -161,9 +161,9 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 	result, err := uc.CalculateFee(t.Context(), req)
 
 	require.NoError(t, err)
-	assert.Equal(t, int64(40_000), result.ParkingFee)               // 8h × 5000
+	assert.Equal(t, int64(40_000), result.ParkingFee)                 // 8h × 5000
 	assert.Equal(t, constants.OvernightPerNight, result.OvernightFee) // 20,000
-	assert.Equal(t, 480, result.DurationMinutes)                    // 8 hours
+	assert.Equal(t, 480, result.DurationMinutes)                      // 8 hours
 	assert.Equal(t, 8, result.BilledHours)
 	assert.True(t, result.IsOvernight)
 	assert.Equal(t, int64(65_000), result.TotalAmount)

@@ -16,7 +16,7 @@ type SensorGateway interface {
 
 type StubSensorGateway struct {
 	OccupiedResult bool
-	ErrResult error
+	ErrResult      error
 }
 
 func NewStubSensorGateway() *StubSensorGateway {

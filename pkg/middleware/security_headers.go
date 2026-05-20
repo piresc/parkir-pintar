@@ -2,9 +2,9 @@ package middleware
 
 import "github.com/gin-gonic/gin"
 
-//   - X-Content-Type-Options: prevents MIME-type sniffing
-//   - X-Frame-Options: prevents clickjacking
-//   - Cache-Control: prevents caching of API responses
+// - X-Content-Type-Options: prevents MIME-type sniffing
+// - X-Frame-Options: prevents clickjacking
+// - Cache-Control: prevents caching of API responses
 func (m *Middleware) SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.Writer.Header()

@@ -9,8 +9,8 @@ import (
 
 type Config struct {
 	RequestsPerSecond int
-	BurstSize int
-	CleanupInterval time.Duration
+	BurstSize         int
+	CleanupInterval   time.Duration
 }
 
 func DefaultConfig() Config {

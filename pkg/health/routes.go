@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//   - GET /health/live  — liveness probe, always 200 OK
+// - GET /health/live  — liveness probe, always 200 OK
 func RegisterRoutes(r *gin.Engine, serviceName, version string, svc *Service) {
 	healthGroup := r.Group("/health")
 

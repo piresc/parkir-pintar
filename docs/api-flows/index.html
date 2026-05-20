@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parkir Pintar — API Flow Documentation</title>
+<style>
+:root {
+  --bg-primary: #0d0d0d;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #242424;
+  --bg-card: #1e1e1e;
+  --border: #333;
+  --border-accent: #f59e0b;
+  --text-primary: #e5e5e5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-200: #fde68a;
+  --amber-300: #fcd34d;
+  --amber-400: #fbbf24;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+  --amber-800: #92400e;
+  --amber-900: #78350f;
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --red-400: #f87171;
+  --red-500: #ef4444;
+  --blue-400: #60a5fa;
+  --blue-500: #3b82f6;
+  --purple-400: #c084fc;
+  --purple-500: #a855f7;
+  --cyan-400: #22d3ee;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Cascadia Code', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --radius: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; scroll-padding-top: 2rem; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100vh;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 2rem 0;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.sidebar-header {
+  padding: 0 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.sidebar-header h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--amber-400);
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sidebar-header h1::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: var(--amber-500);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--amber-500);
+}
+
+.sidebar-header p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nav-section {
+  padding: 0.5rem 1.5rem;
+}
+
+.nav-section-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  margin: 0.15rem 0;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+
+.nav-link:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.nav-link.active {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--amber-400);
+  border-left: 2px solid var(--amber-500);
+}
+
+.method-badge-sm {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.method-badge-sm.post { background: rgba(34, 197, 94, 0.15); color: var(--green-400); }
+.method-badge-sm.get { background: rgba(96, 165, 250, 0.15); color: var(--blue-400); }
+.method-badge-sm.put { background: rgba(251, 191, 36, 0.15); color: var(--amber-400); }
+.method-badge-sm.delete { background: rgba(248, 113, 113, 0.15); color: var(--red-400); }
+
+/* Main Content */
+.main {
+  margin-left: 280px;
+  flex: 1;
+  padding: 3rem 4rem;
+  max-width: calc(100vw - 280px);
+}
+
+.page-header {
+  margin-bottom: 4rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--amber-300), var(--amber-600));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.page-header p {
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+}
+
+/* Endpoint Section */
+.endpoint-section {
+  margin-bottom: 5rem;
+  padding: 2.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.endpoint-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--amber-600), var(--amber-400), var(--amber-600));
+}
+
+.endpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.method-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.method-badge.post { background: rgba(34, 197, 94, 0.15); color: var(--green-400); border: 1px solid rgba(34, 197, 94, 0.3); }
+.method-badge.get { background: rgba(96, 165, 250, 0.15); color: var(--blue-400); border: 1px solid rgba(96, 165, 250, 0.3); }
+
+.endpoint-path {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.endpoint-title {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-style: italic;
+}
+
+.endpoint-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+  line-height: 1.7;
+}
+
+/* Sub-sections */
+.sub-section {
+  margin-top: 2rem;
+}
+
+.sub-section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--amber-500);
+  font-weight: 700;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sub-section-title::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: var(--amber-500);
+  border-radius: 50%;
+}
+
+/* Code Blocks */
+.code-block {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.8;
+  overflow-x: auto;
+  position: relative;
+}
+
+.code-block .label {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.code-block .key { color: var(--blue-400); }
+.code-block .string { color: var(--green-400); }
+.code-block .number { color: var(--amber-300); }
+.code-block .comment { color: var(--text-muted); font-style: italic; }
+.code-block .keyword { color: var(--purple-400); }
+.code-block .sql-keyword { color: var(--amber-400); font-weight: 600; }
+
+/* Flow Diagram */
+.flow-diagram {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 1.5rem 0;
+}
+
+.flow-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.flow-step {
+  flex: 1;
+  padding: 1rem 1.25rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  position: relative;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.flow-step:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.flow-step:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+
+.flow-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 8px solid var(--amber-500);
+  z-index: 2;
+}
+
+.flow-step-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber-500);
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.flow-step-content {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Vertical Flow */
+.flow-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 1.5rem 0;
+  padding-left: 1.5rem;
+  border-left: 2px solid var(--border);
+}
+
+.flow-v-step {
+  position: relative;
+  padding: 1rem 1.5rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  margin-left: 1rem;
+}
+
+.flow-v-step::before {
+  content: '';
+  position: absolute;
+  left: -1.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: var(--amber-500);
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 0 0 2px var(--amber-500);
+}
+
+.flow-v-step::after {
+  content: '';
+  position: absolute;
+  left: -1rem;
+  top: 50%;
+  width: 1rem;
+  height: 1px;
+  background: var(--border);
+}
+
+.flow-v-step .step-num {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--amber-400);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.flow-v-step .step-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.flow-v-step .step-text code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  color: var(--cyan-400);
+}
+
+/* Error Table */
+.error-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.8rem;
+}
+
+.error-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+}
+
+.error-table td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.error-table td:first-child {
+  font-family: var(--font-mono);
+  color: var(--red-400);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* Events */
+.event-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--purple-400);
+  margin: 0.25rem 0.25rem 0.25rem 0;
+}
+
+.event-tag::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: var(--purple-400);
+  border-radius: 50%;
+}
+
+/* SQL Block */
+.sql-block {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber-600);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1rem 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.9;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .sidebar { width: 240px; }
+  .main { margin-left: 240px; padding: 2rem; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 1.5rem; }
+  .flow-row { flex-direction: column; }
+  .flow-step:not(:last-child)::after { display: none; }
+  .flow-step { border-radius: var(--radius) !important; margin-bottom: 0.5rem; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Note callout */
+.note {
+  padding: 1rem 1.25rem;
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 1rem 0;
+}
+
+.note strong {
+  color: var(--amber-400);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar Navigation -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <h1>Parkir Pintar</h1>
+    <p>API Flow Documentation</p>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Authentication</div>
+    <a href="#auth-login" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/auth/login</span>
+    </a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Reservations</div>
+    <a href="#create-reservation" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/reservations</span>
+    </a>
+    <a href="#confirm-reservation" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/:id/confirm</span>
+    </a>
+    <a href="#checkin" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/:id/checkin</span>
+    </a>
+    <a href="#checkout" class="nav-link">
+      <span class="method-badge-sm post">POST</span>
+      <span>/:id/checkout</span>
+    </a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+  <div class="page-header">
+    <h1>API Data Flow Reference</h1>
+    <p>Complete request lifecycle documentation for every endpoint — from HTTP gateway through gRPC handlers, usecases, and persistence layers.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 1: POST /api/v1/auth/login -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="auth-login">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/auth/login</span>
+      <span class="endpoint-title">Authentication — Gateway Only</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Authenticates a driver by ID and returns a signed JWT token. This endpoint is handled entirely at the HTTP gateway layer with no gRPC delegation.
+    </p>
+
+    <!-- Flow Diagram -->
+    <div class="sub-section">
+      <div class="sub-section-title">Request Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step">
+            <div class="flow-step-label">Client</div>
+            <div class="flow-step-content">POST JSON body with driver_id</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">Bind JSON, validate driver_id not empty</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">JWT Service</div>
+            <div class="flow-step-content">Generate signed token with expiry</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Response</div>
+            <div class="flow-step-content">Return token + metadata</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Request -->
+    <div class="sub-section">
+      <div class="sub-section-title">Request Body</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"driver_id"</span>: <span class="string">"driver-uuid-1234"</span>
+}
+      </div>
+    </div>
+
+    <!-- Response -->
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"token"</span>: <span class="string">"eyJhbGciOiJIUzI1NiIs..."</span>,
+  <span class="key">"expires_at"</span>: <span class="string">"2025-01-15T10:30:00Z"</span>,
+  <span class="key">"driver_id"</span>: <span class="string">"driver-uuid-1234"</span>
+}
+      </div>
+    </div>
+
+    <!-- Errors -->
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead>
+          <tr><th>Status</th><th>Condition</th><th>Response</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>400</td><td>Empty or malformed request body</td><td>Invalid request body</td></tr>
+          <tr><td>400</td><td>driver_id field is empty string</td><td>driver_id is required</td></tr>
+          <tr><td>500</td><td>JWT token generation failure</td><td>Failed to generate token</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 2: POST /api/v1/reservations -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="create-reservation">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/reservations</span>
+      <span class="endpoint-title">CreateReservation</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Creates a new parking reservation with full idempotency support, distributed locking, transactional spot assignment, billing integration, and async task scheduling.
+    </p>
+
+    <!-- Flow Diagram -->
+    <div class="sub-section">
+      <div class="sub-section-title">High-Level Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">Parse JSON, enforce ownership (driver_id == JWT user), build gRPC request</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">gRPC Handler</div>
+            <div class="flow-step-content">Validate required fields, delegate to usecase</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Usecase</div>
+            <div class="flow-step-content">Idempotency → Lock → Transaction → Billing → Tasks → Events</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Repository</div>
+            <div class="flow-step-content">PostgreSQL queries within transaction</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Steps -->
+    <div class="sub-section">
+      <div class="sub-section-title">Usecase Detail Steps</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Step 1 — Idempotency Check</div>
+          <div class="step-text">Call <code>repo.FindByIdempotencyKey(key)</code>. If found, return existing reservation immediately (short-circuit).</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 2 — Spot Assignment</div>
+          <div class="step-text">
+            If <code>system_assigned</code>: call <code>FindAvailableSpot(vehicleType)</code> to get next available spot.<br>
+            If <code>user_selected</code>: use the provided <code>req.SpotID</code> directly.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 3 — Distributed Lock</div>
+          <div class="step-text">Acquire Redis lock via <code>SETNX</code> on key <code>"spot:&lt;spotID&gt;"</code> with TTL. Prevents concurrent reservations on same spot.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 4 — Transaction</div>
+          <div class="step-text">
+            Within a single DB transaction:<br>
+            • <code>GetSpotForUpdateTx</code> — row-level lock on spot<br>
+            • Verify spot status == <code>available</code><br>
+            • <code>CreateReservationTx</code> — insert reservation row<br>
+            • <code>UpdateSpotStatusTx</code> — set spot to <code>reserved</code>
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 5 — Billing</div>
+          <div class="step-text">Call <code>billingClient.StartBilling(reservationID, 5000, idempotencyKey)</code> to initialize billing session.</div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 6 — Async Tasks</div>
+          <div class="step-text">
+            • <code>EnqueueReservationExpiry</code> — fires after 60 minutes<br>
+            • <code>EnqueuePaymentHoldTimeout</code> — fires after 10 minutes
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 7 — Events</div>
+          <div class="step-text">Publish NATS events for downstream consumers.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SQL Queries -->
+    <div class="sub-section">
+      <div class="sub-section-title">SQL Queries</div>
+      <div class="sql-block"><span class="comment">-- Idempotency check</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> reservations <span class="sql-keyword">WHERE</span> idempotency_key = $1;</div>
+      <div class="sql-block"><span class="comment">-- Find available spot (system-assigned)</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> parking_spots
+<span class="sql-keyword">WHERE</span> vehicle_type = $1 <span class="sql-keyword">AND</span> status = <span class="string">'available'</span>
+<span class="sql-keyword">ORDER BY</span> floor_number, spot_number
+<span class="sql-keyword">LIMIT</span> 1;</div>
+      <div class="sql-block"><span class="comment">-- Lock spot row for update</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> parking_spots <span class="sql-keyword">WHERE</span> id = $1 <span class="sql-keyword">FOR UPDATE</span>;</div>
+      <div class="sql-block"><span class="comment">-- Insert reservation</span>
+<span class="sql-keyword">INSERT INTO</span> reservations (id, driver_id, spot_id, status, idempotency_key, created_at, ...)
+<span class="sql-keyword">VALUES</span> ($1, $2, $3, $4, $5, $6, ...);</div>
+      <div class="sql-block"><span class="comment">-- Update spot status</span>
+<span class="sql-keyword">UPDATE</span> parking_spots <span class="sql-keyword">SET</span> status = $1 <span class="sql-keyword">WHERE</span> id = $2;</div>
+    </div>
+
+    <!-- Events -->
+    <div class="sub-section">
+      <div class="sub-section-title">Published Events (NATS)</div>
+      <div>
+        <span class="event-tag">reservation.search.spot-updated</span>
+        <span class="event-tag">reservation.analytics.created</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 3: POST /api/v1/reservations/:id/confirm -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="confirm-reservation">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/reservations/:id/confirm</span>
+      <span class="endpoint-title">ConfirmReservation</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Confirms a reservation by processing payment. Uses a multi-phase approach with TOCTOU protection to ensure consistency between payment processing and status updates.
+    </p>
+
+    <!-- Flow Diagram -->
+    <div class="sub-section">
+      <div class="sub-section-title">High-Level Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">Extract :id param, call gRPC ConfirmReservation</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">gRPC Handler</div>
+            <div class="flow-step-content">Validate reservation_id, extract CallerID from metadata</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Usecase</div>
+            <div class="flow-step-content">4-phase: Lock → Billing → Payment → Commit</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">External</div>
+            <div class="flow-step-content">Billing + Payment services</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Steps -->
+    <div class="sub-section">
+      <div class="sub-section-title">Multi-Phase Execution</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Phase 1 — Initial Lock &amp; Validation (Transaction)</div>
+          <div class="step-text">
+            <code>GetByIDForUpdate</code> — acquire row lock on reservation.<br>
+            Verify caller == owner (ownership check).<br>
+            Verify status == <code>waiting_payment</code>.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 2 — Billing (Idempotent)</div>
+          <div class="step-text">
+            Call <code>billingClient.StartBilling(reservationID, 5000, idempotencyKey)</code>.<br>
+            This is a re-call (idempotent) — billing was already started at creation. Returns existing billing session ID.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 3 — Payment Processing</div>
+          <div class="step-text">
+            Call <code>paymentClient.ProcessPayment(billingID, 5000, "qris", idempotencyKey)</code>.<br>
+            Processes actual payment via QRIS method. Returns payment confirmation or error.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Phase 4 — Final Commit (Transaction + TOCTOU Guard)</div>
+          <div class="step-text">
+            Re-fetch reservation with <code>FOR UPDATE</code> lock.<br>
+            Verify status is STILL <code>waiting_payment</code> (TOCTOU protection against concurrent changes).<br>
+            Set status = <code>confirmed</code>, <code>confirmed_at</code> = now, <code>expires_at</code> = now + TTL.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Post-Commit — Side Effects</div>
+          <div class="step-text">
+            Publish <code>reservation.analytics.confirmed</code> event.<br>
+            Cancel the <code>payment-hold-timeout</code> async task (no longer needed).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events -->
+    <div class="sub-section">
+      <div class="sub-section-title">Published Events (NATS)</div>
+      <div>
+        <span class="event-tag">reservation.analytics.confirmed</span>
+      </div>
+    </div>
+
+    <!-- External Calls -->
+    <div class="sub-section">
+      <div class="sub-section-title">External Service Calls</div>
+      <div class="code-block">
+<span class="comment">// Phase 2 — Billing (idempotent re-call)</span>
+billingClient.StartBilling(reservationID, <span class="number">5000</span>, idempotencyKey)
+
+<span class="comment">// Phase 3 — Payment</span>
+paymentClient.ProcessPayment(billingID, <span class="number">5000</span>, <span class="string">"qris"</span>, idempotencyKey)
+      </div>
+    </div>
+
+    <!-- Errors -->
+    <div class="sub-section">
+      <div class="sub-section-title">Error Cases</div>
+      <table class="error-table">
+        <thead>
+          <tr><th>Status</th><th>Condition</th><th>Response</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>404</td><td>Reservation not found</td><td>Reservation not found</td></tr>
+          <tr><td>403</td><td>Caller is not the reservation owner</td><td>Not authorized to confirm this reservation</td></tr>
+          <tr><td>400</td><td>Status is not waiting_payment</td><td>Reservation cannot be confirmed in current state</td></tr>
+          <tr><td>402</td><td>Payment processing failed</td><td>Payment failed: {reason}</td></tr>
+          <tr><td>409</td><td>Concurrent status change detected (TOCTOU)</td><td>Reservation was modified concurrently, retry</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 4: POST /api/v1/reservations/:id/checkin -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="checkin">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/reservations/:id/checkin</span>
+      <span class="endpoint-title">CheckIn</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Records driver arrival at the parking spot. Transitions reservation to checked_in, marks spot as occupied, activates billing timer, and optionally verifies physical presence.
+    </p>
+
+    <!-- Flow Diagram -->
+    <div class="sub-section">
+      <div class="sub-section-title">High-Level Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">Extract :id, call gRPC CheckIn</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">gRPC Handler</div>
+            <div class="flow-step-content">Validate ID, extract CallerID</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Usecase</div>
+            <div class="flow-step-content">Transaction → Billing → Presence → Events</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Repository</div>
+            <div class="flow-step-content">Update reservation + spot status</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Steps -->
+    <div class="sub-section">
+      <div class="sub-section-title">Usecase Detail Steps</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Step 1 — Transaction</div>
+          <div class="step-text">
+            <code>GetByIDForUpdate</code> — lock reservation row.<br>
+            Ownership check (caller == driver_id).<br>
+            <code>ValidateTransition(→checked_in)</code> — current status must be <code>confirmed</code>.<br>
+            Set <code>checked_in_at</code> = now.<br>
+            <code>UpdateSpotStatusTx(occupied)</code> — mark parking spot as occupied.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 2 — Billing Activation</div>
+          <div class="step-text">
+            Call <code>billingClient.StartBilling(reservationID)</code>.<br>
+            This activates the per-minute billing timer for the parking session.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 3 — Presence Verification (Non-Blocking)</div>
+          <div class="step-text">
+            Call <code>presenceClient.VerifyPresence(reservationID)</code>.<br>
+            Graceful degradation — if presence service is unavailable, check-in still succeeds. Result is logged but does not block the flow.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 4 — Events</div>
+          <div class="step-text">
+            Publish events for search index update and analytics tracking.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Events -->
+    <div class="sub-section">
+      <div class="sub-section-title">Published Events (NATS)</div>
+      <div>
+        <span class="event-tag">reservation.search.spot-updated</span>
+        <span class="event-tag">reservation.analytics.checked-in</span>
+      </div>
+    </div>
+
+    <!-- External Calls -->
+    <div class="sub-section">
+      <div class="sub-section-title">External Service Calls</div>
+      <div class="code-block">
+<span class="comment">// Activate billing timer</span>
+billingClient.StartBilling(reservationID)
+
+<span class="comment">// Non-blocking presence check (graceful degradation)</span>
+presenceClient.VerifyPresence(reservationID)
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Note:</strong> The spot status changes from <code>reserved</code> → <code>occupied</code> at check-in. This is published via the <code>reservation.search.spot-updated</code> event to keep the search index current.
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- ENDPOINT 5: POST /api/v1/reservations/:id/checkout -->
+  <!-- ============================================================ -->
+  <section class="endpoint-section" id="checkout">
+    <div class="endpoint-header">
+      <span class="method-badge post">POST</span>
+      <span class="endpoint-path">/api/v1/reservations/:id/checkout</span>
+      <span class="endpoint-title">CheckOut</span>
+    </div>
+
+    <p class="endpoint-desc">
+      Initiates the checkout process. Calculates parking fees based on duration, generates an invoice, and returns a billing breakdown. Note: the spot remains "occupied" until a separate CompleteCheckout flow releases it.
+    </p>
+
+    <!-- Flow Diagram -->
+    <div class="sub-section">
+      <div class="sub-section-title">High-Level Flow</div>
+      <div class="flow-diagram">
+        <div class="flow-row">
+          <div class="flow-step">
+            <div class="flow-step-label">Gateway</div>
+            <div class="flow-step-content">Extract :id, call gRPC CheckOut</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">gRPC Handler</div>
+            <div class="flow-step-content">Validate ID, extract CallerID</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Usecase</div>
+            <div class="flow-step-content">Transaction → Fee Calculation → Invoice</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-step-label">Billing</div>
+            <div class="flow-step-content">CalculateFee + GenerateInvoice</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Steps -->
+    <div class="sub-section">
+      <div class="sub-section-title">Usecase Detail Steps</div>
+      <div class="flow-vertical">
+        <div class="flow-v-step">
+          <div class="step-num">Step 1 — Transaction</div>
+          <div class="step-text">
+            <code>GetByIDForUpdate</code> — lock reservation row.<br>
+            Ownership check (caller == driver_id).<br>
+            <code>ValidateTransition(→checked_out)</code> — current status must be <code>checked_in</code>.<br>
+            Set <code>checked_out_at</code> = now.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 2 — Fee Calculation</div>
+          <div class="step-text">
+            Call <code>billingClient.CalculateFee(reservationID, checkedInAt, checkedOutAt)</code>.<br>
+            Computes total parking fee based on duration and rate tiers.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 3 — Invoice Generation</div>
+          <div class="step-text">
+            Call <code>billingClient.GenerateInvoice(reservationID)</code>.<br>
+            Creates a formal invoice record with line items and total.
+          </div>
+        </div>
+        <div class="flow-v-step">
+          <div class="step-num">Step 4 — Response</div>
+          <div class="step-text">
+            Return <code>CheckOutResponse</code> with full billing breakdown.<br>
+            No payment is collected at this stage — that happens in a separate payment flow.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Important:</strong> The parking spot remains in <code>occupied</code> status after checkout. It is only released back to <code>available</code> when the <code>CompleteCheckout</code> flow runs (after payment is settled). This prevents the spot from being re-assigned before the vehicle physically leaves.
+    </div>
+
+    <!-- External Calls -->
+    <div class="sub-section">
+      <div class="sub-section-title">External Service Calls</div>
+      <div class="code-block">
+<span class="comment">// Calculate parking fee based on duration</span>
+billingClient.CalculateFee(reservationID, checkedInAt, checkedOutAt)
+
+<span class="comment">// Generate invoice with line items</span>
+billingClient.GenerateInvoice(reservationID)
+      </div>
+    </div>
+
+    <!-- Response -->
+    <div class="sub-section">
+      <div class="sub-section-title">Success Response — 200</div>
+      <div class="code-block">
+        <span class="label">JSON</span>
+{
+  <span class="key">"reservation_id"</span>: <span class="string">"res-uuid-5678"</span>,
+  <span class="key">"status"</span>: <span class="string">"checked_out"</span>,
+  <span class="key">"checked_in_at"</span>: <span class="string">"2025-01-15T08:00:00Z"</span>,
+  <span class="key">"checked_out_at"</span>: <span class="string">"2025-01-15T11:30:00Z"</span>,
+  <span class="key">"billing"</span>: {
+    <span class="key">"duration_minutes"</span>: <span class="number">210</span>,
+    <span class="key">"base_rate"</span>: <span class="number">5000</span>,
+    <span class="key">"total_fee"</span>: <span class="number">17500</span>,
+    <span class="key">"invoice_id"</span>: <span class="string">"inv-uuid-9012"</span>
+  }
+}
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Active nav highlight script -->
+<script>
+(function() {
+  const sections = document.querySelectorAll('.endpoint-section');
+  const navLinks = document.querySelectorAll('.nav-link');
+
+  function setActive() {
+    let current = '';
+    sections.forEach(function(section) {
+      const rect = section.getBoundingClientRect();
+      if (rect.top <= 120) {
+        current = section.getAttribute('id');
+      }
+    });
+    navLinks.forEach(function(link) {
+      link.classList.remove('active');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', setActive);
+  setActive();
+})();
+</script>
+<div style="max-width:900px;margin:2rem auto;padding:0 2rem;">
+  <a href="endpoints-part2.html" style="display:inline-flex;align-items:center;gap:0.5rem;padding:1rem 2rem;background:var(--bg-tertiary);border:1px solid var(--border-accent);border-radius:var(--radius);color:var(--amber-400);text-decoration:none;font-family:var(--font-mono);font-size:0.9rem;transition:background 0.2s;">
+    Continue to Endpoints 6–14 + NATS Consumers →
+  </a>
+</div>
+</body>
+</html>

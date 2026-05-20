@@ -278,34 +278,34 @@ func TestLoad_ShouldReturnEmptyAPIKeys_WhenEnvVarNotSet(t *testing.T) {
 	assert.Len(t, cfg.Auth.APIKeys, 0)
 }
 
-func TestLoad_ShouldUseDefaultsForInvalidIntValues(t *testing.T) {
+func TestLoad_ShouldReturnError_WhenInvalidIntValues(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("SERVER_PORT", "not-a-number")
 
-	cfg, err := Load("")
-	require.NoError(t, err)
-	assert.Equal(t, 8080, cfg.Server.Port)
+	_, err := Load("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server.port")
 }
 
-func TestLoad_ShouldUseDefaultsForInvalidBoolValues(t *testing.T) {
+func TestLoad_ShouldReturnError_WhenInvalidBoolValues(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("APP_DEBUG", "not-a-bool")
 
-	cfg, err := Load("")
-	require.NoError(t, err)
-	assert.False(t, cfg.App.Debug)
+	_, err := Load("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "app.debug")
 }
 
-func TestLoad_ShouldUseDefaultsForInvalidFloatValues(t *testing.T) {
+func TestLoad_ShouldReturnError_WhenInvalidFloatValues(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("TRACING_SAMPLE_RATE", "not-a-float")
 
-	cfg, err := Load("")
-	require.NoError(t, err)
-	assert.Equal(t, 1.0, cfg.Tracing.SampleRate)
+	_, err := Load("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tracing.sample_rate")
 }
 
 func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
@@ -423,19 +423,18 @@ func TestLoad_ShouldIndicateNoTLS_WhenNeitherCertNorKeyPathProvided(t *testing.T
 	assert.Empty(t, cfg.GRPC.Server.TLSKeyPath)
 }
 
-func TestLoad_ShouldUseDefaultGRPCPort_WhenInvalidPortProvided(t *testing.T) {
+func TestLoad_ShouldReturnError_WhenInvalidGRPCPortProvided(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_SERVER_PORT", "not-a-number")
 
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.Equal(t, 9090, cfg.GRPC.Server.Port)
+	_, err := Load("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "grpc.server.port")
 }
 
-func TestLoad_ShouldUseDefaultDuration_WhenInvalidDurationProvided(t *testing.T) {
+func TestLoad_ShouldReturnError_WhenInvalidDurationProvided(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
@@ -443,10 +442,7 @@ func TestLoad_ShouldUseDefaultDuration_WhenInvalidDurationProvided(t *testing.T)
 	t.Setenv("GRPC_KEEPALIVE_TIME", "bad-value")
 	t.Setenv("GRPC_KEEPALIVE_TIMEOUT", "xyz")
 
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.Equal(t, 5*time.Second, cfg.GRPC.Client.DialTimeout)
-	assert.Equal(t, 30*time.Second, cfg.GRPC.Client.KeepAliveTime)
-	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
+	_, err := Load("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "grpc.client.dial_timeout")
 }

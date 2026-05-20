@@ -1,0 +1,68 @@
+# Billing service - local configuration
+# Secrets (DB_PASSWORD, JWT_SECRET, etc.) come from config/.env
+
+app:
+  name: parkir-pintar-billing
+  environment: local
+  debug: true
+  version: "0.1.0"
+
+server:
+  host: "0.0.0.0"
+  port: 8082
+  read_timeout: 15
+  write_timeout: 15
+  shutdown_timeout: 30
+  allowed_origins:
+    - "http://localhost:3000"
+
+database:
+  host: localhost
+  port: 5432
+  database: parkir_pintar
+  schema: public
+  ssl_mode: disable
+  max_conns: 25
+  idle_conns: 5
+  max_lifetime: 15
+
+redis:
+  db: 0
+  pool_size: 10
+
+jwt:
+  expiration: 60
+  issuer: parkir-pintar
+
+tracing:
+  enabled: false
+  service_name: parkir-pintar-billing
+  sample_rate: 1.0
+  exclude_paths:
+    - /health
+    - /health/live
+    - /health/ready
+  exporter: noop
+
+logger:
+  level: debug
+  format: json
+
+grpc:
+  server:
+    port: 9092
+    shutdown_timeout: 30s
+    request_timeout: 30s
+  client:
+    dial_timeout: 5s
+    keepalive_time: 30s
+    keepalive_timeout: 10s
+  rate_limit:
+    requests_per_second: 100
+    burst_size: 200
+
+asynq:
+  concurrency: 10
+
+nats:
+  enabled: false

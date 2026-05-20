@@ -19,6 +19,7 @@ import (
 
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -100,11 +101,11 @@ func TestOvernight_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *testing
 	assert.True(t, billing.IsOvernight, "is_overnight should be true")
 
 	// Assert — Overnight fee = 20000
-	assert.Equal(t, constants.OvernightPerNight, billing.OvernightFee,
+	assert.Equal(t, pricing.OvernightPerNight, billing.OvernightFee,
 		"overnight fee should be 20000")
 
 	// Assert — Parking fee = billed_hours × 5000
-	assert.Equal(t, int64(billing.BilledHours)*constants.HourlyRate, billing.ParkingFee,
+	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee,
 		"parking fee should be billed_hours × 5000")
 
 	// Assert — Total = booking_fee + parking_fee + overnight_fee

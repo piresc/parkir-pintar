@@ -16,6 +16,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	billingmodel "parkir-pintar/internal/billing/model"
+	reservation "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/gateway"
@@ -23,6 +24,7 @@ import (
 	"parkir-pintar/pkg/apperror"
 	"parkir-pintar/pkg/database"
 	pkgnats "parkir-pintar/pkg/nats"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
 
@@ -47,13 +49,7 @@ type PaymentClient interface {
 //
 //go:generate mockgen -destination=../mocks/mock_presence_client.go -package=mocks parkir-pintar/internal/reservation/usecase PresenceClient
 type PresenceClient interface {
-	VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*PresenceResult, error)
-}
-
-// PresenceResult holds the result of a presence verification check.
-type PresenceResult struct {
-	Verified bool
-	Message  string
+	VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*reservation.PresenceResult, error)
 }
 
 // Lock represents an acquired distributed lock.
@@ -199,7 +195,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 	// Step 6: Create billing record with booking fee
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey); err != nil {
+	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey); err != nil {
 		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.New("PAYMENT_FAILED", "unable to create billing record", 402)
@@ -260,7 +256,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Re-call StartBilling (idempotent) to obtain billing record
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey)
+	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey)
 	if err != nil {
 		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		return nil, apperror.New("PAYMENT_FAILED", "unable to retrieve billing record", 402)
@@ -268,7 +264,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Process payment for booking fee
 	paymentIdempotencyKey := fmt.Sprintf("booking-payment-%s", reservation.ID)
-	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, constants.BookingFee, string(constants.PaymentMethodQRIS), paymentIdempotencyKey)
+	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, string(constants.PaymentMethodQRIS), paymentIdempotencyKey)
 
 	if payErr != nil {
 		slog.Error("booking fee payment failed",

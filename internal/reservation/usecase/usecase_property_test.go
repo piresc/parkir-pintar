@@ -23,6 +23,7 @@ import (
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
 
@@ -120,7 +121,7 @@ func TestProperty5_DifferentIdempotencyKeysProduceDifferentIDs(t *testing.T) {
 			}, nil)
 			repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 			repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-1", "reserved").Return(nil)
-			billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+			billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 			uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 			req := &model.CreateReservationRequest{
@@ -184,7 +185,7 @@ func TestProperty9_ReservationCreationPostconditions(t *testing.T) {
 		}, nil)
 		repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
+		billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-prop9-id"}, nil)
 
 		uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 		req := &model.CreateReservationRequest{
@@ -255,7 +256,7 @@ func TestProperty10_NoDoubleBooking(t *testing.T) {
 		}, nil)
 		repo1.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 		repo1.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), spotID, "reserved").Return(nil)
-		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
+		billing1.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-first-id"}, nil)
 
 		uc1 := NewUsecase(repo1, locker1, billing1, payment1, nil, nil, nil, 60, 10)
 		req1 := &model.CreateReservationRequest{

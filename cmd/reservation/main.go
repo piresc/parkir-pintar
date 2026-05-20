@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	reservation "parkir-pintar/internal/reservation"
 	grpcgw "parkir-pintar/internal/reservation/gateway/grpc"
 	natsgateway "parkir-pintar/internal/reservation/gateway/nats"
 	reservationhandler "parkir-pintar/internal/reservation/handler"
@@ -311,15 +312,12 @@ type presenceClientAdapter struct {
 	inner grpcgw.PresenceClient
 }
 
-func (a *presenceClientAdapter) VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*usecase.PresenceResult, error) {
+func (a *presenceClientAdapter) VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*reservation.PresenceResult, error) {
 	result, err := a.inner.VerifyPresence(ctx, driverID, reservationID, floorNumber, spotNumber)
 	if err != nil {
 		return nil, err
 	}
-	return &usecase.PresenceResult{
-		Verified: result.Verified,
-		Message:  result.Message,
-	}, nil
+	return result, nil
 }
 
 func getEnv(key, defaultValue string) string {

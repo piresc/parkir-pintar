@@ -11,7 +11,6 @@ import (
 	billingerrors "parkir-pintar/internal/billing/errors"
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
-	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/pkg/idempotency"
 	"parkir-pintar/pkg/pricing"
 )
@@ -140,7 +139,7 @@ func (uc *billingUsecase) ApplyOvernightFee(ctx context.Context, req *model.Appl
 
 		overnightFee := req.Amount
 		if overnightFee <= 0 {
-			overnightFee = constants.OvernightPerNight
+			overnightFee = pricing.OvernightPerNight
 		}
 
 		record.OvernightFee = overnightFee

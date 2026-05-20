@@ -18,6 +18,7 @@ import (
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldReject_WhenSpotAlreadyReserved verifies that when
@@ -98,7 +99,7 @@ func TestCreateReservation_ShouldSucceed_WhenSpotIsAvailable(t *testing.T) {
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-a", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
@@ -152,7 +153,7 @@ func TestCreateReservation_ShouldSucceed_WhenMotorcycleSpotIsAvailable(t *testin
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-boundary", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-boundary-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{

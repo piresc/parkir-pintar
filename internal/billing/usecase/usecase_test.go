@@ -11,7 +11,6 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
-	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/pkg/pricing"
 )
 
@@ -55,7 +54,7 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 	uc := NewUsecase(repo)
 	req := &model.StartBillingRequest{
 		ReservationID:  "res-1",
-		BookingFee:     constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
 	}
 
@@ -63,9 +62,9 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "res-1", result.ReservationID)
-	assert.Equal(t, constants.BookingFee, result.BookingFee)
+	assert.Equal(t, pricing.BookingFee, result.BookingFee)
 	assert.Equal(t, model.BillingStatusPending, result.Status)
-	assert.Equal(t, constants.BookingFee, result.TotalAmount)
+	assert.Equal(t, pricing.BookingFee, result.TotalAmount)
 	assert.NotEmpty(t, result.ID)
 	repo.AssertExpectations(t)
 }
@@ -76,8 +75,8 @@ func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testin
 	existing := &model.BillingRecord{
 		ID:             "existing-billing-id",
 		ReservationID:  "res-1",
-		BookingFee:     constants.BookingFee,
-		TotalAmount:    constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
+		TotalAmount:    pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
 		Status:         model.BillingStatusPending,
 	}
@@ -86,7 +85,7 @@ func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testin
 	uc := NewUsecase(repo)
 	req := &model.StartBillingRequest{
 		ReservationID:  "res-1",
-		BookingFee:     constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
 	}
 
@@ -104,7 +103,7 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 	existingRecord := &model.BillingRecord{
 		ID:            "billing-1",
 		ReservationID: "res-1",
-		BookingFee:    constants.BookingFee,
+		BookingFee:    pricing.BookingFee,
 		Status:        model.BillingStatusPending,
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(existingRecord, nil)
@@ -130,7 +129,7 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 	assert.Equal(t, 2, result.BilledHours)
 	assert.False(t, result.IsOvernight)
 	assert.Equal(t, model.BillingStatusCalculated, result.Status)
-	expectedTotal := constants.BookingFee + int64(10_000)
+	expectedTotal := pricing.BookingFee + int64(10_000)
 	assert.Equal(t, expectedTotal, result.TotalAmount)
 	repo.AssertExpectations(t)
 }
@@ -141,7 +140,7 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 	existingRecord := &model.BillingRecord{
 		ID:            "billing-2",
 		ReservationID: "res-2",
-		BookingFee:    constants.BookingFee,
+		BookingFee:    pricing.BookingFee,
 		Status:        model.BillingStatusPending,
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-2").Return(existingRecord, nil)
@@ -162,7 +161,7 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(40_000), result.ParkingFee)                 // 8h × 5000
-	assert.Equal(t, constants.OvernightPerNight, result.OvernightFee) // 20,000
+	assert.Equal(t, pricing.OvernightPerNight, result.OvernightFee) // 20,000
 	assert.Equal(t, 480, result.DurationMinutes)                      // 8 hours
 	assert.Equal(t, 8, result.BilledHours)
 	assert.True(t, result.IsOvernight)
@@ -176,7 +175,7 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced(t *testing.T) 
 	existing := &model.BillingRecord{
 		ID:             "billing-3",
 		ReservationID:  "res-3",
-		BookingFee:     constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "invoice-res-3",
@@ -205,7 +204,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	existingRecord := &model.BillingRecord{
 		ID:             "billing-4",
 		ReservationID:  "res-4",
-		BookingFee:     constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "billing-res-4",
@@ -230,15 +229,15 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 // that total_amount always equals the sum of all fee fields.
 func TestBillingTotalInvariant_ShouldEqualSumOfFees(t *testing.T) {
 	record := &model.BillingRecord{
-		BookingFee:   constants.BookingFee,
+		BookingFee:   pricing.BookingFee,
 		ParkingFee:   15_000,
-		OvernightFee: constants.OvernightPerNight,
+		OvernightFee: pricing.OvernightPerNight,
 	}
 
 	total := pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
 
-	expectedTotal := constants.BookingFee + int64(15_000) + constants.OvernightPerNight
+	expectedTotal := pricing.BookingFee + int64(15_000) + pricing.OvernightPerNight
 	assert.Equal(t, expectedTotal, total)
 	assert.Equal(t, record.BookingFee+record.ParkingFee+record.OvernightFee, total)
-	assert.GreaterOrEqual(t, total, constants.BookingFee)
+	assert.GreaterOrEqual(t, total, pricing.BookingFee)
 }

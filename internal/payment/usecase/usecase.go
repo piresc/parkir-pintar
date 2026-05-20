@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"parkir-pintar/pkg/logger"
+	"parkir-pintar/pkg/retry"
 	"time"
 
 	"github.com/google/uuid"
@@ -71,32 +72,28 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 
 	var txnRef string
 	var chargeErr error
-	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
 
-	for i := range 3 {
-		txnRef, chargeErr = uc.gw.Charge(ctx, req.Amount, req.PaymentMethod)
-		if chargeErr == nil {
-			break
+	chargeErr = retry.Do(ctx, retry.DefaultConfig(), func(retryCtx context.Context) error {
+		var err error
+		txnRef, err = uc.gw.Charge(retryCtx, req.Amount, req.PaymentMethod)
+		if err != nil {
+			slog.Warn("payment gateway charge failed, retrying",
+				logger.Err(err))
 		}
-		slog.Warn("payment gateway charge failed, retrying",
-			slog.Int("attempt", i+1),
-			logger.Err(chargeErr))
-		if i < 2 {
-			select {
-			case <-time.After(backoffs[i]):
-			case <-ctx.Done():
-				payment.Status = model.PaymentStatusFailed
-				payment.UpdatedAt = time.Now()
-				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
-					slog.Error("failed to update payment status on context cancel",
-						slog.String("payment_id", payment.ID),
-						logger.Err(updateErr))
-				}
-				cleanupCancel()
-				return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, ctx.Err())
-			}
+		return err
+	})
+
+	if chargeErr != nil && (errors.Is(chargeErr, context.Canceled) || errors.Is(chargeErr, context.DeadlineExceeded)) {
+		payment.Status = model.PaymentStatusFailed
+		payment.UpdatedAt = time.Now()
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
+			slog.Error("failed to update payment status on context cancel",
+				slog.String("payment_id", payment.ID),
+				logger.Err(updateErr))
 		}
+		cleanupCancel()
+		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, chargeErr)
 	}
 
 	if chargeErr != nil {
@@ -182,33 +179,28 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 	}
 
 	var refundErr error
-	backoffs := []time.Duration{100 * time.Millisecond, 200 * time.Millisecond, 400 * time.Millisecond}
-	for i := range 3 {
-		refundErr = uc.gw.Refund(ctx, payment.TransactionRef)
-		if refundErr == nil {
-			break
+	refundErr = retry.Do(ctx, retry.DefaultConfig(), func(retryCtx context.Context) error {
+		err := uc.gw.Refund(retryCtx, payment.TransactionRef)
+		if err != nil {
+			slog.Warn("payment gateway refund failed, retrying",
+				slog.String("payment_id", payment.ID),
+				logger.Err(err))
 		}
-		slog.Warn("payment gateway refund failed, retrying",
-			slog.String("payment_id", payment.ID),
-			slog.Int("attempt", i+1),
-			logger.Err(refundErr))
-		if i < 2 {
-			select {
-			case <-time.After(backoffs[i]):
-			case <-ctx.Done():
-				// Revert status back to success since gateway was not called successfully.
-				payment.Status = model.PaymentStatusSuccess
-				payment.UpdatedAt = time.Now()
-				revertCtx, revertCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				if revertErr := uc.repo.UpdatePayment(revertCtx, payment); revertErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
-					slog.Error("failed to revert payment status after context cancel",
-						slog.String("payment_id", payment.ID),
-						logger.Err(revertErr))
-				}
-				revertCancel()
-				return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, ctx.Err())
-			}
+		return err
+	})
+
+	if refundErr != nil && (errors.Is(refundErr, context.Canceled) || errors.Is(refundErr, context.DeadlineExceeded)) {
+		// Revert status back to success since gateway was not called successfully.
+		payment.Status = model.PaymentStatusSuccess
+		payment.UpdatedAt = time.Now()
+		revertCtx, revertCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if revertErr := uc.repo.UpdatePayment(revertCtx, payment); revertErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
+			slog.Error("failed to revert payment status after context cancel",
+				slog.String("payment_id", payment.ID),
+				logger.Err(revertErr))
 		}
+		revertCancel()
+		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, refundErr)
 	}
 	if refundErr != nil {
 		payment.Status = model.PaymentStatusSuccess

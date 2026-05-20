@@ -18,6 +18,7 @@ import (
 
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -71,7 +72,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&billingFee)
 	require.NoError(t, err)
-	assert.Equal(t, constants.BookingFee, billingFee)
+	assert.Equal(t, pricing.BookingFee, billingFee)
 
 	// Act — Step 4: Check in
 	checkedIn, err := env.reservationUC.CheckIn(ctx, &model.CheckInRequest{
@@ -127,7 +128,7 @@ func TestHappyPath_ShouldCompleteFullLifecycle_WhenSystemAssigned(t *testing.T) 
 		"SELECT parking_fee, billed_hours FROM billing_records WHERE reservation_id = $1",
 		reservation.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(billing.BilledHours)*constants.HourlyRate, billing.ParkingFee)
+	assert.Equal(t, int64(billing.BilledHours)*pricing.HourlyRate, billing.ParkingFee)
 
 	// Verify payment record exists with status success
 	var paymentStatus string

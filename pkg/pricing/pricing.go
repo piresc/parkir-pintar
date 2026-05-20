@@ -2,8 +2,6 @@ package pricing
 
 import (
 	"time"
-
-	"parkir-pintar/internal/reservation/constants"
 )
 
 var wib = time.FixedZone("WIB", 7*60*60)
@@ -27,10 +25,10 @@ func CalculateSessionFee(checkIn, checkOut time.Time) FeeResult {
 	}
 	billedHours = max(billedHours, 1)
 
-	parkingFee := int64(billedHours) * constants.HourlyRate
+	parkingFee := int64(billedHours) * HourlyRate
 
 	nightsCrossed := countMidnightsCrossed(checkIn, checkOut)
-	overnightFee := constants.OvernightPerNight * int64(nightsCrossed)
+	overnightFee := OvernightPerNight * int64(nightsCrossed)
 
 	return FeeResult{
 		ParkingFee:      parkingFee,

@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 
-	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/pkg/pricing"
 )
 
@@ -102,8 +101,8 @@ func TestProperty1_PricingCorrectness(t *testing.T) {
 		assert.GreaterOrEqual(t, result.BilledHours, 1,
 			"billedHours must be at least 1")
 
-		assert.Equal(t, int64(result.BilledHours)*constants.HourlyRate, result.ParkingFee,
-			"parkingFee should be billedHours * %d", constants.HourlyRate)
+		assert.Equal(t, int64(result.BilledHours)*pricing.HourlyRate, result.ParkingFee,
+			"parkingFee should be billedHours * %d", pricing.HourlyRate)
 
 		expectedMinutes := int(duration.Minutes())
 		assert.Equal(t, expectedMinutes, result.DurationMinutes,

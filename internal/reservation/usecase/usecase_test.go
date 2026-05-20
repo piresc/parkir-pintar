@@ -27,6 +27,7 @@ import (
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 
 	"github.com/jackc/pgx/v5/pgconn"

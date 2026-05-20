@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/internal/reservation/constants"
+	"parkir-pintar/pkg/pricing"
 )
 
 func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(t *testing.T) {
@@ -17,7 +17,7 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(
 	record1 := &model.BillingRecord{
 		ID:             "billing-1",
 		ReservationID:  "res-1",
-		BookingFee:     constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     10000,
 		TotalAmount:    15000,
 		IdempotencyKey: "billing-res-1",
@@ -39,7 +39,7 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(
 	record2 := &model.BillingRecord{
 		ID:             "billing-2",
 		ReservationID:  "res-2",
-		BookingFee:     constants.BookingFee,
+		BookingFee:     pricing.BookingFee,
 		ParkingFee:     20000,
 		TotalAmount:    25000,
 		IdempotencyKey: "billing-res-2",

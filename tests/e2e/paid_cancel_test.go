@@ -18,6 +18,7 @@ import (
 
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/tests/testhelpers"
 )
 
@@ -62,7 +63,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&bookingFee)
 	require.NoError(t, err)
-	assert.Equal(t, constants.BookingFee, bookingFee, "booking fee should be 5000 IDR")
+	assert.Equal(t, pricing.BookingFee, bookingFee, "booking fee should be 5000 IDR")
 
 	// Count billing records before cancellation
 	var billingCountBefore int
@@ -103,7 +104,7 @@ func TestCancelReservation_ShouldForfeitBookingFee_WhenCancelledAfterConfirmatio
 		"SELECT booking_fee FROM billing_records WHERE reservation_id = $1",
 		reservation.ID).Scan(&bookingFeeAfter)
 	require.NoError(t, err)
-	assert.Equal(t, constants.BookingFee, bookingFeeAfter,
+	assert.Equal(t, pricing.BookingFee, bookingFeeAfter,
 		"booking fee should remain charged (non-refundable)")
 
 	// Assert — No penalty/cancellation_fee columns exist (removed by migration 000011)

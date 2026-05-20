@@ -1,4 +1,4 @@
-package constants
+package pricing
 
 // Pricing constants — all monetary values in IDR.
 const (

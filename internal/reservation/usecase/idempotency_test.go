@@ -13,6 +13,7 @@ import (
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
+	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys verifies
@@ -41,7 +42,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-alpha", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
 
 	// Second call mocks (key-beta -> spot-beta)
 	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, reservationerrors.ErrNotFound).Once()
@@ -59,7 +60,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	}, nil).Once()
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-beta", "reserved").Return(nil).Once()
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), constants.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-beta-id"}, nil).Once()
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 

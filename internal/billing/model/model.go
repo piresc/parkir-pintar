@@ -50,5 +50,5 @@ type GenerateInvoiceRequest struct {
 
 type ApplyOvernightFeeRequest struct {
 	ReservationID string `json:"reservation_id"`
-	Amount        int64  `json:"amount"` // configurable overnight fee amount; falls back to constants.OvernightPerNight if 0
+	Amount        int64  `json:"amount"` // configurable overnight fee amount; falls back to pricing.OvernightPerNight if 0
 }

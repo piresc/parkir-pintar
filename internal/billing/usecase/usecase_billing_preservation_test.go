@@ -11,7 +11,7 @@ import (
 
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
-	"parkir-pintar/internal/reservation/constants"
+	"parkir-pintar/pkg/pricing"
 
 	"pgregory.net/rapid"
 )
@@ -74,9 +74,9 @@ func TestCalculateFee_ShouldComputeCorrectly_WhenStandardSession(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		expectedParkingFee := int64(hours) * constants.HourlyRate
+		expectedParkingFee := int64(hours) * pricing.HourlyRate
 		assert.Equal(t, expectedParkingFee, result.ParkingFee,
-			"parking_fee should be %d hours × %d = %d", hours, constants.HourlyRate, expectedParkingFee)
+			"parking_fee should be %d hours × %d = %d", hours, pricing.HourlyRate, expectedParkingFee)
 		assert.Equal(t, model.BillingStatusCalculated, result.Status)
 		assert.Equal(t, hours*60, result.DurationMinutes)
 		repo.AssertExpectations(t)
@@ -92,7 +92,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoicePreservation(t *testin
 		existingRecord := &model.BillingRecord{
 			ID:            "billing-inv",
 			ReservationID: "res-inv",
-			BookingFee:    constants.BookingFee,
+			BookingFee:    pricing.BookingFee,
 			ParkingFee:    10_000,
 			TotalAmount:   15_000,
 			Status:        model.BillingStatusCalculated,
@@ -139,9 +139,9 @@ func TestApplyOvernightFee_ShouldSetOvernightFields_WhenCalled(t *testing.T) {
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, constants.OvernightPerNight, result.OvernightFee)
+		assert.Equal(t, pricing.OvernightPerNight, result.OvernightFee)
 		assert.True(t, result.IsOvernight)
-		expectedTotal := bookingFee + parkingFee + constants.OvernightPerNight
+		expectedTotal := bookingFee + parkingFee + pricing.OvernightPerNight
 		assert.Equal(t, expectedTotal, result.TotalAmount,
 			"total should include overnight fee")
 		repo.AssertExpectations(t)

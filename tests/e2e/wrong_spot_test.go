@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	reservation "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	reservationuc "parkir-pintar/internal/reservation/usecase"
@@ -29,8 +30,8 @@ type stubPresenceClient struct {
 	message  string
 }
 
-func (s *stubPresenceClient) VerifyPresence(_ context.Context, _ string, _ string, _ int, _ int) (*reservationuc.PresenceResult, error) {
-	return &reservationuc.PresenceResult{
+func (s *stubPresenceClient) VerifyPresence(_ context.Context, _ string, _ string, _ int, _ int) (*reservation.PresenceResult, error) {
+	return &reservation.PresenceResult{
 		Verified: s.verified,
 		Message:  s.message,
 	}, nil

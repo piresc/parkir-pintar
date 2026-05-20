@@ -13,6 +13,8 @@ const (
 	SubjectPatternReservationSearch    = "reservation.search.*"
 	SubjectPatternReservationAnalytics = "reservation.analytics.*"
 	SubjectPatternPaymentReservation   = "payment.reservation.*"
+
+	defaultStreamMaxAge = 7 * 24 * time.Hour
 )
 
 type StreamConfig struct {
@@ -47,7 +49,7 @@ func DefaultStreamConfigs() []StreamConfig {
 			Subjects:  []string{SubjectPatternReservationAnalytics},
 			Retention: jetstream.LimitsPolicy,
 			Storage:   jetstream.FileStorage,
-			MaxAge:    7 * 24 * time.Hour,
+			MaxAge:    defaultStreamMaxAge,
 		},
 		{
 			Name:      StreamPaymentReservation,

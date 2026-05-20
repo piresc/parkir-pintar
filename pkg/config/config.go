@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	defaultEnv = "local"
-	testEnv    = "test"
+	defaultEnv         = "local"
+	testEnv            = "test"
+	maxPort            = 65536
+	minJWTSecretLength = 32
 )
 
 type Config struct {
@@ -187,7 +189,7 @@ func bindSecrets(v *viper.Viper) {
 }
 
 func validate(cfg *Config) error {
-	if cfg.Server.Port <= 0 || cfg.Server.Port >= 65536 {
+	if cfg.Server.Port <= 0 || cfg.Server.Port >= maxPort {
 		return fmt.Errorf("server.port must be between 1 and 65535, got %d", cfg.Server.Port)
 	}
 
@@ -199,7 +201,7 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("JWT_SECRET is required (set via env var)")
 	}
 
-	if cfg.App.Environment != defaultEnv && cfg.App.Environment != testEnv && len(cfg.JWT.Secret) < 32 {
+	if cfg.App.Environment != defaultEnv && cfg.App.Environment != testEnv && len(cfg.JWT.Secret) < minJWTSecretLength {
 		return fmt.Errorf("JWT_SECRET must be at least 32 characters in non-local environments")
 	}
 

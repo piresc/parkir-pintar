@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const defaultMetricInterval = 15 * time.Second
+
 type Config struct {
 	ServiceName string
 
@@ -102,7 +104,7 @@ func Init(ctx context.Context, cfg Config) (*Providers, error) {
 
 	interval := cfg.MetricInterval
 	if interval == 0 {
-		interval = 15 * time.Second
+		interval = defaultMetricInterval
 	}
 	mp := sdkmetric.NewMeterProvider(
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, sdkmetric.WithInterval(interval))),

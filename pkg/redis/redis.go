@@ -14,10 +14,12 @@ type Client struct {
 	client *redis.Client
 }
 
+const defaultPoolSize = 10
+
 func NewClient(cfg config.RedisConfig) (*Client, error) {
 	poolSize := cfg.PoolSize
 	if poolSize <= 0 {
-		poolSize = 10
+		poolSize = defaultPoolSize
 	}
 
 	client := redis.NewClient(&redis.Options{

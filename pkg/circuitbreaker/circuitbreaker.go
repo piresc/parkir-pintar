@@ -31,6 +31,11 @@ func (s State) String() string {
 
 var ErrCircuitOpen = gobreaker.ErrOpenState
 
+const (
+	defaultOpenTimeout = 30 * time.Second
+	defaultInterval    = 60 * time.Second
+)
+
 type Config struct {
 	Name              string
 	FailureThreshold  int
@@ -48,13 +53,13 @@ func New(cfg Config) *CircuitBreaker {
 		cfg.FailureThreshold = 5
 	}
 	if cfg.OpenTimeout <= 0 {
-		cfg.OpenTimeout = 30 * time.Second
+		cfg.OpenTimeout = defaultOpenTimeout
 	}
 	if cfg.HalfOpenMaxProbes <= 0 {
 		cfg.HalfOpenMaxProbes = 1
 	}
 	if cfg.Interval <= 0 {
-		cfg.Interval = 60 * time.Second
+		cfg.Interval = defaultInterval
 	}
 
 	settings := gobreaker.Settings{

@@ -183,7 +183,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 			if database.IsUniqueViolationOn(err, "idx_reservations_one_active_per_driver") {
 				return apperror.New("CONFLICT", "driver already has an active reservation", 409)
 			}
-			return err
+			return fmt.Errorf("create reservation: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, spotID, constants.SpotStatusReserved)
 	}); err != nil {
@@ -347,7 +347,7 @@ func (uc *reservationUsecase) failReservationInternal(ctx context.Context, reser
 		locked.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, locked); err != nil {
-			return err
+			return fmt.Errorf("fail reservation: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, locked.SpotID, constants.SpotStatusAvailable)
 	}); txErr != nil {
@@ -390,7 +390,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
-			return err
+			return fmt.Errorf("cancel reservation: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
@@ -435,7 +435,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
-			return err
+			return fmt.Errorf("check in: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusOccupied)
 	}); err != nil {
@@ -590,7 +590,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		reservation.Status = constants.StatusCompleted
 		reservation.UpdatedAt = now
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
-			return err
+			return fmt.Errorf("complete checkout: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
@@ -639,7 +639,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
-			return err
+			return fmt.Errorf("expire reservation: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {
@@ -682,7 +682,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		reservation.UpdatedAt = now
 
 		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
-			return err
+			return fmt.Errorf("fail reservation: %w", err)
 		}
 		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, constants.SpotStatusAvailable)
 	}); err != nil {

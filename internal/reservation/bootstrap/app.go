@@ -20,7 +20,6 @@ import (
 	"parkir-pintar/pkg/redislock"
 	"parkir-pintar/pkg/server"
 	presencev1 "parkir-pintar/proto/presence/v1"
-	reservationv1 "parkir-pintar/proto/reservation/v1"
 
 	"google.golang.org/grpc"
 )
@@ -115,7 +114,7 @@ func New() (*App, error) {
 			}),
 		),
 	)
-	grpcSrv.RegisterService(&reservationv1.ReservationService_ServiceDesc, handler)
+	handler.RegisterService(grpcSrv.Server())
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { messaging.AsynqServer.Shutdown(); return nil })

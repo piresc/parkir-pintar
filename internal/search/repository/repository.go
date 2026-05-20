@@ -8,31 +8,23 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
-
 	"parkir-pintar/internal/search/model"
 	"parkir-pintar/internal/search/sync"
 )
 
 var ErrNotFound = errors.New("spot not found")
 
+//go:generate mockgen -destination=../mocks/mock_repository.go -package=mocks parkir-pintar/internal/search/repository Repository
 type Repository interface {
 	GetAvailabilityByVehicleType(ctx context.Context, vehicleType string) ([]model.FloorAvailability, error)
 	GetFloorSpots(ctx context.Context, floorNumber int) ([]model.SpotDetails, error)
 	GetSpotByID(ctx context.Context, spotID string) (*model.SpotDetails, error)
 }
 
+//go:generate mockgen -destination=../mocks/mock_read_model_repository.go -package=mocks parkir-pintar/internal/search/repository ReadModelRepository
 type ReadModelRepository interface {
 	UpsertSpot(ctx context.Context, spot sync.SpotData) error
 	DeleteSpot(ctx context.Context, spotID string) error
-}
-
-type sqlxRepository struct {
-	db *sqlx.DB
-}
-
-func NewRepository(db *sqlx.DB) Repository {
-	return &sqlxRepository{db: db}
 }
 
 func (r *sqlxRepository) GetAvailabilityByVehicleType(ctx context.Context, vehicleType string) ([]model.FloorAvailability, error) {
@@ -90,14 +82,6 @@ func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model
 		return nil, fmt.Errorf("get spot by id: %w", err)
 	}
 	return &spot, nil
-}
-
-type sqlxReadModelRepository struct {
-	db *sqlx.DB
-}
-
-func NewReadModelRepository(db *sqlx.DB) ReadModelRepository {
-	return &sqlxReadModelRepository{db: db}
 }
 
 func (r *sqlxReadModelRepository) UpsertSpot(ctx context.Context, spot sync.SpotData) error {

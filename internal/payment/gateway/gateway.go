@@ -11,6 +11,7 @@ import (
 
 var ErrGatewayFailure = errors.New("payment gateway failure")
 
+//go:generate mockgen -destination=../mocks/mock_payment_gateway.go -package=mocks parkir-pintar/internal/payment/gateway PaymentGateway
 type PaymentGateway interface {
 	Charge(ctx context.Context, amount int64, method string) (transactionRef string, err error)
 	Refund(ctx context.Context, transactionRef string) error

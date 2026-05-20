@@ -15,7 +15,6 @@ import (
 	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/server"
-	billingv1 "parkir-pintar/proto/billing/v1"
 
 	"google.golang.org/grpc"
 )
@@ -67,7 +66,7 @@ func New() (*App, error) {
 			}),
 		),
 	)
-	grpcSrv.RegisterService(&billingv1.BillingService_ServiceDesc, handler)
+	handler.RegisterService(grpcSrv.Server())
 
 	shutdownMgr := server.NewShutdownManager(log)
 	shutdownMgr.Register(func(_ context.Context) error { return pgClient.Close() })

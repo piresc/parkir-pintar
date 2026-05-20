@@ -7,9 +7,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	billingerrors "parkir-pintar/internal/billing/errors"
 	billingrepo "parkir-pintar/internal/billing/repository"
+	paymenterrors "parkir-pintar/internal/payment/errors"
 	paymentrepo "parkir-pintar/internal/payment/repository"
+	presenceerrors "parkir-pintar/internal/presence/errors"
+	reservationerrors "parkir-pintar/internal/reservation/errors"
 	reservationmodel "parkir-pintar/internal/reservation/model"
+	searcherrors "parkir-pintar/internal/search/errors"
 	searchrepo "parkir-pintar/internal/search/repository"
 	"parkir-pintar/pkg/apperror"
 )
@@ -22,23 +27,63 @@ func MapToGRPCError(err error) error {
 		return nil
 	}
 
-	// Check repository/model sentinel errors (NotFound variants).
+	// Check domain-specific NotFound errors.
 	if errors.Is(err, searchrepo.ErrNotFound) ||
+		errors.Is(err, searcherrors.ErrSpotNotFound) ||
 		errors.Is(err, billingrepo.ErrNotFound) ||
+		errors.Is(err, billingerrors.ErrNotFound) ||
 		errors.Is(err, paymentrepo.ErrNotFound) ||
-		errors.Is(err, reservationmodel.ErrNotFound) {
+		errors.Is(err, paymenterrors.ErrNotFound) ||
+		errors.Is(err, reservationmodel.ErrNotFound) ||
+		errors.Is(err, reservationerrors.ErrNotFound) {
 		return status.Error(codes.NotFound, err.Error())
 	}
 
-	// Check reservation model sentinel errors.
-	if errors.Is(err, reservationmodel.ErrConflict) {
+	// Check conflict/already-exists errors.
+	if errors.Is(err, reservationmodel.ErrConflict) ||
+		errors.Is(err, reservationerrors.ErrConflict) ||
+		errors.Is(err, reservationerrors.ErrAlreadyActive) ||
+		errors.Is(err, reservationerrors.ErrSpotLocked) ||
+		errors.Is(err, reservationerrors.ErrConcurrentChange) ||
+		errors.Is(err, billingerrors.ErrConflict) ||
+		errors.Is(err, paymenterrors.ErrConflict) {
 		return status.Error(codes.AlreadyExists, err.Error())
 	}
-	if errors.Is(err, reservationmodel.ErrInvalidTransition) {
+
+	// Check precondition/state errors.
+	if errors.Is(err, reservationmodel.ErrInvalidTransition) ||
+		errors.Is(err, reservationerrors.ErrInvalidTransition) ||
+		errors.Is(err, reservationmodel.ErrSpotUnavailable) ||
+		errors.Is(err, reservationerrors.ErrSpotUnavailable) ||
+		errors.Is(err, reservationerrors.ErrNotPending) ||
+		errors.Is(err, reservationerrors.ErrNotCheckedOut) ||
+		errors.Is(err, billingerrors.ErrCannotCalculate) ||
+		errors.Is(err, billingerrors.ErrCannotInvoice) ||
+		errors.Is(err, billingerrors.ErrInvalidStatus) ||
+		errors.Is(err, paymenterrors.ErrCannotRefund) ||
+		errors.Is(err, paymenterrors.ErrStatusMismatch) {
 		return status.Error(codes.FailedPrecondition, err.Error())
 	}
-	if errors.Is(err, reservationmodel.ErrSpotUnavailable) {
-		return status.Error(codes.FailedPrecondition, err.Error())
+
+	// Check permission errors.
+	if errors.Is(err, reservationerrors.ErrForbidden) {
+		return status.Error(codes.PermissionDenied, err.Error())
+	}
+
+	// Check payment/billing failure errors.
+	if errors.Is(err, reservationerrors.ErrPaymentFailed) ||
+		errors.Is(err, reservationerrors.ErrBillingFailed) ||
+		errors.Is(err, paymenterrors.ErrGatewayFailed) ||
+		errors.Is(err, paymenterrors.ErrRefundFailed) {
+		return status.Error(codes.Aborted, err.Error())
+	}
+
+	// Check unavailability errors.
+	if errors.Is(err, presenceerrors.ErrSensorUnavailable) ||
+		errors.Is(err, searcherrors.ErrCacheUnavailable) ||
+		errors.Is(err, billingerrors.ErrConcurrentModification) ||
+		errors.Is(err, paymenterrors.ErrCancelled) {
+		return status.Error(codes.Unavailable, err.Error())
 	}
 
 	// Check structured AppError with HTTP status mapping.
@@ -47,6 +92,8 @@ func MapToGRPCError(err error) error {
 		switch appErr.HTTPStatus {
 		case 400:
 			return status.Error(codes.InvalidArgument, appErr.Message)
+		case 402:
+			return status.Error(codes.Aborted, appErr.Message)
 		case 403:
 			return status.Error(codes.PermissionDenied, appErr.Message)
 		case 404:

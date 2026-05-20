@@ -10,6 +10,7 @@ type SensorReading struct {
 	DetectedAt time.Time
 }
 
+//go:generate mockgen -destination=../mocks/mock_sensor_gateway.go -package=mocks parkir-pintar/internal/presence/repository SensorGateway
 type SensorGateway interface {
 	CheckSpotOccupancy(ctx context.Context, floorNumber int, spotNumber int) (*SensorReading, error)
 }

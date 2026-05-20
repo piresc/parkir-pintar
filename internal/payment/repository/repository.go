@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
-
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/pkg/database"
 )
@@ -20,6 +18,7 @@ var ErrConflict = errors.New("conflict: duplicate record")
 
 var ErrStatusMismatch = errors.New("status mismatch: concurrent modification")
 
+//go:generate mockgen -destination=../mocks/mock_repository.go -package=mocks parkir-pintar/internal/payment/repository Repository
 type Repository interface {
 	CreatePayment(ctx context.Context, payment *model.Payment) error
 	GetByIdempotencyKey(ctx context.Context, key string) (*model.Payment, error)
@@ -27,14 +26,6 @@ type Repository interface {
 	UpdatePaymentWithStatusCheck(ctx context.Context, payment *model.Payment, expectedStatus string) error
 	GetByID(ctx context.Context, id string) (*model.Payment, error)
 	GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error)
-}
-
-type sqlxRepository struct {
-	db *sqlx.DB
-}
-
-func NewRepository(db *sqlx.DB) Repository {
-	return &sqlxRepository{db: db}
 }
 
 func (r *sqlxRepository) CreatePayment(ctx context.Context, payment *model.Payment) error {

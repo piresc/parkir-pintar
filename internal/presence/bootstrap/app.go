@@ -14,7 +14,6 @@ import (
 	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
 	"parkir-pintar/pkg/grpcserver"
 	"parkir-pintar/pkg/server"
-	presencev1 "parkir-pintar/proto/presence/v1"
 
 	"google.golang.org/grpc"
 )
@@ -67,7 +66,7 @@ func New() (*App, error) {
 			}),
 		),
 	)
-	grpcSrv.RegisterService(&presencev1.PresenceService_ServiceDesc, handler)
+	handler.RegisterService(grpcSrv.Server())
 
 	return &App{
 		cfg:         cfg,

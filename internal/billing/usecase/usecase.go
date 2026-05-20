@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	billingerrors "parkir-pintar/internal/billing/errors"
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/internal/reservation/constants"
@@ -21,16 +22,6 @@ type Usecase interface {
 	CalculateFee(ctx context.Context, req *model.CalculateFeeRequest) (*model.BillingRecord, error)
 	GenerateInvoice(ctx context.Context, req *model.GenerateInvoiceRequest) (*model.BillingRecord, error)
 	ApplyOvernightFee(ctx context.Context, req *model.ApplyOvernightFeeRequest) (*model.BillingRecord, error)
-}
-
-type billingUsecase struct {
-	repo repository.Repository
-}
-
-func NewUsecase(repo repository.Repository) Usecase {
-	return &billingUsecase{
-		repo: repo,
-	}
 }
 
 func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBillingRequest) (*model.BillingRecord, error) {
@@ -85,7 +76,7 @@ func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.Calculate
 		}
 
 		if record.Status != model.BillingStatusPending {
-			return nil, fmt.Errorf("cannot calculate fee for billing record in status %q: expected %q", record.Status, model.BillingStatusPending)
+			return nil, fmt.Errorf("%w: current status %q, expected %q", billingerrors.ErrCannotCalculate, record.Status, model.BillingStatusPending)
 		}
 
 		feeResult := pricing.CalculateSessionFee(req.CheckInAt, req.CheckOutAt)
@@ -122,7 +113,7 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 	}
 
 	if record.Status != model.BillingStatusCalculated {
-		return nil, fmt.Errorf("cannot invoice billing record in status %q: expected %q or %q", record.Status, model.BillingStatusCalculated, model.BillingStatusInvoiced)
+		return nil, fmt.Errorf("%w: current status %q, expected %q or %q", billingerrors.ErrCannotInvoice, record.Status, model.BillingStatusCalculated, model.BillingStatusInvoiced)
 	}
 
 	record.Status = model.BillingStatusInvoiced

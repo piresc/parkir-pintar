@@ -41,6 +41,11 @@ func (s *GRPCServer) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
 	s.server.RegisterService(desc, impl)
 }
 
+// Server returns the underlying *grpc.Server for direct service registration.
+func (s *GRPCServer) Server() *grpc.Server {
+	return s.server
+}
+
 func (s *GRPCServer) Start() error {
 	lc := net.ListenConfig{}
 	lis, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", s.port))

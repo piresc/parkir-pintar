@@ -19,7 +19,6 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redis"
 	"parkir-pintar/pkg/server"
-	searchv1 "parkir-pintar/proto/search/v1"
 
 	"google.golang.org/grpc"
 )
@@ -112,7 +111,7 @@ func New() (*App, error) {
 			}),
 		),
 	)
-	grpcSrv.RegisterService(&searchv1.SearchService_ServiceDesc, handler)
+	handler.RegisterService(grpcSrv.Server())
 
 	return &App{
 		cfg:         cfg,

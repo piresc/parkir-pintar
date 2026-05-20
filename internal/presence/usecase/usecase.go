@@ -3,8 +3,6 @@ package usecase
 import (
 	"context"
 	"log/slog"
-
-	"parkir-pintar/internal/presence/repository"
 )
 
 type VerifyResult struct {
@@ -12,18 +10,9 @@ type VerifyResult struct {
 	Message  string
 }
 
+//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/presence/usecase Usecase
 type Usecase interface {
 	VerifyPresence(ctx context.Context, reservationID string, floorNumber int, spotNumber int) (*VerifyResult, error)
-}
-
-type presenceUsecase struct {
-	sensor repository.SensorGateway
-}
-
-func NewUsecase(sensor repository.SensorGateway) Usecase {
-	return &presenceUsecase{
-		sensor: sensor,
-	}
 }
 
 func (uc *presenceUsecase) VerifyPresence(ctx context.Context, reservationID string, floorNumber int, spotNumber int) (*VerifyResult, error) {

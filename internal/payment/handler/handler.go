@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,10 +20,6 @@ type Handler struct {
 
 func NewHandler(uc usecase.Usecase) *Handler {
 	return &Handler{uc: uc}
-}
-
-func (h *Handler) RegisterService(s *grpc.Server) {
-	paymentv1.RegisterPaymentServiceServer(s, h)
 }
 
 func (h *Handler) ProcessPayment(ctx context.Context, req *paymentv1.ProcessPaymentRequest) (*paymentv1.PaymentResponse, error) {

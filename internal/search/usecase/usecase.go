@@ -8,37 +8,23 @@ import (
 	"log/slog"
 	"time"
 
-	"golang.org/x/sync/singleflight"
-
 	"parkir-pintar/internal/search/model"
-	"parkir-pintar/internal/search/repository"
 )
 
 const cacheTTL = 5 * time.Second
 
+//go:generate mockgen -destination=../mocks/mock_redis_client.go -package=mocks parkir-pintar/internal/search/usecase RedisClient
 type RedisClient interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
 	Delete(ctx context.Context, key string) error
 }
 
+//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/search/usecase Usecase
 type Usecase interface {
 	GetAvailability(ctx context.Context, req *model.GetAvailabilityRequest) ([]model.FloorAvailability, error)
 	GetFloorMap(ctx context.Context, req *model.GetFloorMapRequest) ([]model.SpotDetails, error)
 	GetSpotDetails(ctx context.Context, req *model.GetSpotDetailsRequest) (*model.SpotDetails, error)
-}
-
-type searchUsecase struct {
-	repo  repository.Repository
-	redis RedisClient
-	sf    singleflight.Group
-}
-
-func NewUsecase(repo repository.Repository, redis RedisClient) Usecase {
-	return &searchUsecase{
-		repo:  repo,
-		redis: redis,
-	}
 }
 
 func (uc *searchUsecase) GetAvailability(ctx context.Context, req *model.GetAvailabilityRequest) ([]model.FloorAvailability, error) {

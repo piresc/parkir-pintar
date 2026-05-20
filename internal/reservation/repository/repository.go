@@ -1,5 +1,3 @@
-// Package repository provides the data access layer for the reservation domain
-// module using sqlx with parameterized queries for SQL injection prevention.
 package repository
 
 import (
@@ -32,16 +30,6 @@ type Repository interface {
 	WithTransaction(ctx context.Context, fn func(tx *sqlx.Tx) error) error
 	FindStalePaymentReservations(ctx context.Context, timeoutMinutes int) ([]*model.Reservation, error)
 	ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error)
-}
-
-// sqlxRepository is the sqlx-backed implementation of Repository.
-type sqlxRepository struct {
-	db *sqlx.DB
-}
-
-// NewRepository creates a new Repository backed by the given sqlx.DB.
-func NewRepository(db *sqlx.DB) Repository {
-	return &sqlxRepository{db: db}
 }
 
 // FindByIdempotencyKey retrieves a reservation by its idempotency key.

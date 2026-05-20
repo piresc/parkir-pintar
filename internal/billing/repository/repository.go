@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
-
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/pkg/database"
 )
@@ -26,14 +24,6 @@ type Repository interface {
 	GetByReservationID(ctx context.Context, reservationID string) (*model.BillingRecord, error)
 	GetByIdempotencyKey(ctx context.Context, key string) (*model.BillingRecord, error)
 	UpdateBillingRecord(ctx context.Context, record *model.BillingRecord) error
-}
-
-type sqlxRepository struct {
-	db *sqlx.DB
-}
-
-func NewRepository(db *sqlx.DB) Repository {
-	return &sqlxRepository{db: db}
 }
 
 func (r *sqlxRepository) CreateBillingRecord(ctx context.Context, record *model.BillingRecord) error {

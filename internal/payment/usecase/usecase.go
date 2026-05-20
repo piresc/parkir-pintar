@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	paymenterrors "parkir-pintar/internal/payment/errors"
 	"parkir-pintar/internal/payment/gateway"
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
@@ -18,6 +19,7 @@ import (
 
 const paymentMethodQRIS = "qris"
 
+//go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/payment/usecase Usecase
 type Usecase interface {
 	ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error)
 	ProcessQRIS(ctx context.Context, req *model.ProcessQRISRequest) (*model.Payment, error)
@@ -25,23 +27,10 @@ type Usecase interface {
 	GetPaymentStatus(ctx context.Context, req *model.GetPaymentStatusRequest) (*model.Payment, error)
 }
 
+//go:generate mockgen -destination=../mocks/mock_event_publisher.go -package=mocks parkir-pintar/internal/payment/usecase EventPublisher
 type EventPublisher interface {
 	PublishPaymentSuccess(ctx context.Context, event gateway.PaymentResultEvent) error
 	PublishPaymentFailed(ctx context.Context, event gateway.PaymentResultEvent) error
-}
-
-type paymentUsecase struct {
-	repo           repository.Repository
-	gw             gateway.PaymentGateway
-	eventPublisher EventPublisher
-}
-
-func NewUsecase(repo repository.Repository, gw gateway.PaymentGateway, pub EventPublisher) Usecase {
-	return &paymentUsecase{
-		repo:           repo,
-		gw:             gw,
-		eventPublisher: pub,
-	}
 }
 
 func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.ProcessPaymentRequest) (*model.Payment, error) {
@@ -102,7 +91,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 						slog.Any("error", updateErr))
 				}
 				cleanupCancel()
-				return nil, fmt.Errorf("payment processing cancelled: %w", ctx.Err())
+				return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, ctx.Err())
 			}
 		}
 	}
@@ -178,7 +167,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 	}
 
 	if payment.Status != model.PaymentStatusSuccess {
-		return nil, fmt.Errorf("cannot refund payment in status %q", payment.Status)
+		return nil, fmt.Errorf("%w: current status %q", paymenterrors.ErrCannotRefund, payment.Status)
 	}
 
 	// the gateway to prevent double-refund from concurrent requests.
@@ -214,7 +203,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 						slog.Any("error", revertErr))
 				}
 				revertCancel()
-				return nil, fmt.Errorf("refund payment cancelled: %w", ctx.Err())
+				return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, ctx.Err())
 			}
 		}
 	}
@@ -226,7 +215,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 				slog.String("payment_id", payment.ID),
 				slog.Any("error", revertErr))
 		}
-		return nil, fmt.Errorf("refund payment gateway (all retries exhausted): %w", refundErr)
+		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrRefundFailed, refundErr)
 	}
 
 	return payment, nil

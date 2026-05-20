@@ -25,7 +25,6 @@ import (
 
 	resv "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
@@ -234,7 +233,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "new-key").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "new-key").Return(nil, constants.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-42",
 		VehicleType: "car",
@@ -285,7 +284,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "user-key").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "user-key").Return(nil, constants.ErrNotFound)
 	lck := new(MockLock)
 	locker.On("Acquire", mock.Anything, "spot:spot-99").Return(lck, nil)
 	lck.On("Release", mock.Anything).Return(nil)
@@ -330,7 +329,7 @@ func TestCreateReservation_ShouldReturnConflict_WhenLockContention(t *testing.T)
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "lock-key").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "lock-key").Return(nil, constants.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:     "spot-locked",
 		Status: "available",
@@ -365,8 +364,8 @@ func TestCreateReservation_ShouldReturnConflict_WhenNoAvailableSpots(t *testing.
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "no-spots-key").Return(nil, reservationerrors.ErrNotFound)
-	repo.On("FindAvailableSpot", mock.Anything, "car").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "no-spots-key").Return(nil, constants.ErrNotFound)
+	repo.On("FindAvailableSpot", mock.Anything, "car").Return(nil, constants.ErrNotFound)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
@@ -666,7 +665,7 @@ func TestCreateReservation_ShouldReturnExisting_WhenUniqueConstraintViolation(t 
 	}
 
 	// First idempotency check: not found (concurrent request hasn't committed yet)
-	repo.On("FindByIdempotencyKey", mock.Anything, "dup-key").Return(nil, reservationerrors.ErrNotFound).Once()
+	repo.On("FindByIdempotencyKey", mock.Anything, "dup-key").Return(nil, constants.ErrNotFound).Once()
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-42",
 		VehicleType: "car",
@@ -717,7 +716,7 @@ func TestCreateReservation_ShouldReturnError_WhenNonUniqueConstraintError(t *tes
 	billing := new(MockBillingClient)
 	payment := new(MockPaymentClient)
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "err-key").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "err-key").Return(nil, constants.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-50",
 		VehicleType: "car",
@@ -772,7 +771,7 @@ func TestCreateReservation_ShouldReject_WhenVehicleTypeMismatches(t *testing.T) 
 		Status:      "available",
 	}
 
-	repo.On("FindByIdempotencyKey", ctx, "idem-mismatch-001").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", ctx, "idem-mismatch-001").Return(nil, constants.ErrNotFound)
 	repo.On("GetSpotForUpdateTx", mock.Anything, (*sqlx.Tx)(nil), "spot-moto-001").Return(motorcycleSpot, nil)
 	lck := new(MockLock)
 	locker.On("Acquire", ctx, "spot:spot-moto-001").Return(lck, nil)

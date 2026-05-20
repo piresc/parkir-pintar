@@ -14,7 +14,7 @@ import (
 	paymenterrors "parkir-pintar/internal/payment/constants"
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	presenceerrors "parkir-pintar/internal/presence/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
+	"parkir-pintar/internal/reservation/constants"
 	searcherrors "parkir-pintar/internal/search/constants"
 	searchrepo "parkir-pintar/internal/search/repository"
 	"parkir-pintar/pkg/apperror"
@@ -36,7 +36,7 @@ func TestMapToGRPCError_ShouldReturnNotFound_WhenDomainNotFoundErrors(t *testing
 		{"billingerrors.ErrNotFound", billingerrors.ErrNotFound},
 		{"paymentrepo.ErrNotFound", paymentrepo.ErrNotFound},
 		{"paymenterrors.ErrNotFound", paymenterrors.ErrNotFound},
-		{"reservationerrors.ErrNotFound", reservationerrors.ErrNotFound},
+		{"constants.ErrNotFound", constants.ErrNotFound},
 	}
 
 	for _, tt := range tests {
@@ -57,10 +57,10 @@ func TestMapToGRPCError_ShouldReturnAlreadyExists_WhenConflictErrors(t *testing.
 		name string
 		err  error
 	}{
-		{"reservationerrors.ErrConflict", reservationerrors.ErrConflict},
-		{"reservationerrors.ErrAlreadyActive", reservationerrors.ErrAlreadyActive},
-		{"reservationerrors.ErrSpotLocked", reservationerrors.ErrSpotLocked},
-		{"reservationerrors.ErrConcurrentChange", reservationerrors.ErrConcurrentChange},
+		{"constants.ErrConflict", constants.ErrConflict},
+		{"constants.ErrAlreadyActive", constants.ErrAlreadyActive},
+		{"constants.ErrSpotLocked", constants.ErrSpotLocked},
+		{"constants.ErrConcurrentChange", constants.ErrConcurrentChange},
 		{"billingerrors.ErrConflict", billingerrors.ErrConflict},
 		{"paymenterrors.ErrConflict", paymenterrors.ErrConflict},
 	}
@@ -83,10 +83,10 @@ func TestMapToGRPCError_ShouldReturnFailedPrecondition_WhenStateErrors(t *testin
 		name string
 		err  error
 	}{
-		{"reservationerrors.ErrInvalidTransition", reservationerrors.ErrInvalidTransition},
-		{"reservationerrors.ErrSpotUnavailable", reservationerrors.ErrSpotUnavailable},
-		{"reservationerrors.ErrNotPending", reservationerrors.ErrNotPending},
-		{"reservationerrors.ErrNotCheckedOut", reservationerrors.ErrNotCheckedOut},
+		{"constants.ErrInvalidTransition", constants.ErrInvalidTransition},
+		{"constants.ErrSpotUnavailable", constants.ErrSpotUnavailable},
+		{"constants.ErrNotPending", constants.ErrNotPending},
+		{"constants.ErrNotCheckedOut", constants.ErrNotCheckedOut},
 		{"billingerrors.ErrCannotCalculate", billingerrors.ErrCannotCalculate},
 		{"billingerrors.ErrCannotInvoice", billingerrors.ErrCannotInvoice},
 		{"billingerrors.ErrInvalidStatus", billingerrors.ErrInvalidStatus},
@@ -108,13 +108,13 @@ func TestMapToGRPCError_ShouldReturnFailedPrecondition_WhenStateErrors(t *testin
 }
 
 func TestMapToGRPCError_ShouldReturnPermissionDenied_WhenForbiddenError(t *testing.T) {
-	result := MapToGRPCError(reservationerrors.ErrForbidden)
+	result := MapToGRPCError(constants.ErrForbidden)
 	require.NotNil(t, result)
 
 	st, ok := status.FromError(result)
 	require.True(t, ok)
 	assert.Equal(t, codes.PermissionDenied, st.Code())
-	assert.Equal(t, reservationerrors.ErrForbidden.Error(), st.Message())
+	assert.Equal(t, constants.ErrForbidden.Error(), st.Message())
 }
 
 func TestMapToGRPCError_ShouldReturnAborted_WhenPaymentBillingFailureErrors(t *testing.T) {
@@ -122,8 +122,8 @@ func TestMapToGRPCError_ShouldReturnAborted_WhenPaymentBillingFailureErrors(t *t
 		name string
 		err  error
 	}{
-		{"reservationerrors.ErrPaymentFailed", reservationerrors.ErrPaymentFailed},
-		{"reservationerrors.ErrBillingFailed", reservationerrors.ErrBillingFailed},
+		{"constants.ErrPaymentFailed", constants.ErrPaymentFailed},
+		{"constants.ErrBillingFailed", constants.ErrBillingFailed},
 		{"paymenterrors.ErrGatewayFailed", paymenterrors.ErrGatewayFailed},
 		{"paymenterrors.ErrRefundFailed", paymenterrors.ErrRefundFailed},
 	}
@@ -250,17 +250,17 @@ func TestMapToGRPCError_ShouldHandleWrappedErrors(t *testing.T) {
 	}{
 		{
 			name:         "wrapped NotFound",
-			err:          errors.Join(reservationerrors.ErrNotFound, errors.New("extra context")),
+			err:          errors.Join(constants.ErrNotFound, errors.New("extra context")),
 			expectedCode: codes.NotFound,
 		},
 		{
 			name:         "wrapped Conflict",
-			err:          errors.Join(reservationerrors.ErrConflict, errors.New("extra context")),
+			err:          errors.Join(constants.ErrConflict, errors.New("extra context")),
 			expectedCode: codes.AlreadyExists,
 		},
 		{
 			name:         "wrapped FailedPrecondition",
-			err:          errors.Join(reservationerrors.ErrInvalidTransition, errors.New("extra context")),
+			err:          errors.Join(constants.ErrInvalidTransition, errors.New("extra context")),
 			expectedCode: codes.FailedPrecondition,
 		},
 	}

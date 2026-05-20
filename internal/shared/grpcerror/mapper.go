@@ -12,7 +12,7 @@ import (
 	paymenterrors "parkir-pintar/internal/payment/constants"
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	presenceerrors "parkir-pintar/internal/presence/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
+	"parkir-pintar/internal/reservation/constants"
 	searcherrors "parkir-pintar/internal/search/constants"
 	searchrepo "parkir-pintar/internal/search/repository"
 	"parkir-pintar/pkg/apperror"
@@ -33,25 +33,25 @@ func MapToGRPCError(err error) error {
 		errors.Is(err, billingerrors.ErrNotFound) ||
 		errors.Is(err, paymentrepo.ErrNotFound) ||
 		errors.Is(err, paymenterrors.ErrNotFound) ||
-		errors.Is(err, reservationerrors.ErrNotFound) {
+		errors.Is(err, constants.ErrNotFound) {
 		return status.Error(codes.NotFound, err.Error())
 	}
 
 	// Check conflict/already-exists errors.
-	if errors.Is(err, reservationerrors.ErrConflict) ||
-		errors.Is(err, reservationerrors.ErrAlreadyActive) ||
-		errors.Is(err, reservationerrors.ErrSpotLocked) ||
-		errors.Is(err, reservationerrors.ErrConcurrentChange) ||
+	if errors.Is(err, constants.ErrConflict) ||
+		errors.Is(err, constants.ErrAlreadyActive) ||
+		errors.Is(err, constants.ErrSpotLocked) ||
+		errors.Is(err, constants.ErrConcurrentChange) ||
 		errors.Is(err, billingerrors.ErrConflict) ||
 		errors.Is(err, paymenterrors.ErrConflict) {
 		return status.Error(codes.AlreadyExists, err.Error())
 	}
 
 	// Check precondition/state errors.
-	if errors.Is(err, reservationerrors.ErrInvalidTransition) ||
-		errors.Is(err, reservationerrors.ErrSpotUnavailable) ||
-		errors.Is(err, reservationerrors.ErrNotPending) ||
-		errors.Is(err, reservationerrors.ErrNotCheckedOut) ||
+	if errors.Is(err, constants.ErrInvalidTransition) ||
+		errors.Is(err, constants.ErrSpotUnavailable) ||
+		errors.Is(err, constants.ErrNotPending) ||
+		errors.Is(err, constants.ErrNotCheckedOut) ||
 		errors.Is(err, billingerrors.ErrCannotCalculate) ||
 		errors.Is(err, billingerrors.ErrCannotInvoice) ||
 		errors.Is(err, billingerrors.ErrInvalidStatus) ||
@@ -61,13 +61,13 @@ func MapToGRPCError(err error) error {
 	}
 
 	// Check permission errors.
-	if errors.Is(err, reservationerrors.ErrForbidden) {
+	if errors.Is(err, constants.ErrForbidden) {
 		return status.Error(codes.PermissionDenied, err.Error())
 	}
 
 	// Check payment/billing failure errors.
-	if errors.Is(err, reservationerrors.ErrPaymentFailed) ||
-		errors.Is(err, reservationerrors.ErrBillingFailed) ||
+	if errors.Is(err, constants.ErrPaymentFailed) ||
+		errors.Is(err, constants.ErrBillingFailed) ||
 		errors.Is(err, paymenterrors.ErrGatewayFailed) ||
 		errors.Is(err, paymenterrors.ErrRefundFailed) {
 		return status.Error(codes.Aborted, err.Error())

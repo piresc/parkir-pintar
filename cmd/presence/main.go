@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	presencehandler "parkir-pintar/internal/presence/handler"
+	presencehandler "parkir-pintar/internal/presence/handler/grpc"
 	presencerepo "parkir-pintar/internal/presence/repository"
 	presenceuc "parkir-pintar/internal/presence/usecase"
 	"parkir-pintar/pkg/config"

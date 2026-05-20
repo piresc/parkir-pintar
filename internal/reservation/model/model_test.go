@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 )
 
 func TestValidateTransition_ShouldReturnNil_WhenTransitionIsValid(t *testing.T) {
@@ -76,7 +75,7 @@ func TestValidateTransition_ShouldReturnError_WhenTransitionIsInvalid(t *testing
 
 			// Assert
 			assert.Error(t, err)
-			assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition))
+			assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
 		})
 	}
 }
@@ -100,7 +99,7 @@ func TestValidateTransition_ShouldReturnError_WhenFromTerminalState(t *testing.T
 
 				// Assert
 				assert.Error(t, err)
-				assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition))
+				assert.True(t, errors.Is(err, constants.ErrInvalidTransition))
 			})
 		}
 	}

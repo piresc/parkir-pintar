@@ -19,7 +19,6 @@ import (
 	"pgregory.net/rapid"
 
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 )
 
 // allStatuses is the complete set of reservation statuses.
@@ -141,7 +140,7 @@ func TestProperty4_InvalidTransitionsAlwaysFail(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err, "invalid transition %q -> %q should fail", from, to)
-		assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition),
+		assert.True(t, errors.Is(err, constants.ErrInvalidTransition),
 			"error for %q -> %q should wrap ErrInvalidTransition", from, to)
 	})
 }
@@ -164,7 +163,7 @@ func TestProperty4_TerminalStatesHaveNoOutgoingTransitions(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err, "transition from terminal state %q to %q should fail", from, to)
-		assert.True(t, errors.Is(err, reservationerrors.ErrInvalidTransition),
+		assert.True(t, errors.Is(err, constants.ErrInvalidTransition),
 			"error for terminal %q -> %q should wrap ErrInvalidTransition", from, to)
 	})
 }

@@ -16,7 +16,6 @@ import (
 
 	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/gateway"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/apperror"
@@ -79,7 +78,7 @@ type TaskEnqueuer interface {
 func (uc *reservationUsecase) GetReservation(ctx context.Context, id string, callerID string) (*model.Reservation, error) {
 	reservation, err := uc.repo.GetByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, reservationerrors.ErrNotFound) {
+		if errors.Is(err, constants.ErrNotFound) {
 			return nil, apperror.NotFound("reservation not found")
 		}
 		return nil, fmt.Errorf("get reservation: %w", err)
@@ -222,7 +221,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("confirm reservation get: %w", err)
@@ -354,7 +353,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("cancel reservation get: %w", err)
@@ -399,7 +398,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("check-in get: %w", err)
@@ -476,7 +475,7 @@ func (uc *reservationUsecase) CheckOut(ctx context.Context, req *model.CheckOutR
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("check-out get: %w", err)
@@ -535,7 +534,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("complete checkout get: %w", err)
@@ -608,7 +607,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("expire reservation get: %w", err)
@@ -651,7 +650,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 		var err error
 		reservation, err = uc.repo.GetByIDForUpdate(ctx, tx, req.ReservationID)
 		if err != nil {
-			if errors.Is(err, reservationerrors.ErrNotFound) {
+			if errors.Is(err, constants.ErrNotFound) {
 				return apperror.NotFound("reservation not found")
 			}
 			return fmt.Errorf("fail reservation get: %w", err)

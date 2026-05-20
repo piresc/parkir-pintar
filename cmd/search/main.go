@@ -9,7 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	searchhandler "parkir-pintar/internal/search/handler"
+	searchgrpc "parkir-pintar/internal/search/handler/grpc"
+	searchnats "parkir-pintar/internal/search/handler/nats"
 	searchrepo "parkir-pintar/internal/search/repository"
 	searchsync "parkir-pintar/internal/search/sync"
 	searchuc "parkir-pintar/internal/search/usecase"
@@ -95,7 +96,7 @@ func run() error {
 
 	repo := searchrepo.NewRepository(tracedPG.GetDB())
 	uc := searchuc.NewUsecase(repo, tracedRedis)
-	handler := searchhandler.NewHandler(uc)
+	handler := searchgrpc.NewHandler(uc)
 
 	// --- Shutdown ---
 	shutdownMgr := server.NewShutdownManager(log)
@@ -119,7 +120,7 @@ func run() error {
 
 		readModelRepo := searchrepo.NewReadModelRepository(tracedPG.GetDB())
 		spotSync := searchsync.NewSpotSync(readModelRepo)
-		natsHandler := searchhandler.NewNATSHandler(spotSync, tracedRedis, natsClient, 0)
+		natsHandler := searchnats.NewHandler(spotSync, tracedRedis, natsClient, 0)
 		cc, err := natsHandler.InitConsumers()
 		if err != nil {
 			return fmt.Errorf("nats consumer init: %w", err)

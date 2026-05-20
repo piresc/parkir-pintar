@@ -22,7 +22,6 @@ import (
 
 	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
 	"parkir-pintar/pkg/pricing"
@@ -45,7 +44,7 @@ func TestExpiryFlow_ShouldReleaseSpot_WhenReservationExpires(t *testing.T) {
 
 	// --- Phase 1: Create Reservation ---
 
-	repo.On("FindByIdempotencyKey", mock.Anything, "expire-key-1").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "expire-key-1").Return(nil, constants.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-expire-1",
 		VehicleType: "car",

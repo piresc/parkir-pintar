@@ -10,7 +10,7 @@ import (
 	"time"
 
 	paymentgateway "parkir-pintar/internal/payment/gateway"
-	paymenthandler "parkir-pintar/internal/payment/handler"
+	paymenthandler "parkir-pintar/internal/payment/handler/grpc"
 	paymentrepo "parkir-pintar/internal/payment/repository"
 	paymentuc "parkir-pintar/internal/payment/usecase"
 	"parkir-pintar/pkg/config"

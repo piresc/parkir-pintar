@@ -24,7 +24,6 @@ import (
 
 	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
 	"parkir-pintar/pkg/pricing"
@@ -45,7 +44,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	uc := usecase.NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 
 	// --- Phase 1: Create Reservation ---
-	repo.On("FindByIdempotencyKey", mock.Anything, "extended-key").Return(nil, reservationerrors.ErrNotFound)
+	repo.On("FindByIdempotencyKey", mock.Anything, "extended-key").Return(nil, constants.ErrNotFound)
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-extended",
 		VehicleType: "car",

@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	billinghandler "parkir-pintar/internal/billing/handler"
+	billinghandler "parkir-pintar/internal/billing/handler/grpc"
 	billingrepo "parkir-pintar/internal/billing/repository"
 	billinguc "parkir-pintar/internal/billing/usecase"
 	"parkir-pintar/pkg/config"

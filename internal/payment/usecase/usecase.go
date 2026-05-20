@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 
-	paymenterrors "parkir-pintar/internal/payment/constants"
 	"parkir-pintar/internal/payment/gateway"
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
@@ -86,7 +85,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 				logger.Err(updateErr))
 		}
 		cleanupCancel()
-		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, chargeErr)
+		return nil, fmt.Errorf("%w: %w", paymentconstants.ErrCancelled, chargeErr)
 	}
 
 	if chargeErr != nil {
@@ -160,7 +159,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 	}
 
 	if payment.Status != string(paymentconstants.PaymentStatusSuccess) {
-		return nil, fmt.Errorf("%w: current status %q", paymenterrors.ErrCannotRefund, payment.Status)
+		return nil, fmt.Errorf("%w: current status %q", paymentconstants.ErrCannotRefund, payment.Status)
 	}
 
 	// the gateway to prevent double-refund from concurrent requests.
@@ -192,7 +191,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 				logger.Err(revertErr))
 		}
 		revertCancel()
-		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, refundErr)
+		return nil, fmt.Errorf("%w: %w", paymentconstants.ErrCancelled, refundErr)
 	}
 	if refundErr != nil {
 		payment.Status = string(paymentconstants.PaymentStatusSuccess)
@@ -202,7 +201,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 				slog.String("payment_id", payment.ID),
 				logger.Err(revertErr))
 		}
-		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrRefundFailed, refundErr)
+		return nil, fmt.Errorf("%w: %w", paymentconstants.ErrRefundFailed, refundErr)
 	}
 
 	return payment, nil

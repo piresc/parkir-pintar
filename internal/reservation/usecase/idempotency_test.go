@@ -11,7 +11,6 @@ import (
 
 	reservation "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
-	reservationerrors "parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/pricing"
 )
@@ -27,7 +26,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	payment := new(MockPaymentClient)
 
 	// First call mocks (key-alpha -> spot-alpha)
-	repo.On("FindByIdempotencyKey", mock.Anything, "key-alpha").Return(nil, reservationerrors.ErrNotFound).Once()
+	repo.On("FindByIdempotencyKey", mock.Anything, "key-alpha").Return(nil, constants.ErrNotFound).Once()
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-alpha",
 		VehicleType: "car",
@@ -45,7 +44,7 @@ func TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotency
 	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&reservation.BillingRecord{ID: "billing-alpha-id"}, nil).Once()
 
 	// Second call mocks (key-beta -> spot-beta)
-	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, reservationerrors.ErrNotFound).Once()
+	repo.On("FindByIdempotencyKey", mock.Anything, "key-beta").Return(nil, constants.ErrNotFound).Once()
 	repo.On("FindAvailableSpot", mock.Anything, "car").Return(&model.ParkingSpot{
 		ID:          "spot-beta",
 		VehicleType: "car",

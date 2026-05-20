@@ -12,7 +12,8 @@ import (
 	reservation "parkir-pintar/internal/reservation"
 	grpcgw "parkir-pintar/internal/reservation/gateway/grpc"
 	natsgateway "parkir-pintar/internal/reservation/gateway/nats"
-	reservationhandler "parkir-pintar/internal/reservation/handler"
+	grpchandler "parkir-pintar/internal/reservation/handler/grpc"
+	natshandler "parkir-pintar/internal/reservation/handler/nats"
 	"parkir-pintar/internal/reservation/model"
 	reservationrepo "parkir-pintar/internal/reservation/repository"
 	"parkir-pintar/internal/reservation/usecase"
@@ -193,7 +194,7 @@ func run() error {
 		cfg.Reservation.ExpiryTimeoutMinutes,
 		cfg.Reservation.PaymentTimeoutMinutes,
 	)
-	handler := reservationhandler.NewHandler(uc)
+	handler := grpchandler.NewHandler(uc)
 
 	// Register Asynq task handlers.
 	expiryHandler := taskqueue.NewReservationExpiryHandler(&usecaseExpirerAdapter{uc: uc})
@@ -232,9 +233,9 @@ func run() error {
 		shutdownMgr.Register(func(ctx context.Context) error { return providers.Shutdown(ctx) })
 	}
 
-	var natsHandler *reservationhandler.NATSHandler
+	var natsHandler *natshandler.Handler
 	if cfg.NATS.Enabled && natsClient != nil {
-		natsHandler = reservationhandler.NewNATSHandler(uc, natsClient)
+		natsHandler = natshandler.NewHandler(uc, natsClient)
 		shutdownMgr.Register(func(_ context.Context) error { natsHandler.Stop(); return nil })
 		shutdownMgr.Register(func(ctx context.Context) error { natsClient.Close(ctx); return nil })
 	}

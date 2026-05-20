@@ -1,23 +1,147 @@
-// Package main is the entry point for the ParkirPintar Presence Service.
 package main
 
 import (
+	"context"
 	"log/slog"
-	"parkir-pintar/pkg/logger"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"parkir-pintar/internal/presence/bootstrap"
+	presencehandler "parkir-pintar/internal/presence/handler"
+	presencerepo "parkir-pintar/internal/presence/repository"
+	presenceuc "parkir-pintar/internal/presence/usecase"
+	"parkir-pintar/pkg/config"
+	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
+	"parkir-pintar/pkg/grpcserver"
+	"parkir-pintar/pkg/logger"
+	"parkir-pintar/pkg/metrics"
+	"parkir-pintar/pkg/server"
+	"parkir-pintar/pkg/telemetry"
+	"parkir-pintar/pkg/tracing"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
-	app, err := bootstrap.New()
-	if err != nil {
-		slog.Error("failed to initialize app", logger.Err(err))
+	if err := run(); err != nil {
+		slog.Error("application error", logger.Err(err))
 		os.Exit(1)
+	}
+}
+
+func run() error {
+	cfg, err := config.LoadConfig("presence")
+	if err != nil {
+		return err
 	}
 
-	if err := app.Run(); err != nil {
-		slog.Error("app exited with error", logger.Err(err))
-		os.Exit(1)
+	// --- Telemetry ---
+	otlpEndpoint := getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", cfg.Tracing.OTLPEndpoint)
+
+	providers, telErr := telemetry.Init(context.Background(), telemetry.Config{
+		ServiceName:     "parkir-pintar-presence",
+		OTLPEndpoint:    otlpEndpoint,
+		TraceSampleRate: cfg.Tracing.SampleRate,
+	})
+	if telErr != nil {
+		slog.Warn("telemetry init failed, continuing with noop", logger.Err(telErr))
 	}
+
+	var log *slog.Logger
+	if providers != nil && providers.LoggerProvider != nil {
+		log = logger.NewLoggerWithProvider(cfg.Logger, providers.LoggerProvider)
+	} else {
+		log = logger.NewLogger(cfg.Logger)
+	}
+
+	tracer, err := tracing.NewTracer(&tracing.Config{
+		Enabled:      cfg.Tracing.Enabled,
+		ServiceName:  "parkir-pintar-presence",
+		SampleRate:   cfg.Tracing.SampleRate,
+		Exporter:     cfg.Tracing.Exporter,
+		OTLPEndpoint: cfg.Tracing.OTLPEndpoint,
+	})
+	if err != nil {
+		log.Warn("tracer init failed", logger.Err(err))
+		tracer = tracing.NewNoOpTracer()
+	}
+
+	metricsInst, err := metrics.NewMetrics("parkir-pintar-presence", otlpEndpoint)
+	if err != nil {
+		return err
+	}
+
+	// --- Layers ---
+	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, nil)
+
+	sensorGateway := presencerepo.NewStubSensorGateway()
+	uc := presenceuc.NewUsecase(sensorGateway)
+	handler := presencehandler.NewHandler(uc)
+
+	// --- Shutdown ---
+	shutdownMgr := server.NewShutdownManager(log)
+	shutdownMgr.Register(func(ctx context.Context) error { return metricsInst.Shutdown(ctx) })
+	shutdownMgr.Register(func(ctx context.Context) error { return tracer.Shutdown(ctx) })
+	if providers != nil {
+		shutdownMgr.Register(func(ctx context.Context) error { return providers.Shutdown(ctx) })
+	}
+
+	// --- gRPC Server ---
+	grpcSrv := grpcserver.New(log, cfg.GRPC.Server.Port, cfg.GRPC.Server.RequestTimeout,
+		grpc.ChainUnaryInterceptor(
+			metricsInst.GRPCUnaryInterceptor(),
+			interceptors.RecoveryUnaryInterceptor(),
+			interceptors.AuthUnaryInterceptor(nil),
+			interceptors.LoggingUnaryInterceptor(),
+			interceptors.TracingUnaryInterceptor(),
+			interceptors.RateLimitUnaryInterceptor(grpcmiddleware.RateLimitConfig{
+				RequestsPerSecond: cfg.GRPC.RateLimit.RequestsPerSecond,
+				BurstSize:         cfg.GRPC.RateLimit.BurstSize,
+				CleanupInterval:   5 * time.Minute,
+			}),
+		),
+	)
+	handler.RegisterService(grpcSrv.Server())
+
+	// --- Run ---
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- grpcSrv.Start()
+	}()
+
+	select {
+	case <-ctx.Done():
+		log.Info("shutdown signal received")
+	case err := <-serverErr:
+		if err != nil {
+			log.Error("gRPC server error", logger.Err(err))
+		}
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.GRPC.Server.ShutdownTimeout)
+	defer cancel()
+	if err := shutdownMgr.Shutdown(shutdownCtx); err != nil {
+		log.Error("shutdown error", logger.Err(err))
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			return err
+		}
+	default:
+	}
+
+	return nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
 }

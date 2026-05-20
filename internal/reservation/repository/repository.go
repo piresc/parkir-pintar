@@ -19,7 +19,6 @@ type Repository interface {
 	FindByIdempotencyKey(ctx context.Context, key string) (*model.Reservation, error)
 	FindAvailableSpot(ctx context.Context, vehicleType string) (*model.ParkingSpot, error)
 	GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error)
-	GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error)
 	GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error)
 	CreateReservationTx(ctx context.Context, tx *sqlx.Tx, reservation *model.Reservation) error
 	UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, spotID string, status string) error
@@ -62,8 +61,6 @@ func (r *sqlxRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 	return &spot, nil
 }
 
-
-
 // GetSpotByID retrieves a parking spot by ID (read-only, no lock).
 func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
 	var spot model.ParkingSpot
@@ -73,19 +70,6 @@ func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model
 			return nil, fmt.Errorf("%w: spot_id=%s", reservationerrors.ErrNotFound, spotID)
 		}
 		return nil, fmt.Errorf("get spot by id: %w", err)
-	}
-	return &spot, nil
-}
-
-// GetSpotForUpdate retrieves a parking spot by ID with a row-level lock for update.
-func (r *sqlxRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
-	var spot model.ParkingSpot
-	err := r.db.GetContext(ctx, &spot, "SELECT * FROM parking_spots WHERE id = $1 FOR UPDATE", spotID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: spot_id=%s", reservationerrors.ErrNotFound, spotID)
-		}
-		return nil, fmt.Errorf("get spot for update: %w", err)
 	}
 	return &spot, nil
 }
@@ -131,8 +115,6 @@ func (r *sqlxRepository) UpdateSpotStatusTx(ctx context.Context, tx *sqlx.Tx, sp
 	}
 	return nil
 }
-
-
 
 // GetByID retrieves a single reservation by its UUID.
 func (r *sqlxRepository) GetByID(ctx context.Context, id string) (*model.Reservation, error) {
@@ -197,8 +179,6 @@ func (r *sqlxRepository) WithTransaction(ctx context.Context, fn func(tx *sqlx.T
 	}
 	return nil
 }
-
-
 
 // ListByDriverID retrieves reservations for a given driver, optionally filtered by status.
 func (r *sqlxRepository) ListByDriverID(ctx context.Context, driverID string, status string) ([]*model.Reservation, error) {

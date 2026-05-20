@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"parkir-pintar/pkg/logger"
 	"math"
 	"time"
 
 	"parkir-pintar/internal/analytics/model"
 	"parkir-pintar/pkg/apperror"
+	"parkir-pintar/pkg/logger"
 )
 
 const idleThreshold = 0.30

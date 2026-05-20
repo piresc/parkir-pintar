@@ -51,14 +51,6 @@ func (m *MockRepository) GetByID(ctx context.Context, id string) (*model.Payment
 	return args.Get(0).(*model.Payment), args.Error(1)
 }
 
-func (m *MockRepository) GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error) {
-	args := m.Called(ctx, billingID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.Payment), args.Error(1)
-}
-
 type MockPaymentGateway struct {
 	mock.Mock
 }

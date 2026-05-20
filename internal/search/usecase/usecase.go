@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"parkir-pintar/pkg/logger"
 	"time"
 
 	"parkir-pintar/internal/search/model"
+	"parkir-pintar/pkg/logger"
 )
 
 const cacheTTL = 5 * time.Second

@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
@@ -62,7 +62,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	repo.On("ListByDriverID", mock.Anything, "driver-extended", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&reservationpkg.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
@@ -113,7 +113,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 		return r.Status == string(constants.StatusCheckedIn)
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-extended", "occupied").Return(nil)
-	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
+	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&reservationpkg.BillingRecord{ID: "billing-checkin-id"}, nil)
 
 	checkedIn, err := uc.CheckIn(t.Context(), &model.CheckInRequest{ReservationID: reservation.ID})
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpir
 	// --- Phase 3: Check-Out after 4 hours (reservation was only for 1 hour) ---
 	checkedInAt := *checkedIn.Reservation.CheckedInAt
 	// PRD Example 4: 4 hours total = 20,000 parking + 5,000 booking = 25,000
-	billingRecord := &billingmodel.BillingRecord{
+	billingRecord := &reservationpkg.BillingRecord{
 		ID:          "billing-extended",
 		TotalAmount: 25000,
 	}

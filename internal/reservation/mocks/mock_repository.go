@@ -131,21 +131,6 @@ func (mr *MockRepositoryMockRecorder) GetSpotByID(ctx, spotID any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSpotByID", reflect.TypeOf((*MockRepository)(nil).GetSpotByID), ctx, spotID)
 }
 
-// GetSpotForUpdate mocks base method.
-func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSpotForUpdate", ctx, spotID)
-	ret0, _ := ret[0].(*model.ParkingSpot)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSpotForUpdate indicates an expected call of GetSpotForUpdate.
-func (mr *MockRepositoryMockRecorder) GetSpotForUpdate(ctx, spotID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSpotForUpdate", reflect.TypeOf((*MockRepository)(nil).GetSpotForUpdate), ctx, spotID)
-}
-
 // GetSpotForUpdateTx mocks base method.
 func (m *MockRepository) GetSpotForUpdateTx(ctx context.Context, tx *sqlx.Tx, spotID string) (*model.ParkingSpot, error) {
 	m.ctrl.T.Helper()

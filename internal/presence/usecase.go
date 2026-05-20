@@ -2,7 +2,8 @@ package presence
 
 import (
 	"context"
-	"time"
+
+	"parkir-pintar/internal/presence/repository"
 )
 
 //go:generate mockgen -destination=mocks/mock_usecase.go -package=mocks parkir-pintar/internal/presence Usecase
@@ -15,10 +16,8 @@ type VerifyResult struct {
 	Message  string
 }
 
-type SensorReading struct {
-	Occupied   bool
-	DetectedAt time.Time
-}
+// SensorReading is an alias for the canonical type in the repository package.
+type SensorReading = repository.SensorReading
 
 //go:generate mockgen -destination=mocks/mock_sensor_gateway.go -package=mocks parkir-pintar/internal/presence SensorGateway
 type SensorGateway interface {

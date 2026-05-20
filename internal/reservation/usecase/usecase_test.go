@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	resv "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
@@ -57,14 +57,6 @@ func (m *MockRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 }
 
 func (m *MockRepository) GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
-	args := m.Called(ctx, spotID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.ParkingSpot), args.Error(1)
-}
-
-func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
 	args := m.Called(ctx, spotID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -129,28 +121,28 @@ type MockBillingClient struct {
 	mock.Mock
 }
 
-func (m *MockBillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+func (m *MockBillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*resv.BillingRecord, error) {
 	args := m.Called(ctx, reservationID, bookingFee, idempotencyKey)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
+	return args.Get(0).(*resv.BillingRecord), args.Error(1)
 }
 
-func (m *MockBillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error) {
+func (m *MockBillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*resv.BillingRecord, error) {
 	args := m.Called(ctx, reservationID, checkInAt, checkOutAt)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
+	return args.Get(0).(*resv.BillingRecord), args.Error(1)
 }
 
-func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*resv.BillingRecord, error) {
 	args := m.Called(ctx, reservationID, idempotencyKey)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
+	return args.Get(0).(*resv.BillingRecord), args.Error(1)
 }
 
 // MockPaymentClient implements PaymentClient using testify/mock.
@@ -257,7 +249,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenSystemAssigned(t *testing.T
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-42", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&resv.BillingRecord{ID: "billing-test-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
@@ -304,7 +296,7 @@ func TestCreateReservation_ShouldReturnConfirmed_WhenUserSelected(t *testing.T) 
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-99", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&resv.BillingRecord{ID: "billing-test-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CreateReservationRequest{
@@ -519,7 +511,7 @@ func TestCheckIn_ShouldTransitionToCheckedIn_WhenConfirmedState(t *testing.T) {
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-checkin").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-8", "occupied").Return(nil)
-	billing.On("StartBilling", mock.Anything, "res-checkin", int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
+	billing.On("StartBilling", mock.Anything, "res-checkin", int64(0), mock.AnythingOfType("string")).Return(&resv.BillingRecord{ID: "billing-checkin-id"}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	req := &model.CheckInRequest{ReservationID: "res-checkin"}
@@ -586,7 +578,7 @@ func TestCheckOut_ShouldCalculateFeeAndProcess_WhenCheckedInState(t *testing.T) 
 		CheckedInAt: &checkedInAt,
 	}
 
-	billingRecord := &billingmodel.BillingRecord{
+	billingRecord := &resv.BillingRecord{
 		ID:          "billing-1",
 		TotalAmount: 15000,
 	}
@@ -817,7 +809,7 @@ func TestConfirmReservation_ShouldTransitionToConfirmed_WhenWaitingPayment(t *te
 		Status:   string(constants.StatusWaitingPayment),
 	}
 
-	billingRecord := &billingmodel.BillingRecord{ID: "billing-1"}
+	billingRecord := &resv.BillingRecord{ID: "billing-1"}
 
 	repo.On("GetByIDForUpdate", mock.Anything, (*sqlx.Tx)(nil), "res-confirm").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
@@ -877,7 +869,7 @@ func TestCompleteCheckout_ShouldProcessPaymentAndReleaseSpot_WhenCheckedOut(t *t
 		CheckedOutAt: &checkedOutAt,
 	}
 
-	billingRecord := &billingmodel.BillingRecord{
+	billingRecord := &resv.BillingRecord{
 		ID:          "billing-2",
 		TotalAmount: 15000,
 	}

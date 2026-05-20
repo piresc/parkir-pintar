@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
@@ -61,7 +61,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	repo.On("ListByDriverID", mock.Anything, "driver-overnight", "").Return([]*model.Reservation{}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-overnight", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&reservationpkg.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	reservation, err := uc.CreateReservation(t.Context(), &model.CreateReservationRequest{
@@ -112,7 +112,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 		return r.Status == string(constants.StatusCheckedIn)
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-overnight", "occupied").Return(nil)
-	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
+	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&reservationpkg.BillingRecord{ID: "billing-checkin-id"}, nil)
 
 	checkedIn, err := uc.CheckIn(t.Context(), &model.CheckInRequest{ReservationID: reservation.ID})
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestOvernightFlow_ShouldIncludeOvernightFee_WhenSessionCrossesMidnight(t *t
 	// --- Phase 3: Check-Out (crosses midnight: 22:00 → 06:00 next day) ---
 	checkedInAt := *checkedIn.Reservation.CheckedInAt
 	// PRD Example 3: 5000 booking + 40000 parking (8h) + 20000 overnight = 65000
-	billingRecord := &billingmodel.BillingRecord{
+	billingRecord := &reservationpkg.BillingRecord{
 		ID:          "billing-overnight",
 		TotalAmount: 65000,
 	}

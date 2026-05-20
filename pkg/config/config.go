@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 
 const (
 	defaultEnv                 = "local"
+	testEnv                    = "test"
 	defaultAllowedOrigin       = "http://localhost:3000"
 	defaultHealthEndpoint      = "/health"
 	defaultHealthLiveEndpoint  = "/health/live"
@@ -149,7 +151,7 @@ func LoadConfig(serviceName string) (*Config, error) {
 	env := getEnv("APP_ENV", defaultEnv)
 
 	// In local/test dev, load .env for secrets
-	if env == defaultEnv || env == "test" {
+	if env == defaultEnv || env == testEnv {
 		_ = godotenv.Load(".env")
 		_ = godotenv.Load("config/.env")
 	}
@@ -166,7 +168,8 @@ func LoadConfig(serviceName string) (*Config, error) {
 	v.AddConfigPath(".")
 
 	if err := v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		var configNotFound viper.ConfigFileNotFoundError
+		if !errors.As(err, &configNotFound) {
 			return nil, fmt.Errorf("read config file: %w", err)
 		}
 		// Config file not found is OK — fall back to env + defaults
@@ -205,7 +208,7 @@ func LoadConfig(serviceName string) (*Config, error) {
 func Load(envPath string) (*Config, error) {
 	env := getEnv("APP_ENV", defaultEnv)
 
-	if env == defaultEnv || env == "test" {
+	if env == defaultEnv || env == testEnv {
 		if envPath != "" {
 			_ = godotenv.Load(envPath)
 		}
@@ -419,7 +422,7 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("JWT_SECRET is required")
 	}
 
-	if cfg.App.Environment != defaultEnv && cfg.App.Environment != "test" && len(cfg.JWT.Secret) < 32 {
+	if cfg.App.Environment != defaultEnv && cfg.App.Environment != testEnv && len(cfg.JWT.Secret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 characters in non-local environments")
 	}
 

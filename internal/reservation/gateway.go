@@ -4,17 +4,33 @@ import (
 	"context"
 	"time"
 
-	billingmodel "parkir-pintar/internal/billing/model"
 	"parkir-pintar/pkg/events"
 )
+
+// BillingRecord is a local representation of billing data returned by the
+// billing service. It decouples the reservation domain from the billing
+// service's internal model package.
+type BillingRecord struct {
+	ID              string
+	ReservationID   string
+	BookingFee      int64
+	ParkingFee      int64
+	OvernightFee    int64
+	TotalAmount     int64
+	DurationMinutes int
+	BilledHours     int
+	IsOvernight     bool
+	IdempotencyKey  string
+	Status          string
+}
 
 // BillingClient defines the interface for billing service operations.
 //
 //go:generate mockgen -destination=mocks/mock_billing_client.go -package=mocks parkir-pintar/internal/reservation BillingClient
 type BillingClient interface {
-	StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error)
-	CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error)
-	GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error)
+	StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*BillingRecord, error)
+	CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*BillingRecord, error)
+	GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*BillingRecord, error)
 }
 
 // PaymentClient defines the interface for payment service operations.

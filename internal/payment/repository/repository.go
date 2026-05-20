@@ -25,7 +25,6 @@ type Repository interface {
 	UpdatePayment(ctx context.Context, payment *model.Payment) error
 	UpdatePaymentWithStatusCheck(ctx context.Context, payment *model.Payment, expectedStatus string) error
 	GetByID(ctx context.Context, id string) (*model.Payment, error)
-	GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error)
 }
 
 func (r *sqlxRepository) CreatePayment(ctx context.Context, payment *model.Payment) error {
@@ -108,18 +107,6 @@ func (r *sqlxRepository) GetByID(ctx context.Context, id string) (*model.Payment
 			return nil, fmt.Errorf("%w: id=%s", ErrNotFound, id)
 		}
 		return nil, fmt.Errorf("get payment by id: %w", err)
-	}
-	return &payment, nil
-}
-
-func (r *sqlxRepository) GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error) {
-	var payment model.Payment
-	err := r.db.GetContext(ctx, &payment, "SELECT * FROM payments WHERE billing_id = $1", billingID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("%w: billing_id=%s", ErrNotFound, billingID)
-		}
-		return nil, fmt.Errorf("get payment by billing_id: %w", err)
 	}
 	return &payment, nil
 }

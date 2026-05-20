@@ -9,20 +9,19 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"parkir-pintar/pkg/logger"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	billingmodel "parkir-pintar/internal/billing/model"
-	reservation "parkir-pintar/internal/reservation"
+	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/gateway"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/pkg/apperror"
 	"parkir-pintar/pkg/database"
+	"parkir-pintar/pkg/logger"
 	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
@@ -31,9 +30,9 @@ import (
 //
 //go:generate mockgen -destination=../mocks/mock_billing_client.go -package=mocks parkir-pintar/internal/reservation/usecase BillingClient
 type BillingClient interface {
-	StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error)
-	CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error)
-	GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error)
+	StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*reservationpkg.BillingRecord, error)
+	CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*reservationpkg.BillingRecord, error)
+	GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*reservationpkg.BillingRecord, error)
 }
 
 // PaymentClient defines the interface for payment service operations.
@@ -49,7 +48,7 @@ type PaymentClient interface {
 //
 //go:generate mockgen -destination=../mocks/mock_presence_client.go -package=mocks parkir-pintar/internal/reservation/usecase PresenceClient
 type PresenceClient interface {
-	VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*reservation.PresenceResult, error)
+	VerifyPresence(ctx context.Context, driverID string, reservationID string, floorNumber int, spotNumber int) (*reservationpkg.PresenceResult, error)
 }
 
 // Lock represents an acquired distributed lock.

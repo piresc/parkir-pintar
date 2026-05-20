@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"parkir-pintar/pkg/logger"
-	"parkir-pintar/pkg/retry"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +15,8 @@ import (
 	"parkir-pintar/internal/payment/model"
 	"parkir-pintar/internal/payment/repository"
 	"parkir-pintar/pkg/idempotency"
+	"parkir-pintar/pkg/logger"
+	"parkir-pintar/pkg/retry"
 
 	paymentconstants "parkir-pintar/internal/payment/constants"
 )
@@ -65,9 +65,8 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	}
 
 	var txnRef string
-	var chargeErr error
 
-	chargeErr = retry.Do(ctx, retry.DefaultConfig(), func(retryCtx context.Context) error {
+	chargeErr := retry.Do(ctx, retry.DefaultConfig(), func(retryCtx context.Context) error {
 		var err error
 		txnRef, err = uc.gw.Charge(retryCtx, req.Amount, req.PaymentMethod)
 		if err != nil {
@@ -99,7 +98,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if uc.eventPublisher != nil {
 			pubErr := uc.eventPublisher.PublishPaymentFailed(ctx, gateway.PaymentResultEvent{
 				PaymentID: payment.ID,
-				Status:    string(model.PaymentStatusFailed),
+				Status:    model.PaymentStatusFailed,
 			})
 			if pubErr != nil {
 				slog.Error("failed to publish payment failed event",
@@ -123,7 +122,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	if uc.eventPublisher != nil {
 		pubErr := uc.eventPublisher.PublishPaymentSuccess(ctx, gateway.PaymentResultEvent{
 			PaymentID: payment.ID,
-			Status:    string(model.PaymentStatusSuccess),
+			Status:    model.PaymentStatusSuccess,
 		})
 		if pubErr != nil {
 			slog.Error("failed to publish payment success event",
@@ -172,8 +171,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("refund payment status lock: %w", err)
 	}
 
-	var refundErr error
-	refundErr = retry.Do(ctx, retry.DefaultConfig(), func(retryCtx context.Context) error {
+	refundErr := retry.Do(ctx, retry.DefaultConfig(), func(retryCtx context.Context) error {
 		err := uc.gw.Refund(retryCtx, payment.TransactionRef)
 		if err != nil {
 			slog.Warn("payment gateway refund failed, retrying",

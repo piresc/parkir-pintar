@@ -11,7 +11,7 @@ package mocks
 
 import (
 	context "context"
-	model "parkir-pintar/internal/billing/model"
+	reservation "parkir-pintar/internal/reservation"
 	reflect "reflect"
 	time "time"
 
@@ -43,10 +43,10 @@ func (m *MockBillingClient) EXPECT() *MockBillingClientMockRecorder {
 }
 
 // CalculateFee mocks base method.
-func (m *MockBillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*model.BillingRecord, error) {
+func (m *MockBillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*reservation.BillingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CalculateFee", ctx, reservationID, checkInAt, checkOutAt)
-	ret0, _ := ret[0].(*model.BillingRecord)
+	ret0, _ := ret[0].(*reservation.BillingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -58,10 +58,10 @@ func (mr *MockBillingClientMockRecorder) CalculateFee(ctx, reservationID, checkI
 }
 
 // GenerateInvoice mocks base method.
-func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID, idempotencyKey string) (*model.BillingRecord, error) {
+func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID, idempotencyKey string) (*reservation.BillingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GenerateInvoice", ctx, reservationID, idempotencyKey)
-	ret0, _ := ret[0].(*model.BillingRecord)
+	ret0, _ := ret[0].(*reservation.BillingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -73,10 +73,10 @@ func (mr *MockBillingClientMockRecorder) GenerateInvoice(ctx, reservationID, ide
 }
 
 // StartBilling mocks base method.
-func (m *MockBillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*model.BillingRecord, error) {
+func (m *MockBillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*reservation.BillingRecord, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StartBilling", ctx, reservationID, bookingFee, idempotencyKey)
-	ret0, _ := ret[0].(*model.BillingRecord)
+	ret0, _ := ret[0].(*reservation.BillingRecord)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

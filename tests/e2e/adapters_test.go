@@ -18,12 +18,33 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	billingmodel "parkir-pintar/internal/billing/model"
 	billing "parkir-pintar/internal/billing"
-	paymentmodel "parkir-pintar/internal/payment/model"
+	billingmodel "parkir-pintar/internal/billing/model"
 	payment "parkir-pintar/internal/payment"
+	paymentmodel "parkir-pintar/internal/payment/model"
+	reservation "parkir-pintar/internal/reservation"
 	reservationuc "parkir-pintar/internal/reservation/usecase"
 )
+
+// toBillingRecord converts billing model to reservation's local BillingRecord.
+func toBillingRecord(b *billingmodel.BillingRecord) *reservation.BillingRecord {
+	if b == nil {
+		return nil
+	}
+	return &reservation.BillingRecord{
+		ID:              b.ID,
+		ReservationID:   b.ReservationID,
+		BookingFee:      b.BookingFee,
+		ParkingFee:      b.ParkingFee,
+		OvernightFee:    b.OvernightFee,
+		TotalAmount:     b.TotalAmount,
+		DurationMinutes: b.DurationMinutes,
+		BilledHours:     b.BilledHours,
+		IsOvernight:     b.IsOvernight,
+		IdempotencyKey:  b.IdempotencyKey,
+		Status:          b.Status,
+	}
+}
 
 // ---------------------------------------------------------------------------
 // billingAdapter — adapts billing.Usecase → reservation.BillingClient
@@ -37,29 +58,32 @@ type billingAdapter struct {
 }
 
 // StartBilling creates a billing record with the booking fee.
-func (a *billingAdapter) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error) {
-	return a.uc.StartBilling(ctx, &billingmodel.StartBillingRequest{
+func (a *billingAdapter) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*reservation.BillingRecord, error) {
+	rec, err := a.uc.StartBilling(ctx, &billingmodel.StartBillingRequest{
 		ReservationID:  reservationID,
 		BookingFee:     bookingFee,
 		IdempotencyKey: idempotencyKey,
 	})
+	return toBillingRecord(rec), err
 }
 
 // CalculateFee computes the parking fee for a completed session.
-func (a *billingAdapter) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error) {
-	return a.uc.CalculateFee(ctx, &billingmodel.CalculateFeeRequest{
+func (a *billingAdapter) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*reservation.BillingRecord, error) {
+	rec, err := a.uc.CalculateFee(ctx, &billingmodel.CalculateFeeRequest{
 		ReservationID: reservationID,
 		CheckInAt:     checkInAt,
 		CheckOutAt:    checkOutAt,
 	})
+	return toBillingRecord(rec), err
 }
 
 // GenerateInvoice finalises the billing record into an invoice.
-func (a *billingAdapter) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error) {
-	return a.uc.GenerateInvoice(ctx, &billingmodel.GenerateInvoiceRequest{
+func (a *billingAdapter) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*reservation.BillingRecord, error) {
+	rec, err := a.uc.GenerateInvoice(ctx, &billingmodel.GenerateInvoiceRequest{
 		ReservationID:  reservationID,
 		IdempotencyKey: idempotencyKey,
 	})
+	return toBillingRecord(rec), err
 }
 
 // ---------------------------------------------------------------------------

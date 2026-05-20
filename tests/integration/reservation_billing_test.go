@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	reservationerrors "parkir-pintar/internal/reservation/errors"
 	"parkir-pintar/internal/reservation/model"
@@ -56,14 +56,6 @@ func (m *MockRepository) FindAvailableSpot(ctx context.Context, vehicleType stri
 }
 
 func (m *MockRepository) GetSpotByID(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
-	args := m.Called(ctx, spotID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*model.ParkingSpot), args.Error(1)
-}
-
-func (m *MockRepository) GetSpotForUpdate(ctx context.Context, spotID string) (*model.ParkingSpot, error) {
 	args := m.Called(ctx, spotID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -127,28 +119,28 @@ type MockBillingClient struct {
 	mock.Mock
 }
 
-func (m *MockBillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+func (m *MockBillingClient) StartBilling(ctx context.Context, reservationID string, bookingFee int64, idempotencyKey string) (*reservationpkg.BillingRecord, error) {
 	args := m.Called(ctx, reservationID, bookingFee, idempotencyKey)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
+	return args.Get(0).(*reservationpkg.BillingRecord), args.Error(1)
 }
 
-func (m *MockBillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*billingmodel.BillingRecord, error) {
+func (m *MockBillingClient) CalculateFee(ctx context.Context, reservationID string, checkInAt, checkOutAt time.Time) (*reservationpkg.BillingRecord, error) {
 	args := m.Called(ctx, reservationID, checkInAt, checkOutAt)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
+	return args.Get(0).(*reservationpkg.BillingRecord), args.Error(1)
 }
 
-func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*billingmodel.BillingRecord, error) {
+func (m *MockBillingClient) GenerateInvoice(ctx context.Context, reservationID string, idempotencyKey string) (*reservationpkg.BillingRecord, error) {
 	args := m.Called(ctx, reservationID, idempotencyKey)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*billingmodel.BillingRecord), args.Error(1)
+	return args.Get(0).(*reservationpkg.BillingRecord), args.Error(1)
 }
 
 // MockPaymentClient implements usecase.PaymentClient using testify/mock.
@@ -221,7 +213,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 	}, nil)
 	repo.On("CreateReservationTx", mock.Anything, (*sqlx.Tx)(nil), mock.AnythingOfType("*model.Reservation")).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-integ-1", "reserved").Return(nil)
-	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-test-id"}, nil)
+	billing.On("StartBilling", mock.Anything, mock.AnythingOfType("string"), pricing.BookingFee, mock.AnythingOfType("string")).Return(&reservationpkg.BillingRecord{ID: "billing-test-id"}, nil)
 
 	// Act: create reservation
 	createReq := &model.CreateReservationRequest{
@@ -284,7 +276,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 		return r.Status == string(constants.StatusCheckedIn)
 	})).Return(nil).Once()
 	repo.On("UpdateSpotStatusTx", mock.Anything, (*sqlx.Tx)(nil), "spot-integ-1", "occupied").Return(nil)
-	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&billingmodel.BillingRecord{ID: "billing-checkin-id"}, nil)
+	billing.On("StartBilling", mock.Anything, reservation.ID, int64(0), mock.AnythingOfType("string")).Return(&reservationpkg.BillingRecord{ID: "billing-checkin-id"}, nil)
 
 	// Act: check in
 	checkInReq := &model.CheckInRequest{ReservationID: reservation.ID}
@@ -303,7 +295,7 @@ func TestReservationToBillingFlow_ShouldCompleteFullLifecycle_WhenHappyPath(t *t
 
 	// Arrange: return checked-in reservation for checkout
 	checkedInAt := *checkedIn.Reservation.CheckedInAt
-	billingRecord := &billingmodel.BillingRecord{
+	billingRecord := &reservationpkg.BillingRecord{
 		ID:          "billing-integ-1",
 		TotalAmount: 15000,
 		BookingFee:  pricing.BookingFee,

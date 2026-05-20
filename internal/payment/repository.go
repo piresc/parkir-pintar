@@ -13,5 +13,4 @@ type Repository interface {
 	UpdatePayment(ctx context.Context, payment *model.Payment) error
 	UpdatePaymentWithStatusCheck(ctx context.Context, payment *model.Payment, expectedStatus string) error
 	GetByID(ctx context.Context, id string) (*model.Payment, error)
-	GetByBillingID(ctx context.Context, billingID string) (*model.Payment, error)
 }

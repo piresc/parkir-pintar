@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"log/slog"
+
 	"parkir-pintar/internal/presence"
 	"parkir-pintar/pkg/logger"
 )

@@ -24,36 +24,36 @@ import (
 
 // allStatuses is the complete set of reservation statuses.
 var allStatuses = []string{
-	string(string(constants.StatusPending)),
-	string(string(constants.StatusWaitingPayment)),
-	string(string(constants.StatusConfirmed)),
-	string(string(constants.StatusCheckedIn)),
-	string(string(constants.StatusCheckedOut)),
-	string(string(constants.StatusCompleted)),
-	string(string(constants.StatusExpired)),
-	string(string(constants.StatusCancelled)),
-	string(string(constants.StatusFailed)),
+	string(constants.StatusPending),
+	string(constants.StatusWaitingPayment),
+	string(constants.StatusConfirmed),
+	string(constants.StatusCheckedIn),
+	string(constants.StatusCheckedOut),
+	string(constants.StatusCompleted),
+	string(constants.StatusExpired),
+	string(constants.StatusCancelled),
+	string(constants.StatusFailed),
 }
 
 // validTransitionPairs enumerates every allowed (from, to) pair.
 var validTransitionPairs = [][2]string{
-	{string(string(constants.StatusPending)), string(string(constants.StatusConfirmed))},
-	{string(string(constants.StatusWaitingPayment)), string(string(constants.StatusConfirmed))},
-	{string(string(constants.StatusWaitingPayment)), string(string(constants.StatusFailed))},
-	{string(string(constants.StatusWaitingPayment)), string(string(constants.StatusCancelled))},
-	{string(string(constants.StatusConfirmed)), string(string(constants.StatusCheckedIn))},
-	{string(string(constants.StatusConfirmed)), string(string(constants.StatusExpired))},
-	{string(string(constants.StatusConfirmed)), string(string(constants.StatusCancelled))},
-	{string(string(constants.StatusCheckedIn)), string(string(constants.StatusCheckedOut))},
-	{string(string(constants.StatusCheckedOut)), string(string(constants.StatusCompleted))},
+	{string(constants.StatusPending), string(constants.StatusConfirmed)},
+	{string(constants.StatusWaitingPayment), string(constants.StatusConfirmed)},
+	{string(constants.StatusWaitingPayment), string(constants.StatusFailed)},
+	{string(constants.StatusWaitingPayment), string(constants.StatusCancelled)},
+	{string(constants.StatusConfirmed), string(constants.StatusCheckedIn)},
+	{string(constants.StatusConfirmed), string(constants.StatusExpired)},
+	{string(constants.StatusConfirmed), string(constants.StatusCancelled)},
+	{string(constants.StatusCheckedIn), string(constants.StatusCheckedOut)},
+	{string(constants.StatusCheckedOut), string(constants.StatusCompleted)},
 }
 
 // terminalStatuses are statuses with no outgoing transitions.
 var terminalStatuses = []string{
-	string(string(constants.StatusCompleted)),
-	string(string(constants.StatusExpired)),
-	string(string(constants.StatusCancelled)),
-	string(string(constants.StatusFailed)),
+	string(constants.StatusCompleted),
+	string(constants.StatusExpired),
+	string(constants.StatusCancelled),
+	string(constants.StatusFailed),
 }
 
 // validTransitionSet builds a lookup set for O(1) membership checks.

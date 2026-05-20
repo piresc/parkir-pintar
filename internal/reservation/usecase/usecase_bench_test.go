@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/mock"
 
-	billingmodel "parkir-pintar/internal/billing/model"
+	reservation "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 )
@@ -31,7 +31,7 @@ func BenchmarkCreateReservation(b *testing.B) {
 		Status:      "available",
 	}
 
-	billingRecord := &billingmodel.BillingRecord{
+	billingRecord := &reservation.BillingRecord{
 		ID:             "billing-1",
 		ReservationID:  "res-1",
 		BookingFee:     5000,
@@ -95,9 +95,6 @@ func BenchmarkCancelReservation(b *testing.B) {
 	repo.On("GetByIDForUpdate", mock.Anything, mock.Anything, "res-cancel-1").Return(reservation, nil)
 	repo.On("UpdateReservationTx", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	repo.On("UpdateSpotStatusTx", mock.Anything, mock.Anything, "spot-1", "available").Return(nil)
-	repo.On("GetSpotForUpdate", mock.Anything, "spot-1").Return(&model.ParkingSpot{
-		ID: "spot-1", FloorNumber: 1, SpotNumber: 1, VehicleType: "car", SpotCode: "F1-C-001", Status: "reserved",
-	}, nil)
 
 	uc := NewUsecase(repo, locker, billing, payment, nil, nil, nil, 60, 10)
 	ctx := context.Background()

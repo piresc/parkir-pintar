@@ -23,6 +23,7 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 	"parkir-pintar/pkg/redislock"
 )
+
 //
 //go:generate mockgen -destination=../mocks/mock_billing_client.go -package=mocks parkir-pintar/internal/reservation/usecase BillingClient
 type BillingClient interface {

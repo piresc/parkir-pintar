@@ -47,8 +47,6 @@ func NewHandler(
 	}
 }
 
-
-
 // The JWT middleware guarantees this is always set for authenticated routes.
 func getUserID(c *gin.Context) string {
 	return c.GetString(middleware.KeyUserID)

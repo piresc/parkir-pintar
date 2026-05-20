@@ -36,7 +36,7 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 		}
 
 		grpcEnvVars := []string{
-			"GRPC_SERVER_PORT", "GRPC_TLS_CERT_PATH", "GRPC_TLS_KEY_PATH",
+			"GRPC_SERVER_PORT",
 			"GRPC_MAX_CONN_AGE", "GRPC_DIAL_TIMEOUT", "GRPC_KEEPALIVE_TIME",
 			"GRPC_KEEPALIVE_TIMEOUT",
 		}
@@ -63,7 +63,7 @@ func TestProperty18_ConfigDefaultsForUnsetEnvVars(t *testing.T) {
 			os.Setenv("GRPC_KEEPALIVE_TIMEOUT", subset.KeepAliveTimeout.String())
 		}
 
-		cfg, err := Load("")
+		cfg, err := LoadConfig("nonexistent")
 		require.NoError(t, err)
 
 		const defaultPort = 9090

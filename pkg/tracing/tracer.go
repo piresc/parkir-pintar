@@ -52,14 +52,7 @@ type Config struct {
 
 	OTLPEndpoint string
 
-	NewRelic NewRelicExporterConfig
-
 	NoOpForTesting bool
-}
-
-type NewRelicExporterConfig struct {
-	LicenseKey string
-	Enabled    bool
 }
 
 // Otherwise, the exporter field selects the appropriate OTEL exporter.

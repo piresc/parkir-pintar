@@ -2,16 +2,12 @@ package config
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// - Don't mock the class under test
-// - Don't hardcode test data throughout multiple tests
 
 func clearEnv(t *testing.T) {
 	t.Helper()
@@ -23,14 +19,11 @@ func clearEnv(t *testing.T) {
 		"DB_SSL_MODE", "DB_MAX_CONNS", "DB_IDLE_CONNS", "DB_MAX_LIFETIME",
 		"REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD", "REDIS_DB", "REDIS_POOL_SIZE",
 		"JWT_SECRET", "JWT_EXPIRATION", "JWT_ISSUER",
-		"AUTH_API_KEYS",
 		"TRACING_ENABLED", "TRACING_SERVICE_NAME", "TRACING_SAMPLE_RATE",
 		"TRACING_EXCLUDE_PATHS", "TRACING_EXPORTER", "TRACING_OTLP_ENDPOINT",
-		"NEW_RELIC_LICENSE_KEY", "NEW_RELIC_ENABLED",
 		"LOG_LEVEL", "LOG_FORMAT",
-		"GRPC_SERVER_PORT", "GRPC_TLS_CERT_PATH", "GRPC_TLS_KEY_PATH",
-		"GRPC_MAX_CONN_AGE", "GRPC_DIAL_TIMEOUT", "GRPC_KEEPALIVE_TIME",
-		"GRPC_KEEPALIVE_TIMEOUT",
+		"GRPC_SERVER_PORT", "GRPC_MAX_CONN_AGE", "GRPC_DIAL_TIMEOUT",
+		"GRPC_KEEPALIVE_TIME", "GRPC_KEEPALIVE_TIMEOUT",
 	}
 	for _, v := range envVars {
 		t.Setenv(v, "")
@@ -38,11 +31,11 @@ func clearEnv(t *testing.T) {
 	}
 }
 
-func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
+func TestLoadConfig_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
-	cfg, err := Load("")
+	cfg, err := LoadConfig("nonexistent")
 	require.NoError(t, err)
 
 	assert.Equal(t, "parkir-pintar", cfg.App.Name)
@@ -77,31 +70,24 @@ func TestLoad_ShouldReturnDefaultConfig_WhenNoEnvVarsSet(t *testing.T) {
 	assert.Equal(t, 60, cfg.JWT.Expiration)
 	assert.Equal(t, "parkir-pintar", cfg.JWT.Issuer)
 
-	assert.NotNil(t, cfg.Auth.APIKeys)
-	assert.Empty(t, cfg.Auth.APIKeys)
-
 	assert.False(t, cfg.Tracing.Enabled)
 	assert.Equal(t, "parkir-pintar", cfg.Tracing.ServiceName)
 	assert.Equal(t, 1.0, cfg.Tracing.SampleRate)
 	assert.Equal(t, []string{"/health", "/health/live", "/health/ready"}, cfg.Tracing.ExcludePaths)
 	assert.Equal(t, "noop", cfg.Tracing.Exporter)
 	assert.Equal(t, "", cfg.Tracing.OTLPEndpoint)
-	assert.Equal(t, "", cfg.Tracing.NewRelic.LicenseKey)
-	assert.False(t, cfg.Tracing.NewRelic.Enabled)
 
 	assert.Equal(t, "info", cfg.Logger.Level)
 	assert.Equal(t, "json", cfg.Logger.Format)
 
 	assert.Equal(t, 9090, cfg.GRPC.Server.Port)
-	assert.Equal(t, "", cfg.GRPC.Server.TLSCertPath)
-	assert.Equal(t, "", cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, time.Duration(0), cfg.GRPC.Server.MaxConnAge)
 	assert.Equal(t, 5*time.Second, cfg.GRPC.Client.DialTimeout)
 	assert.Equal(t, 30*time.Second, cfg.GRPC.Client.KeepAliveTime)
 	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
 }
 
-func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
+func TestLoadConfig_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	clearEnv(t)
 
 	t.Setenv("APP_NAME", "my-service")
@@ -120,14 +106,13 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	t.Setenv("REDIS_POOL_SIZE", "20")
 	t.Setenv("JWT_SECRET", "my-jwt-secret-that-is-at-least-32-chars-long")
 	t.Setenv("JWT_EXPIRATION", "120")
-	t.Setenv("AUTH_API_KEYS", "svc1:key1,svc2:key2")
 	t.Setenv("TRACING_ENABLED", "true")
 	t.Setenv("TRACING_SAMPLE_RATE", "0.5")
 	t.Setenv("TRACING_EXPORTER", "otlp")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("LOG_FORMAT", "text")
 
-	cfg, err := Load("")
+	cfg, err := LoadConfig("nonexistent")
 	require.NoError(t, err)
 
 	assert.Equal(t, "my-service", cfg.App.Name)
@@ -146,7 +131,6 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	assert.Equal(t, 20, cfg.Redis.PoolSize)
 	assert.Equal(t, "my-jwt-secret-that-is-at-least-32-chars-long", cfg.JWT.Secret)
 	assert.Equal(t, 120, cfg.JWT.Expiration)
-	assert.Equal(t, map[string]string{"svc1": "key1", "svc2": "key2"}, cfg.Auth.APIKeys)
 	assert.True(t, cfg.Tracing.Enabled)
 	assert.Equal(t, 0.5, cfg.Tracing.SampleRate)
 	assert.Equal(t, "otlp", cfg.Tracing.Exporter)
@@ -154,7 +138,7 @@ func TestLoad_ShouldParseEnvVars_WhenAllSet(t *testing.T) {
 	assert.Equal(t, "text", cfg.Logger.Format)
 }
 
-func TestLoad_ShouldReturnError_WhenServerPortInvalid(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenServerPortInvalid(t *testing.T) {
 	tests := []struct {
 		name string
 		port string
@@ -170,14 +154,14 @@ func TestLoad_ShouldReturnError_WhenServerPortInvalid(t *testing.T) {
 			clearEnv(t)
 			t.Setenv("SERVER_PORT", tc.port)
 
-			_, err := Load("")
+			_, err := LoadConfig("nonexistent")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "SERVER_PORT")
 		})
 	}
 }
 
-func TestLoad_ShouldReturnError_WhenTracingSampleRateOutOfRange(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenTracingSampleRateOutOfRange(t *testing.T) {
 	tests := []struct {
 		name string
 		rate string
@@ -192,132 +176,79 @@ func TestLoad_ShouldReturnError_WhenTracingSampleRateOutOfRange(t *testing.T) {
 			clearEnv(t)
 			t.Setenv("TRACING_SAMPLE_RATE", tc.rate)
 
-			_, err := Load("")
+			_, err := LoadConfig("nonexistent")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "TRACING_SAMPLE_RATE")
 		})
 	}
 }
 
-func TestLoad_ShouldReturnError_WhenJWTSecretMissingInNonLocal(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenJWTSecretMissing(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("APP_ENV", "production")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "JWT_SECRET")
 }
 
-func TestLoad_ShouldReturnError_WhenJWTSecretEmptyInLocalEnv(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenJWTSecretEmpty(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("APP_ENV", "local")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "JWT_SECRET")
 }
 
-func TestLoad_ShouldLoadDotEnvFile_WhenAppEnvIsLocal(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	tmpDir := t.TempDir()
-	envFile := filepath.Join(tmpDir, ".env")
-	err := os.WriteFile(envFile, []byte("APP_NAME=from-dotenv\nSERVER_PORT=3000\n"), 0644)
-	require.NoError(t, err)
-
-	cfg, err := Load(envFile)
-	require.NoError(t, err)
-	assert.Equal(t, "from-dotenv", cfg.App.Name)
-	assert.Equal(t, 3000, cfg.Server.Port)
-}
-
-func TestLoad_ShouldNotLoadDotEnvFile_WhenAppEnvIsProduction(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("APP_ENV", "production")
-	t.Setenv("JWT_SECRET", "prod-secret-that-is-at-least-32-chars-long")
-
-	tmpDir := t.TempDir()
-	envFile := filepath.Join(tmpDir, ".env")
-	err := os.WriteFile(envFile, []byte("APP_NAME=should-not-load\n"), 0644)
-	require.NoError(t, err)
-
-	cfg, err := Load(envFile)
-	require.NoError(t, err)
-	assert.Equal(t, "parkir-pintar", cfg.App.Name)
-}
-
-func TestLoad_ShouldParseAllowedOrigins_WhenCommaSeparated(t *testing.T) {
+func TestLoadConfig_ShouldParseAllowedOrigins_WhenCommaSeparated(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("SERVER_ALLOWED_ORIGINS", "https://a.com,https://b.com,https://c.com")
 
-	cfg, err := Load("")
+	cfg, err := LoadConfig("nonexistent")
 	require.NoError(t, err)
 	assert.Equal(t, []string{"https://a.com", "https://b.com", "https://c.com"}, cfg.Server.AllowedOrigins)
 }
 
-func TestLoad_ShouldParseAPIKeys_WhenCommaSeparatedKeyValuePairs(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-	t.Setenv("AUTH_API_KEYS", "service-a:key-a, service-b:key-b")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-	assert.Equal(t, "key-a", cfg.Auth.APIKeys["service-a"])
-	assert.Equal(t, "key-b", cfg.Auth.APIKeys["service-b"])
-}
-
-func TestLoad_ShouldReturnEmptyAPIKeys_WhenEnvVarNotSet(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-	assert.NotNil(t, cfg.Auth.APIKeys)
-	assert.Len(t, cfg.Auth.APIKeys, 0)
-}
-
-func TestLoad_ShouldReturnError_WhenInvalidIntValues(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenInvalidIntValues(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("SERVER_PORT", "not-a-number")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "server.port")
 }
 
-func TestLoad_ShouldReturnError_WhenInvalidBoolValues(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenInvalidBoolValues(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("APP_DEBUG", "not-a-bool")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "app.debug")
 }
 
-func TestLoad_ShouldReturnError_WhenInvalidFloatValues(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenInvalidFloatValues(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 	t.Setenv("TRACING_SAMPLE_RATE", "not-a-float")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tracing.sample_rate")
 }
 
-func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
+func TestLoadConfig_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
-	cfg, err := Load("")
+	cfg, err := LoadConfig("nonexistent")
 	require.NoError(t, err)
 
 	assert.Equal(t, 9090, cfg.GRPC.Server.Port)
-	assert.Equal(t, "", cfg.GRPC.Server.TLSCertPath)
-	assert.Equal(t, "", cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, time.Duration(0), cfg.GRPC.Server.MaxConnAge)
 
 	assert.Equal(t, 5*time.Second, cfg.GRPC.Client.DialTimeout)
@@ -325,24 +256,20 @@ func TestLoad_ShouldReturnGRPCDefaults_WhenNoGRPCEnvVarsSet(t *testing.T) {
 	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
 }
 
-func TestLoad_ShouldParseAllGRPCEnvVars_WhenAllSet(t *testing.T) {
+func TestLoadConfig_ShouldParseGRPCEnvVars_WhenSet(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
 
 	t.Setenv("GRPC_SERVER_PORT", "50051")
-	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
-	t.Setenv("GRPC_TLS_KEY_PATH", "/certs/server.key")
 	t.Setenv("GRPC_MAX_CONN_AGE", "5m")
 	t.Setenv("GRPC_DIAL_TIMEOUT", "10s")
 	t.Setenv("GRPC_KEEPALIVE_TIME", "1m")
 	t.Setenv("GRPC_KEEPALIVE_TIMEOUT", "20s")
 
-	cfg, err := Load("")
+	cfg, err := LoadConfig("nonexistent")
 	require.NoError(t, err)
 
 	assert.Equal(t, 50051, cfg.GRPC.Server.Port)
-	assert.Equal(t, "/certs/server.crt", cfg.GRPC.Server.TLSCertPath)
-	assert.Equal(t, "/certs/server.key", cfg.GRPC.Server.TLSKeyPath)
 	assert.Equal(t, 5*time.Minute, cfg.GRPC.Server.MaxConnAge)
 
 	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.DialTimeout)
@@ -350,99 +277,22 @@ func TestLoad_ShouldParseAllGRPCEnvVars_WhenAllSet(t *testing.T) {
 	assert.Equal(t, 20*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
 }
 
-func TestLoad_ShouldParsePartialGRPCEnvVars_WhenSomeSet(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenInvalidGRPCPort(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	t.Setenv("GRPC_SERVER_PORT", "8443")
-	t.Setenv("GRPC_DIAL_TIMEOUT", "15s")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.Equal(t, 8443, cfg.GRPC.Server.Port)
-	assert.Equal(t, 15*time.Second, cfg.GRPC.Client.DialTimeout)
-
-	assert.Equal(t, "", cfg.GRPC.Server.TLSCertPath)
-	assert.Equal(t, "", cfg.GRPC.Server.TLSKeyPath)
-	assert.Equal(t, time.Duration(0), cfg.GRPC.Server.MaxConnAge)
-	assert.Equal(t, 30*time.Second, cfg.GRPC.Client.KeepAliveTime)
-	assert.Equal(t, 10*time.Second, cfg.GRPC.Client.KeepAliveTimeout)
-}
-
-func TestLoad_ShouldIndicateTLSEnabled_WhenBothCertAndKeyPathsProvided(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
-	t.Setenv("GRPC_TLS_KEY_PATH", "/certs/server.key")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.NotEmpty(t, cfg.GRPC.Server.TLSCertPath)
-	assert.NotEmpty(t, cfg.GRPC.Server.TLSKeyPath)
-	assert.Equal(t, "/certs/server.crt", cfg.GRPC.Server.TLSCertPath)
-	assert.Equal(t, "/certs/server.key", cfg.GRPC.Server.TLSKeyPath)
-}
-
-func TestLoad_ShouldIndicateNoTLS_WhenOnlyCertPathProvided(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	t.Setenv("GRPC_TLS_CERT_PATH", "/certs/server.crt")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.NotEmpty(t, cfg.GRPC.Server.TLSCertPath)
-	assert.Empty(t, cfg.GRPC.Server.TLSKeyPath)
-}
-
-func TestLoad_ShouldIndicateNoTLS_WhenOnlyKeyPathProvided(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	t.Setenv("GRPC_TLS_KEY_PATH", "/certs/server.key")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.Empty(t, cfg.GRPC.Server.TLSCertPath)
-	assert.NotEmpty(t, cfg.GRPC.Server.TLSKeyPath)
-}
-
-func TestLoad_ShouldIndicateNoTLS_WhenNeitherCertNorKeyPathProvided(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
-	cfg, err := Load("")
-	require.NoError(t, err)
-
-	assert.Empty(t, cfg.GRPC.Server.TLSCertPath)
-	assert.Empty(t, cfg.GRPC.Server.TLSKeyPath)
-}
-
-func TestLoad_ShouldReturnError_WhenInvalidGRPCPortProvided(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("JWT_SECRET", "test-default-secret")
-
 	t.Setenv("GRPC_SERVER_PORT", "not-a-number")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "grpc.server.port")
 }
 
-func TestLoad_ShouldReturnError_WhenInvalidDurationProvided(t *testing.T) {
+func TestLoadConfig_ShouldReturnError_WhenInvalidDuration(t *testing.T) {
 	clearEnv(t)
 	t.Setenv("JWT_SECRET", "test-default-secret")
-
 	t.Setenv("GRPC_DIAL_TIMEOUT", "invalid")
-	t.Setenv("GRPC_KEEPALIVE_TIME", "bad-value")
-	t.Setenv("GRPC_KEEPALIVE_TIMEOUT", "xyz")
 
-	_, err := Load("")
+	_, err := LoadConfig("nonexistent")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "grpc.client.dial_timeout")
 }

@@ -48,18 +48,6 @@ func newExporter(cfg *Config) (sdktrace.SpanExporter, error) {
 			otlptracegrpc.WithGRPCConn(conn),
 		)
 
-	case "newrelic":
-		if cfg.NewRelic.LicenseKey == "" {
-			return nil, fmt.Errorf("tracing: New Relic license key is required for newrelic exporter")
-		}
-		return otlptracehttp.New(
-			context.Background(),
-			otlptracehttp.WithEndpoint("otlp.nr-data.net"),
-			otlptracehttp.WithHeaders(map[string]string{
-				"api-key": cfg.NewRelic.LicenseKey,
-			}),
-		)
-
 	case ExporterNoop, "":
 		return nil, nil
 

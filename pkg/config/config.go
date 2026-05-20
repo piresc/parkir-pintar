@@ -28,7 +28,6 @@ type Config struct {
 	Database    DatabaseConfig    `yaml:"database" mapstructure:"database"`
 	Redis       RedisConfig       `yaml:"redis" mapstructure:"redis"`
 	JWT         JWTConfig         `yaml:"jwt" mapstructure:"jwt"`
-	Auth        AuthConfig        `yaml:"auth" mapstructure:"auth"`
 	Tracing     TracingConfig     `yaml:"tracing" mapstructure:"tracing"`
 	Logger      LoggerConfig      `yaml:"logger" mapstructure:"logger"`
 	GRPC        GRPCConfig        `yaml:"grpc" mapstructure:"grpc"`
@@ -54,8 +53,6 @@ type NATSConfig struct {
 
 type GRPCServerConfig struct {
 	Port            int           `yaml:"port" mapstructure:"port"`
-	TLSCertPath     string        `yaml:"tls_cert_path" mapstructure:"tls_cert_path"`
-	TLSKeyPath      string        `yaml:"tls_key_path" mapstructure:"tls_key_path"`
 	MaxConnAge      time.Duration `yaml:"max_conn_age" mapstructure:"max_conn_age"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" mapstructure:"shutdown_timeout"`
 	RequestTimeout  time.Duration `yaml:"request_timeout" mapstructure:"request_timeout"`
@@ -121,23 +118,13 @@ type JWTConfig struct {
 	Issuer     string `yaml:"issuer" mapstructure:"issuer"`
 }
 
-type AuthConfig struct {
-	APIKeys map[string]string `yaml:"api_keys" mapstructure:"api_keys"`
-}
-
 type TracingConfig struct {
 	Enabled      bool                   `yaml:"enabled" mapstructure:"enabled"`
 	ServiceName  string                 `yaml:"service_name" mapstructure:"service_name"`
 	SampleRate   float64                `yaml:"sample_rate" mapstructure:"sample_rate"`
 	ExcludePaths []string               `yaml:"exclude_paths" mapstructure:"exclude_paths"`
-	Exporter     string                 `yaml:"exporter" mapstructure:"exporter"`
-	OTLPEndpoint string                 `yaml:"otlp_endpoint" mapstructure:"otlp_endpoint"`
-	NewRelic     NewRelicExporterConfig `yaml:"new_relic" mapstructure:"new_relic"`
-}
-
-type NewRelicExporterConfig struct {
-	LicenseKey string `yaml:"license_key" mapstructure:"license_key"`
-	Enabled    bool   `yaml:"enabled" mapstructure:"enabled"`
+	Exporter     string   `yaml:"exporter" mapstructure:"exporter"`
+	OTLPEndpoint string   `yaml:"otlp_endpoint" mapstructure:"otlp_endpoint"`
 }
 
 type LoggerConfig struct {
@@ -158,7 +145,6 @@ func LoadConfig(serviceName string) (*Config, error) {
 
 	v := viper.New()
 
-	// Set defaults
 	setDefaults(v)
 
 	// Load YAML config file: config/<service>.<env>.yaml
@@ -172,55 +158,8 @@ func LoadConfig(serviceName string) (*Config, error) {
 		if !errors.As(err, &configNotFound) {
 			return nil, fmt.Errorf("read config file: %w", err)
 		}
-		// Config file not found is OK — fall back to env + defaults
 	}
 
-	// Bind env vars explicitly (secrets + legacy env var names)
-	bindEnvVars(v)
-
-	// Allow env vars to override any config with underscore-separated keys
-	v.AutomaticEnv()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	var cfg Config
-	if err := v.Unmarshal(&cfg, decoderConfigOption()); err != nil {
-		return nil, fmt.Errorf("unmarshal config: %w", err)
-	}
-
-	// Handle AUTH_API_KEYS from env (comma-separated key:value pairs)
-	if keys := parseEnvAsMap("AUTH_API_KEYS"); len(keys) > 0 {
-		cfg.Auth.APIKeys = keys
-	} else if cfg.Auth.APIKeys == nil {
-		cfg.Auth.APIKeys = make(map[string]string)
-	}
-
-	if err := validate(&cfg); err != nil {
-		return nil, fmt.Errorf("config validation failed: %w", err)
-	}
-
-	return &cfg, nil
-}
-
-// Load loads configuration purely from environment variables (deprecated).
-// Use LoadConfig(serviceName) for YAML-based configuration.
-//
-// Deprecated: Use LoadConfig instead.
-func Load(envPath string) (*Config, error) {
-	env := getEnv("APP_ENV", defaultEnv)
-
-	if env == defaultEnv || env == testEnv {
-		if envPath != "" {
-			_ = godotenv.Load(envPath)
-		}
-	}
-
-	v := viper.New()
-
-	// Set defaults
-	setDefaults(v)
-
-	// No YAML file for legacy Load — purely env-based
-	// Bind all env vars
 	bindEnvVars(v)
 
 	v.AutomaticEnv()
@@ -229,13 +168,6 @@ func Load(envPath string) (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg, decoderConfigOption()); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
-	}
-
-	// Handle AUTH_API_KEYS from env (comma-separated key:value pairs)
-	if keys := parseEnvAsMap("AUTH_API_KEYS"); len(keys) > 0 {
-		cfg.Auth.APIKeys = keys
-	} else if cfg.Auth.APIKeys == nil {
-		cfg.Auth.APIKeys = make(map[string]string)
 	}
 
 	if err := validate(&cfg); err != nil {
@@ -292,8 +224,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("tracing.exclude_paths", []string{defaultHealthEndpoint, defaultHealthLiveEndpoint, defaultHealthReadyEndpoint})
 	v.SetDefault("tracing.exporter", "noop")
 	v.SetDefault("tracing.otlp_endpoint", "")
-	v.SetDefault("tracing.new_relic.license_key", "")
-	v.SetDefault("tracing.new_relic.enabled", false)
 
 	// Logger
 	v.SetDefault("logger.level", "info")
@@ -301,8 +231,6 @@ func setDefaults(v *viper.Viper) {
 
 	// GRPC
 	v.SetDefault("grpc.server.port", 9090)
-	v.SetDefault("grpc.server.tls_cert_path", "")
-	v.SetDefault("grpc.server.tls_key_path", "")
 	v.SetDefault("grpc.server.max_conn_age", time.Duration(0))
 	v.SetDefault("grpc.server.shutdown_timeout", 30*time.Second)
 	v.SetDefault("grpc.server.request_timeout", 30*time.Second)
@@ -326,7 +254,7 @@ func setDefaults(v *viper.Viper) {
 }
 
 // bindEnvVars binds environment variables to Viper keys.
-// This handles the mapping between legacy env var names (e.g. DB_HOST)
+// This handles the mapping between env var names (e.g. DB_HOST)
 // and the Viper config path (e.g. database.host).
 func bindEnvVars(v *viper.Viper) {
 	// App
@@ -343,7 +271,7 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("server.shutdown_timeout", "SERVER_SHUTDOWN_TIMEOUT")
 	_ = v.BindEnv("server.allowed_origins", "SERVER_ALLOWED_ORIGINS")
 
-	// Database (secrets + non-secrets)
+	// Database
 	_ = v.BindEnv("database.host", "DB_HOST")
 	_ = v.BindEnv("database.port", "DB_PORT")
 	_ = v.BindEnv("database.username", "DB_USERNAME")
@@ -374,8 +302,6 @@ func bindEnvVars(v *viper.Viper) {
 	_ = v.BindEnv("tracing.exclude_paths", "TRACING_EXCLUDE_PATHS")
 	_ = v.BindEnv("tracing.exporter", "TRACING_EXPORTER")
 	_ = v.BindEnv("tracing.otlp_endpoint", "TRACING_OTLP_ENDPOINT")
-	_ = v.BindEnv("tracing.new_relic.license_key", "NEW_RELIC_LICENSE_KEY")
-	_ = v.BindEnv("tracing.new_relic.enabled", "NEW_RELIC_ENABLED")
 
 	// Logger
 	_ = v.BindEnv("logger.level", "LOG_LEVEL")
@@ -383,8 +309,6 @@ func bindEnvVars(v *viper.Viper) {
 
 	// GRPC
 	_ = v.BindEnv("grpc.server.port", "GRPC_SERVER_PORT")
-	_ = v.BindEnv("grpc.server.tls_cert_path", "GRPC_TLS_CERT_PATH")
-	_ = v.BindEnv("grpc.server.tls_key_path", "GRPC_TLS_KEY_PATH")
 	_ = v.BindEnv("grpc.server.max_conn_age", "GRPC_MAX_CONN_AGE")
 	_ = v.BindEnv("grpc.server.shutdown_timeout", "GRPC_SHUTDOWN_TIMEOUT")
 	_ = v.BindEnv("grpc.server.request_timeout", "GRPC_REQUEST_TIMEOUT")
@@ -408,12 +332,10 @@ func bindEnvVars(v *viper.Viper) {
 }
 
 func validate(cfg *Config) error {
-	// Server port must be valid
 	if cfg.Server.Port <= 0 || cfg.Server.Port >= 65536 {
 		return fmt.Errorf("SERVER_PORT must be between 1 and 65535, got %d", cfg.Server.Port)
 	}
 
-	// Tracing sample rate must be between 0.0 and 1.0
 	if cfg.Tracing.SampleRate < 0.0 || cfg.Tracing.SampleRate > 1.0 {
 		return fmt.Errorf("TRACING_SAMPLE_RATE must be between 0.0 and 1.0, got %f", cfg.Tracing.SampleRate)
 	}
@@ -429,7 +351,6 @@ func validate(cfg *Config) error {
 	return nil
 }
 
-// getEnv returns the value of an environment variable or a default.
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -437,33 +358,8 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-// parseEnvAsMap parses a comma-separated key:value env var into a map.
-func parseEnvAsMap(key string) map[string]string {
-	result := make(map[string]string)
-	valueStr := os.Getenv(key)
-	if valueStr == "" {
-		return result
-	}
-	pairs := strings.Split(valueStr, ",")
-	for _, pair := range pairs {
-		pair = strings.TrimSpace(pair)
-		if pair == "" {
-			continue
-		}
-		kv := strings.SplitN(pair, ":", 2)
-		if len(kv) == 2 {
-			k := strings.TrimSpace(kv[0])
-			v := strings.TrimSpace(kv[1])
-			if k != "" {
-				result[k] = v
-			}
-		}
-	}
-	return result
-}
-
-// decoderConfigOption returns a viper.DecoderConfigOption that adds a custom
-// decode hook for trimming whitespace in string slices (e.g. "a, b" → ["a","b"]).
+// decoderConfigOption returns a viper.DecoderConfigOption that adds custom
+// decode hooks for duration parsing and string slice trimming.
 func decoderConfigOption() viper.DecoderConfigOption {
 	return func(dc *mapstructure.DecoderConfig) {
 		dc.DecodeHook = mapstructure.ComposeDecodeHookFunc(

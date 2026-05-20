@@ -72,10 +72,6 @@ func run() error {
 		ExcludePaths: cfg.Tracing.ExcludePaths,
 		Exporter:     cfg.Tracing.Exporter,
 		OTLPEndpoint: cfg.Tracing.OTLPEndpoint,
-		NewRelic: tracing.NewRelicExporterConfig{
-			LicenseKey: cfg.Tracing.NewRelic.LicenseKey,
-			Enabled:    cfg.Tracing.NewRelic.Enabled,
-		},
 	})
 	if err != nil {
 		log.Warn("tracer init failed, falling back to noop", logger.Err(err))

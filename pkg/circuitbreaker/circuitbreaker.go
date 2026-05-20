@@ -76,7 +76,7 @@ func (c *CircuitBreaker) Execute(fn func() error) error {
 	_, err := c.cb.Execute(func() (any, error) {
 		return nil, fn()
 	})
-	// for backward compatibility.
+	// Map gobreaker error to our domain error.
 	if errors.Is(err, gobreaker.ErrTooManyRequests) {
 		return ErrCircuitOpen
 	}

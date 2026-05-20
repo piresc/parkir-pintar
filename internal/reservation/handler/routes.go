@@ -7,10 +7,10 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-// GRPCHandler is a type alias for backward compatibility with bootstrap.
+// GRPCHandler is the gRPC handler for this service.
 type GRPCHandler = grpchandler.Handler
 
-// NATSHandler is a type alias for backward compatibility with bootstrap.
+// NATSHandler is the NATS handler for this service.
 type NATSHandler = natshandler.Handler
 
 // NewHandler creates a new gRPC handler for the reservation service.

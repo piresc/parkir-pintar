@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/payment/model"
+	paymentconstants "parkir-pintar/internal/payment/constants"
 	"parkir-pintar/internal/payment/repository"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
@@ -74,7 +75,7 @@ func TestProcessPayment(t *testing.T) {
 				PaymentMethod:  "qris",
 				PaymentGateway: "stub-gateway",
 				IdempotencyKey: "idem-pay-123",
-				Status:         model.PaymentStatusSuccess,
+				Status:         string(paymentconstants.PaymentStatusSuccess),
 			},
 			wantCode: codes.OK,
 		},
@@ -206,7 +207,7 @@ func TestProcessQRIS(t *testing.T) {
 				PaymentMethod:  "qris",
 				PaymentGateway: "stub-gateway",
 				IdempotencyKey: "qris-idem-123",
-				Status:         model.PaymentStatusSuccess,
+				Status:         string(paymentconstants.PaymentStatusSuccess),
 			},
 			wantCode: codes.OK,
 		},
@@ -293,7 +294,7 @@ func TestRefundPayment(t *testing.T) {
 			},
 			mockResult: &model.Payment{
 				ID:     "pay-123",
-				Status: model.PaymentStatusRefunded,
+				Status: string(paymentconstants.PaymentStatusRefunded),
 			},
 			wantCode: codes.OK,
 		},
@@ -370,7 +371,7 @@ func TestGetPaymentStatus(t *testing.T) {
 				BillingID:     "bill-123",
 				Amount:        50000,
 				PaymentMethod: "qris",
-				Status:        model.PaymentStatusSuccess,
+				Status:        string(paymentconstants.PaymentStatusSuccess),
 			},
 			wantCode: codes.OK,
 		},

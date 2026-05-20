@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/billing/model"
+	billingconstants "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/pkg/pricing"
 
@@ -37,7 +38,7 @@ func TestStartBilling_ShouldCreateRecord_WhenNewKey(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, bookingFee, result.BookingFee)
-		assert.Equal(t, model.BillingStatusPending, result.Status)
+		assert.Equal(t, string(billingconstants.BillingStatusPending), result.Status)
 		assert.Equal(t, bookingFee, result.TotalAmount, "total should equal booking_fee for new record")
 		assert.NotEmpty(t, result.ID)
 		repo.AssertExpectations(t)
@@ -57,7 +58,7 @@ func TestCalculateFee_ShouldComputeCorrectly_WhenStandardSession(t *testing.T) {
 			ID:            "billing-calc",
 			ReservationID: "res-calc",
 			BookingFee:    bookingFee,
-			Status:        model.BillingStatusPending,
+			Status:        string(billingconstants.BillingStatusPending),
 		}
 
 		repo := new(MockRepository)
@@ -77,7 +78,7 @@ func TestCalculateFee_ShouldComputeCorrectly_WhenStandardSession(t *testing.T) {
 		expectedParkingFee := int64(hours) * pricing.HourlyRate
 		assert.Equal(t, expectedParkingFee, result.ParkingFee,
 			"parking_fee should be %d hours × %d = %d", hours, pricing.HourlyRate, expectedParkingFee)
-		assert.Equal(t, model.BillingStatusCalculated, result.Status)
+		assert.Equal(t, string(billingconstants.BillingStatusCalculated), result.Status)
 		assert.Equal(t, hours*60, result.DurationMinutes)
 		repo.AssertExpectations(t)
 	})
@@ -95,7 +96,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoicePreservation(t *testin
 			BookingFee:    pricing.BookingFee,
 			ParkingFee:    10_000,
 			TotalAmount:   15_000,
-			Status:        model.BillingStatusCalculated,
+			Status:        string(billingconstants.BillingStatusCalculated),
 		}
 		repo.On("GetByReservationID", mock.Anything, "res-inv").Return(existingRecord, nil)
 		repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
@@ -108,7 +109,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoicePreservation(t *testin
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, model.BillingStatusInvoiced, result.Status)
+		assert.Equal(t, string(billingconstants.BillingStatusInvoiced), result.Status)
 		repo.AssertExpectations(t)
 	})
 }
@@ -124,7 +125,7 @@ func TestApplyOvernightFee_ShouldSetOvernightFields_WhenCalled(t *testing.T) {
 			BookingFee:    bookingFee,
 			ParkingFee:    parkingFee,
 			TotalAmount:   bookingFee + parkingFee,
-			Status:        model.BillingStatusCalculated,
+			Status:        string(billingconstants.BillingStatusCalculated),
 		}
 
 		repo := new(MockRepository)

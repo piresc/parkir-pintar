@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/billing/model"
+	billingconstants "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/repository"
 	"parkir-pintar/pkg/pricing"
 )
@@ -63,7 +64,7 @@ func TestStartBilling_ShouldCreateRecord_WhenNewReservation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "res-1", result.ReservationID)
 	assert.Equal(t, pricing.BookingFee, result.BookingFee)
-	assert.Equal(t, model.BillingStatusPending, result.Status)
+	assert.Equal(t, string(billingconstants.BillingStatusPending), result.Status)
 	assert.Equal(t, pricing.BookingFee, result.TotalAmount)
 	assert.NotEmpty(t, result.ID)
 	repo.AssertExpectations(t)
@@ -78,7 +79,7 @@ func TestStartBilling_ShouldReturnExisting_WhenDuplicateIdempotencyKey(t *testin
 		BookingFee:     pricing.BookingFee,
 		TotalAmount:    pricing.BookingFee,
 		IdempotencyKey: "billing-res-1",
-		Status:         model.BillingStatusPending,
+		Status:         string(billingconstants.BillingStatusPending),
 	}
 	repo.On("GetByIdempotencyKey", mock.Anything, "billing-res-1").Return(existing, nil)
 
@@ -104,7 +105,7 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 		ID:            "billing-1",
 		ReservationID: "res-1",
 		BookingFee:    pricing.BookingFee,
-		Status:        model.BillingStatusPending,
+		Status:        string(billingconstants.BillingStatusPending),
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(existingRecord, nil)
 	repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
@@ -128,7 +129,7 @@ func TestCalculateFee_ShouldComputeCorrectFees_WhenStandardSession(t *testing.T)
 	assert.Equal(t, 120, result.DurationMinutes)      // 2 hours
 	assert.Equal(t, 2, result.BilledHours)
 	assert.False(t, result.IsOvernight)
-	assert.Equal(t, model.BillingStatusCalculated, result.Status)
+	assert.Equal(t, string(billingconstants.BillingStatusCalculated), result.Status)
 	expectedTotal := pricing.BookingFee + int64(10_000)
 	assert.Equal(t, expectedTotal, result.TotalAmount)
 	repo.AssertExpectations(t)
@@ -141,7 +142,7 @@ func TestCalculateFee_ShouldApplyOvernightFee_WhenSessionCrossesMidnight(t *test
 		ID:            "billing-2",
 		ReservationID: "res-2",
 		BookingFee:    pricing.BookingFee,
-		Status:        model.BillingStatusPending,
+		Status:        string(billingconstants.BillingStatusPending),
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-2").Return(existingRecord, nil)
 	repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
@@ -179,7 +180,7 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced(t *testing.T) 
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "invoice-res-3",
-		Status:         model.BillingStatusInvoiced,
+		Status:         string(billingconstants.BillingStatusInvoiced),
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-3").Return(existing, nil)
 
@@ -193,7 +194,7 @@ func TestGenerateInvoice_ShouldReturnExisting_WhenAlreadyInvoiced(t *testing.T) 
 
 	require.NoError(t, err)
 	assert.Equal(t, "billing-3", result.ID)
-	assert.Equal(t, model.BillingStatusInvoiced, result.Status)
+	assert.Equal(t, string(billingconstants.BillingStatusInvoiced), result.Status)
 	repo.AssertNotCalled(t, "UpdateBillingRecord")
 	repo.AssertExpectations(t)
 }
@@ -208,7 +209,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 		ParkingFee:     10_000,
 		TotalAmount:    15_000,
 		IdempotencyKey: "billing-res-4",
-		Status:         model.BillingStatusCalculated,
+		Status:         string(billingconstants.BillingStatusCalculated),
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-4").Return(existingRecord, nil)
 	repo.On("UpdateBillingRecord", mock.Anything, mock.AnythingOfType("*model.BillingRecord")).Return(nil)
@@ -222,7 +223,7 @@ func TestGenerateInvoice_ShouldUpdateStatus_WhenNewInvoice(t *testing.T) {
 	result, err := uc.GenerateInvoice(t.Context(), req)
 
 	require.NoError(t, err)
-	assert.Equal(t, model.BillingStatusInvoiced, result.Status)
+	assert.Equal(t, string(billingconstants.BillingStatusInvoiced), result.Status)
 	repo.AssertExpectations(t)
 }
 

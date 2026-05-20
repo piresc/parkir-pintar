@@ -5,7 +5,7 @@ import (
 	grpchandler "parkir-pintar/internal/presence/handler/grpc"
 )
 
-// GRPCHandler is a type alias for backward compatibility with bootstrap.
+// GRPCHandler is the gRPC handler for this service.
 type GRPCHandler = grpchandler.Handler
 
 // NewHandler creates a new gRPC handler for the presence service.

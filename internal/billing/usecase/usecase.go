@@ -40,7 +40,7 @@ func (uc *billingUsecase) StartBilling(ctx context.Context, req *model.StartBill
 		ReservationID:  req.ReservationID,
 		BookingFee:     req.BookingFee,
 		IdempotencyKey: req.IdempotencyKey,
-		Status:         model.BillingStatusPending,
+		Status:         string(billingerrors.BillingStatusPending),
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -68,8 +68,8 @@ func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.Calculate
 			return nil, fmt.Errorf("calculate fee get record: %w", err)
 		}
 
-		if record.Status != model.BillingStatusPending {
-			return nil, fmt.Errorf("%w: current status %q, expected %q", billingerrors.ErrCannotCalculate, record.Status, model.BillingStatusPending)
+		if record.Status != string(billingerrors.BillingStatusPending) {
+			return nil, fmt.Errorf("%w: current status %q, expected %q", billingerrors.ErrCannotCalculate, record.Status, string(billingerrors.BillingStatusPending))
 		}
 
 		feeResult := pricing.CalculateSessionFee(req.CheckInAt, req.CheckOutAt)
@@ -80,7 +80,7 @@ func (uc *billingUsecase) CalculateFee(ctx context.Context, req *model.Calculate
 		record.BilledHours = feeResult.BilledHours
 		record.IsOvernight = feeResult.IsOvernight
 		record.TotalAmount = pricing.CalculateTotal(record.BookingFee, record.ParkingFee, record.OvernightFee)
-		record.Status = model.BillingStatusCalculated
+		record.Status = string(billingerrors.BillingStatusCalculated)
 		record.UpdatedAt = time.Now()
 
 		if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {
@@ -101,15 +101,15 @@ func (uc *billingUsecase) GenerateInvoice(ctx context.Context, req *model.Genera
 		return nil, fmt.Errorf("generate invoice get record: %w", err)
 	}
 
-	if record.Status == model.BillingStatusInvoiced {
+	if record.Status == string(billingerrors.BillingStatusInvoiced) {
 		return record, nil
 	}
 
-	if record.Status != model.BillingStatusCalculated {
-		return nil, fmt.Errorf("%w: current status %q, expected %q or %q", billingerrors.ErrCannotInvoice, record.Status, model.BillingStatusCalculated, model.BillingStatusInvoiced)
+	if record.Status != string(billingerrors.BillingStatusCalculated) {
+		return nil, fmt.Errorf("%w: current status %q, expected %q or %q", billingerrors.ErrCannotInvoice, record.Status, string(billingerrors.BillingStatusCalculated), string(billingerrors.BillingStatusInvoiced))
 	}
 
-	record.Status = model.BillingStatusInvoiced
+	record.Status = string(billingerrors.BillingStatusInvoiced)
 	record.UpdatedAt = time.Now()
 
 	if err := uc.repo.UpdateBillingRecord(ctx, record); err != nil {

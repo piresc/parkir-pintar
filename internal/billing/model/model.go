@@ -2,16 +2,6 @@ package model
 
 import (
 	"time"
-
-	"parkir-pintar/internal/billing/constants"
-)
-
-// Re-export typed constants for backward compatibility with existing consumers.
-const (
-	BillingStatusPending    string = string(constants.BillingStatusPending)
-	BillingStatusCalculated string = string(constants.BillingStatusCalculated)
-	BillingStatusInvoiced   string = string(constants.BillingStatusInvoiced)
-	BillingStatusPaid       string = string(constants.BillingStatusPaid)
 )
 
 type BillingRecord struct {

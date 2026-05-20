@@ -48,7 +48,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		PaymentMethod:  req.PaymentMethod,
 		PaymentGateway: "stub-gateway",
 		IdempotencyKey: req.IdempotencyKey,
-		Status:         model.PaymentStatusPending,
+		Status:         string(paymentconstants.PaymentStatusPending),
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
@@ -77,7 +77,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	})
 
 	if chargeErr != nil && (errors.Is(chargeErr, context.Canceled) || errors.Is(chargeErr, context.DeadlineExceeded)) {
-		payment.Status = model.PaymentStatusFailed
+		payment.Status = string(paymentconstants.PaymentStatusFailed)
 		payment.UpdatedAt = time.Now()
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if updateErr := uc.repo.UpdatePayment(cleanupCtx, payment); updateErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
@@ -90,7 +90,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	}
 
 	if chargeErr != nil {
-		payment.Status = model.PaymentStatusFailed
+		payment.Status = string(paymentconstants.PaymentStatusFailed)
 		payment.UpdatedAt = time.Now()
 		if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
 			slog.Error("failed to update payment status to failed", logger.Err(updateErr))
@@ -98,7 +98,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		if uc.eventPublisher != nil {
 			pubErr := uc.eventPublisher.PublishPaymentFailed(ctx, gateway.PaymentResultEvent{
 				PaymentID: payment.ID,
-				Status:    model.PaymentStatusFailed,
+				Status:    string(paymentconstants.PaymentStatusFailed),
 			})
 			if pubErr != nil {
 				slog.Error("failed to publish payment failed event",
@@ -111,7 +111,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 
 	paidAt := time.Now()
 	payment.TransactionRef = txnRef
-	payment.Status = model.PaymentStatusSuccess
+	payment.Status = string(paymentconstants.PaymentStatusSuccess)
 	payment.PaidAt = &paidAt
 	payment.UpdatedAt = paidAt
 
@@ -122,7 +122,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 	if uc.eventPublisher != nil {
 		pubErr := uc.eventPublisher.PublishPaymentSuccess(ctx, gateway.PaymentResultEvent{
 			PaymentID: payment.ID,
-			Status:    model.PaymentStatusSuccess,
+			Status:    string(paymentconstants.PaymentStatusSuccess),
 		})
 		if pubErr != nil {
 			slog.Error("failed to publish payment success event",
@@ -159,15 +159,15 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("refund payment get: %w", err)
 	}
 
-	if payment.Status != model.PaymentStatusSuccess {
+	if payment.Status != string(paymentconstants.PaymentStatusSuccess) {
 		return nil, fmt.Errorf("%w: current status %q", paymenterrors.ErrCannotRefund, payment.Status)
 	}
 
 	// the gateway to prevent double-refund from concurrent requests.
-	payment.Status = model.PaymentStatusRefunded
+	payment.Status = string(paymentconstants.PaymentStatusRefunded)
 	payment.UpdatedAt = time.Now()
 
-	if err := uc.repo.UpdatePaymentWithStatusCheck(ctx, payment, model.PaymentStatusSuccess); err != nil {
+	if err := uc.repo.UpdatePaymentWithStatusCheck(ctx, payment, string(paymentconstants.PaymentStatusSuccess)); err != nil {
 		return nil, fmt.Errorf("refund payment status lock: %w", err)
 	}
 
@@ -183,7 +183,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 
 	if refundErr != nil && (errors.Is(refundErr, context.Canceled) || errors.Is(refundErr, context.DeadlineExceeded)) {
 		// Revert status back to success since gateway was not called successfully.
-		payment.Status = model.PaymentStatusSuccess
+		payment.Status = string(paymentconstants.PaymentStatusSuccess)
 		payment.UpdatedAt = time.Now()
 		revertCtx, revertCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if revertErr := uc.repo.UpdatePayment(revertCtx, payment); revertErr != nil { //nolint:contextcheck // intentional: parent ctx is cancelled, need fresh context
@@ -195,7 +195,7 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("%w: %w", paymenterrors.ErrCancelled, refundErr)
 	}
 	if refundErr != nil {
-		payment.Status = model.PaymentStatusSuccess
+		payment.Status = string(paymentconstants.PaymentStatusSuccess)
 		payment.UpdatedAt = time.Now()
 		if revertErr := uc.repo.UpdatePayment(ctx, payment); revertErr != nil {
 			slog.Error("failed to revert payment status after gateway failure",

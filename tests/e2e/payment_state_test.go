@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	paymentmodel "parkir-pintar/internal/payment/model"
+	paymentconstants "parkir-pintar/internal/payment/constants"
 )
 
 // TestPaymentState_ShouldHaveCorrectStatuses verifies that the payment model
@@ -21,17 +21,17 @@ import (
 // Validates: Requirements 16.1, 16.2
 func TestPaymentState_ShouldHaveCorrectStatuses(t *testing.T) {
 	// Assert — Verify the 4 payment status constants exist with correct values
-	assert.Equal(t, "pending", paymentmodel.PaymentStatusPending)
-	assert.Equal(t, "success", paymentmodel.PaymentStatusSuccess)
-	assert.Equal(t, "failed", paymentmodel.PaymentStatusFailed)
-	assert.Equal(t, "refunded", paymentmodel.PaymentStatusRefunded)
+	assert.Equal(t, "pending", string(paymentconstants.PaymentStatusPending))
+	assert.Equal(t, "success", string(paymentconstants.PaymentStatusSuccess))
+	assert.Equal(t, "failed", string(paymentconstants.PaymentStatusFailed))
+	assert.Equal(t, "refunded", string(paymentconstants.PaymentStatusRefunded))
 
 	// Assert — Verify exactly 4 statuses are defined
 	statuses := []string{
-		paymentmodel.PaymentStatusPending,
-		paymentmodel.PaymentStatusSuccess,
-		paymentmodel.PaymentStatusFailed,
-		paymentmodel.PaymentStatusRefunded,
+		string(paymentconstants.PaymentStatusPending),
+		string(paymentconstants.PaymentStatusSuccess),
+		string(paymentconstants.PaymentStatusFailed),
+		string(paymentconstants.PaymentStatusRefunded),
 	}
 	assert.Len(t, statuses, 4, "payment model should define exactly 4 statuses")
 

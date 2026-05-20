@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"parkir-pintar/internal/billing/model"
+	billingconstants "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/repository"
 	billingv1 "parkir-pintar/proto/billing/v1"
 
@@ -76,7 +77,7 @@ func TestStartBilling(t *testing.T) {
 				BookingFee:     5000,
 				TotalAmount:    5000,
 				IdempotencyKey: "idem-123",
-				Status:         model.BillingStatusPending,
+				Status:         string(billingconstants.BillingStatusPending),
 			},
 			mockErr:  nil,
 			wantCode: codes.OK,
@@ -181,7 +182,7 @@ func TestCalculateFee(t *testing.T) {
 				TotalAmount:     15000,
 				DurationMinutes: 120,
 				BilledHours:     2,
-				Status:          model.BillingStatusCalculated,
+				Status:          string(billingconstants.BillingStatusCalculated),
 			},
 			wantCode: codes.OK,
 		},
@@ -269,7 +270,7 @@ func TestGenerateInvoice(t *testing.T) {
 			mockResult: &model.BillingRecord{
 				ID:            "bill-123",
 				ReservationID: "res-123",
-				Status:        model.BillingStatusInvoiced,
+				Status:        string(billingconstants.BillingStatusInvoiced),
 			},
 			wantCode: codes.OK,
 		},

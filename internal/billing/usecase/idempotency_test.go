@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"parkir-pintar/internal/billing/model"
+	billingconstants "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/pkg/pricing"
 )
 
@@ -21,11 +22,11 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(
 		ParkingFee:     10000,
 		TotalAmount:    15000,
 		IdempotencyKey: "billing-res-1",
-		Status:         model.BillingStatusCalculated,
+		Status:         string(billingconstants.BillingStatusCalculated),
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-1").Return(record1, nil).Once()
 	repo.On("UpdateBillingRecord", mock.Anything, mock.MatchedBy(func(r *model.BillingRecord) bool {
-		return r.Status == model.BillingStatusInvoiced && r.ReservationID == "res-1"
+		return r.Status == string(billingconstants.BillingStatusInvoiced) && r.ReservationID == "res-1"
 	})).Return(nil).Once()
 
 	uc := NewUsecase(repo)
@@ -43,11 +44,11 @@ func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(
 		ParkingFee:     20000,
 		TotalAmount:    25000,
 		IdempotencyKey: "billing-res-2",
-		Status:         model.BillingStatusCalculated,
+		Status:         string(billingconstants.BillingStatusCalculated),
 	}
 	repo.On("GetByReservationID", mock.Anything, "res-2").Return(record2, nil).Once()
 	repo.On("UpdateBillingRecord", mock.Anything, mock.MatchedBy(func(r *model.BillingRecord) bool {
-		return r.Status == model.BillingStatusInvoiced && r.ReservationID == "res-2"
+		return r.Status == string(billingconstants.BillingStatusInvoiced) && r.ReservationID == "res-2"
 	})).Return(nil).Once()
 
 	inv2, err := uc.GenerateInvoice(t.Context(), &model.GenerateInvoiceRequest{

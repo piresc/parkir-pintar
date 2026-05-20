@@ -10,7 +10,7 @@ import (
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-// Type aliases for backward compatibility within this package.
+// Type aliases for convenience within this package.
 type SpotUpdatedEvent = events.SpotUpdatedEvent
 type ReservationEvent = events.ReservationEvent
 

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/payment/constants"
 	paymentgateway "parkir-pintar/internal/payment/gateway"
 	paymenthandler "parkir-pintar/internal/payment/handler/grpc"
 	paymentrepo "parkir-pintar/internal/payment/repository"
@@ -25,6 +25,7 @@ import (
 	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/grpc"
 )
 
@@ -96,7 +97,10 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
+		streamConfigs := []pkgnats.StreamConfig{
+			{Name: constants.StreamPaymentReservation, Subjects: []string{constants.SubjectPatternPayment}, Retention: jetstream.InterestPolicy, Storage: jetstream.FileStorage, MaxAge: 24 * time.Hour},
+		}
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, streamConfigs); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
 

@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"parkir-pintar/internal/events"
 	"parkir-pintar/internal/search"
+	"parkir-pintar/internal/search/constants"
 	"parkir-pintar/internal/search/model"
 )
 
@@ -124,7 +124,7 @@ func (m *MockMsg) DoubleAck(ctx context.Context) error {
 func TestHandleSpotUpdated_Success(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.SpotUpdatedEvent{
+	event := constants.SpotUpdatedEvent{
 		SpotID:      "spot-1",
 		FloorNumber: 2,
 		SpotNumber:  15,
@@ -171,7 +171,7 @@ func TestHandleSpotUpdated_InvalidJSON(t *testing.T) {
 func TestHandleSpotUpdated_UsecaseError(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.SpotUpdatedEvent{
+	event := constants.SpotUpdatedEvent{
 		SpotID:      "spot-2",
 		FloorNumber: 1,
 		SpotNumber:  5,
@@ -206,7 +206,7 @@ func TestHandleSpotUpdated_UsecaseError(t *testing.T) {
 func TestHandleSpotUpdated_AckError(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.SpotUpdatedEvent{
+	event := constants.SpotUpdatedEvent{
 		SpotID:      "spot-3",
 		FloorNumber: 3,
 		SpotNumber:  10,

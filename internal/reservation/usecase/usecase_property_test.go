@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"pgregory.net/rapid"
 
-	"parkir-pintar/internal/pricing"
+	"parkir-pintar/internal/billing/pricing"
 	reservation "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"

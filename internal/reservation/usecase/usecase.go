@@ -14,8 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
-	"parkir-pintar/internal/events"
-	"parkir-pintar/internal/pricing"
 	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/gateway"
@@ -181,7 +179,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 	// Step 6: Create billing record with booking fee
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey); err != nil {
+	if _, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey); err != nil {
 		slog.Error("failed to start billing", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		uc.failReservationInternal(ctx, reservation)
 		return nil, apperror.PaymentFailed("unable to create billing record")
@@ -207,7 +205,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 	// Step 8: Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusReserved))
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCreated, reservation, "created")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsCreated, reservation, "created")
 
 	return reservation, nil
 }
@@ -242,7 +240,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Re-call StartBilling (idempotent) to obtain billing record
 	billingIdempotencyKey := fmt.Sprintf("billing-%s", reservation.ID)
-	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, pricing.BookingFee, billingIdempotencyKey)
+	billingRecord, err := uc.billingClient.StartBilling(ctx, reservation.ID, constants.BookingFee, billingIdempotencyKey)
 	if err != nil {
 		slog.Error("failed to get billing record", slog.String("reservation_id", reservation.ID), logger.Err(err))
 		return nil, apperror.PaymentFailed("unable to retrieve billing record")
@@ -250,7 +248,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 
 	// Process payment for booking fee
 	paymentIdempotencyKey := fmt.Sprintf("booking-payment-%s", reservation.ID)
-	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, pricing.BookingFee, string(constants.PaymentMethodQRIS), paymentIdempotencyKey)
+	paymentID, payErr := uc.paymentClient.ProcessPayment(ctx, billingRecord.ID, constants.BookingFee, string(constants.PaymentMethodQRIS), paymentIdempotencyKey)
 
 	if payErr != nil {
 		slog.Error("booking fee payment failed",
@@ -296,7 +294,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	}
 
 	// Publish analytics event (best-effort)
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsConfirmed, reservation, "confirmed")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsConfirmed, reservation, "confirmed")
 
 	// Cancel payment hold timeout — driver paid in time
 	if uc.taskEnqueuer != nil {
@@ -382,7 +380,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCancelled, reservation, "cancelled")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsCancelled, reservation, "cancelled")
 
 	return reservation, nil
 }
@@ -458,7 +456,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusOccupied))
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCheckedIn, reservation, "checked-in")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsCheckedIn, reservation, "checked-in")
 
 	return response, nil
 }
@@ -585,7 +583,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCompleted, reservation, "completed")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsCompleted, reservation, "completed")
 
 	return &model.CheckOutResponse{
 		Reservation:  reservation,
@@ -635,7 +633,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsExpired, reservation, "expired")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsExpired, reservation, "expired")
 
 	return nil
 }
@@ -674,7 +672,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsFailed, reservation, "failed")
+	uc.publishAnalyticsEvent(ctx, constants.SubjectAnalyticsFailed, reservation, "failed")
 
 	return nil
 }

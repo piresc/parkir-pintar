@@ -3,11 +3,11 @@ package gateway
 import (
 	"context"
 
-	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/reservation/constants"
 )
 
-type SpotUpdatedEvent = events.SpotUpdatedEvent
-type ReservationEvent = events.ReservationEvent
+type SpotUpdatedEvent = constants.SpotUpdatedEvent
+type ReservationEvent = constants.ReservationEvent
 
 //go:generate mockgen -destination=../mocks/mock_event_publisher.go -package=mocks parkir-pintar/internal/reservation/gateway EventPublisher
 type EventPublisher interface {

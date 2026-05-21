@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/search/constants"
 	searchgrpc "parkir-pintar/internal/search/handler/grpc"
 	searchnats "parkir-pintar/internal/search/handler/nats"
 	searchrepo "parkir-pintar/internal/search/repository"
@@ -26,6 +26,7 @@ import (
 	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/grpc"
 )
 
@@ -112,11 +113,23 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
+		streamConfigs := []pkgnats.StreamConfig{
+			{Name: constants.StreamReservationSearch, Subjects: []string{constants.SubjectPatternSearch}, Retention: jetstream.InterestPolicy, Storage: jetstream.FileStorage, MaxAge: 24 * time.Hour},
+		}
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, streamConfigs); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
-		if err := events.CreateConsumersForService(natsCtx, natsClient, "search"); err != nil {
-			return fmt.Errorf("nats create consumers: %w", err)
+		consumerCfg := pkgnats.ConsumerConfig{
+			Stream:        constants.StreamReservationSearch,
+			Name:          constants.ConsumerSearchSpot,
+			FilterSubject: constants.SubjectPatternSearch,
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			AckWait:       30 * time.Second,
+			MaxDeliver:    5,
+			DeliverPolicy: jetstream.DeliverNewPolicy,
+		}
+		if _, err := natsClient.CreateConsumer(natsCtx, consumerCfg.Stream, consumerCfg.ToJetStreamConfig()); err != nil {
+			return fmt.Errorf("nats create consumer: %w", err)
 		}
 
 		natsHandler := searchnats.NewHandler(uc, natsClient)

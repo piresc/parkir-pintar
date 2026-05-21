@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"parkir-pintar/internal/pricing"
+	"parkir-pintar/internal/billing/pricing"
 )
 
 func wib() *time.Location {

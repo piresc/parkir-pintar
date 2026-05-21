@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"parkir-pintar/internal/events"
 	reservation "parkir-pintar/internal/reservation"
+	"parkir-pintar/internal/reservation/constants"
 	grpcgw "parkir-pintar/internal/reservation/gateway/grpc"
 	natsgateway "parkir-pintar/internal/reservation/gateway/nats"
 	reservationasynq "parkir-pintar/internal/reservation/handler/asynq"
@@ -39,6 +39,7 @@ import (
 
 	"parkir-pintar/pkg/grpcclient"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/grpc"
 )
 
@@ -165,11 +166,25 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
+		streamConfigs := []pkgnats.StreamConfig{
+			{Name: "RESERVATION_SEARCH", Subjects: []string{"reservation.search.*"}, Retention: jetstream.InterestPolicy, Storage: jetstream.FileStorage, MaxAge: 24 * time.Hour},
+			{Name: "RESERVATION_ANALYTICS", Subjects: []string{"reservation.analytics.*"}, Retention: jetstream.LimitsPolicy, Storage: jetstream.FileStorage, MaxAge: 7 * 24 * time.Hour},
+			{Name: "PAYMENT_RESERVATION", Subjects: []string{"payment.reservation.*"}, Retention: jetstream.InterestPolicy, Storage: jetstream.FileStorage, MaxAge: 24 * time.Hour},
+		}
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, streamConfigs); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
-		if err := events.CreateConsumersForService(natsCtx, natsClient, "reservation"); err != nil {
-			return fmt.Errorf("nats create consumers: %w", err)
+		consumerCfg := pkgnats.ConsumerConfig{
+			Stream:        constants.StreamPaymentReservation,
+			Name:          constants.ConsumerReservationPayment,
+			FilterSubject: constants.SubjectPatternPayment,
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			AckWait:       30 * time.Second,
+			MaxDeliver:    5,
+			DeliverPolicy: jetstream.DeliverNewPolicy,
+		}
+		if _, err := natsClient.CreateConsumer(natsCtx, consumerCfg.Stream, consumerCfg.ToJetStreamConfig()); err != nil {
+			return fmt.Errorf("nats create consumer: %w", err)
 		}
 
 		publisher := pkgnats.NewPublisher(natsClient)

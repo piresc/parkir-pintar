@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/payment/constants"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-type PaymentResultEvent = events.PaymentResultEvent
+type PaymentResultEvent = constants.PaymentResultEvent
 
 type PaymentEventPublisher struct {
 	publisher *pkgnats.Publisher
@@ -25,7 +25,7 @@ func (p *PaymentEventPublisher) PublishPaymentSuccess(ctx context.Context, event
 		return fmt.Errorf("marshal payment success event: %w", err)
 	}
 	msgID := fmt.Sprintf("pay-success-%s", event.PaymentID)
-	return p.publisher.Publish(ctx, events.SubjectPaymentReservationSuccess, data, msgID)
+	return p.publisher.Publish(ctx, constants.SubjectPaymentSuccess, data, msgID)
 }
 
 func (p *PaymentEventPublisher) PublishPaymentFailed(ctx context.Context, event PaymentResultEvent) error {
@@ -34,5 +34,5 @@ func (p *PaymentEventPublisher) PublishPaymentFailed(ctx context.Context, event 
 		return fmt.Errorf("marshal payment failed event: %w", err)
 	}
 	msgID := fmt.Sprintf("pay-failed-%s", event.PaymentID)
-	return p.publisher.Publish(ctx, events.SubjectPaymentReservationFailed, data, msgID)
+	return p.publisher.Publish(ctx, constants.SubjectPaymentFailed, data, msgID)
 }

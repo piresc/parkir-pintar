@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"pgregory.net/rapid"
 
-	"parkir-pintar/internal/pricing"
+	"parkir-pintar/internal/billing/pricing"
 )
 
 func wibLoc() *time.Location {

@@ -8,12 +8,12 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"parkir-pintar/internal/events"
 	"parkir-pintar/internal/search"
+	"parkir-pintar/internal/search/constants"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
-type SpotUpdatedEvent = events.SpotUpdatedEvent
+type SpotUpdatedEvent = constants.SpotUpdatedEvent
 
 const natsHandlerTimeout = 15 * time.Second
 
@@ -27,7 +27,7 @@ func NewHandler(uc search.Usecase, client *pkgnats.Client) *Handler {
 }
 
 func (h *Handler) InitConsumers() (jetstream.ConsumeContext, error) {
-	return h.client.Consume(events.ConsumerSearchSpot, h.handleSpotUpdated)
+	return h.client.Consume(constants.ConsumerSearchSpot, h.handleSpotUpdated)
 }
 
 func (h *Handler) handleSpotUpdated(msg jetstream.Msg) {

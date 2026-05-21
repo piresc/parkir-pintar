@@ -9,7 +9,7 @@ import (
 
 	billingconstants "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/internal/pricing"
+	"parkir-pintar/internal/billing/pricing"
 )
 
 func TestGenerateInvoice_ShouldCreateDifferentRecords_WhenDifferentReservations(t *testing.T) {

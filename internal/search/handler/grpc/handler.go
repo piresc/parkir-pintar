@@ -7,8 +7,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pkgconstants "parkir-pintar/internal/constants"
 	"parkir-pintar/internal/search"
+	"parkir-pintar/internal/search/constants"
 	"parkir-pintar/internal/search/model"
 	searchv1 "parkir-pintar/proto/search/v1"
 )
@@ -49,10 +49,10 @@ func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabi
 			TotalMoto:     int32(f.TotalMoto),
 		}
 		switch req.GetVehicleType() {
-		case string(pkgconstants.VehicleTypeCar):
+		case string(constants.VehicleTypeCar):
 			totalAvailable += int32(f.AvailableCar)
 			totalCapacity += int32(f.TotalCar)
-		case string(pkgconstants.VehicleTypeMotorcycle):
+		case string(constants.VehicleTypeMotorcycle):
 			totalAvailable += int32(f.AvailableMoto)
 			totalCapacity += int32(f.TotalMoto)
 		default:

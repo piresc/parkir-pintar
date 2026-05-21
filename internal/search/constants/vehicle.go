@@ -1,4 +1,3 @@
-// Package constants defines shared constants used across multiple domain modules.
 package constants
 
 // VehicleType represents a type of vehicle.

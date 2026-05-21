@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 )
 
@@ -107,7 +107,7 @@ func (m *MockMsg) DoubleAck(ctx context.Context) error {
 func TestHandleMessage_PaymentSuccess(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.PaymentResultEvent{
+	event := constants.PaymentResultEvent{
 		PaymentID:     "pay-123",
 		ReservationID: "res-456",
 		Amount:        50000,
@@ -134,7 +134,7 @@ func TestHandleMessage_PaymentSuccess(t *testing.T) {
 func TestHandleMessage_PaymentFailed(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.PaymentResultEvent{
+	event := constants.PaymentResultEvent{
 		PaymentID:     "pay-789",
 		ReservationID: "res-101",
 		Amount:        50000,
@@ -176,7 +176,7 @@ func TestHandleMessage_InvalidJSON(t *testing.T) {
 func TestHandleMessage_UnknownStatus(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.PaymentResultEvent{
+	event := constants.PaymentResultEvent{
 		PaymentID:     "pay-000",
 		ReservationID: "res-000",
 		Status:        "unknown_status",
@@ -200,7 +200,7 @@ func TestHandleMessage_UnknownStatus(t *testing.T) {
 func TestHandleMessage_ConfirmReservationError(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.PaymentResultEvent{
+	event := constants.PaymentResultEvent{
 		PaymentID:     "pay-123",
 		ReservationID: "res-456",
 		Status:        "success",
@@ -227,7 +227,7 @@ func TestHandleMessage_ConfirmReservationError(t *testing.T) {
 func TestHandleMessage_FailReservationError(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.PaymentResultEvent{
+	event := constants.PaymentResultEvent{
 		PaymentID:     "pay-789",
 		ReservationID: "res-101",
 		Status:        "failed",
@@ -254,7 +254,7 @@ func TestHandleMessage_FailReservationError(t *testing.T) {
 func TestHandleMessage_AckError(t *testing.T) {
 	uc := new(MockUsecase)
 
-	event := events.PaymentResultEvent{
+	event := constants.PaymentResultEvent{
 		PaymentID:     "pay-123",
 		ReservationID: "res-456",
 		Status:        "success",

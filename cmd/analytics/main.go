@@ -9,11 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"parkir-pintar/internal/analytics/constants"
 	grpchandler "parkir-pintar/internal/analytics/handler/grpc"
 	natshandler "parkir-pintar/internal/analytics/handler/nats"
 	analyticsrepo "parkir-pintar/internal/analytics/repository"
 	analyticsuc "parkir-pintar/internal/analytics/usecase"
-	"parkir-pintar/internal/events"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
 	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
@@ -25,6 +25,7 @@ import (
 	"parkir-pintar/pkg/telemetry"
 	"parkir-pintar/pkg/tracing"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/grpc"
 )
 
@@ -104,11 +105,23 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
+		streamConfigs := []pkgnats.StreamConfig{
+			{Name: constants.StreamReservationAnalytics, Subjects: []string{constants.SubjectPatternAnalytics}, Retention: jetstream.LimitsPolicy, Storage: jetstream.FileStorage, MaxAge: 7 * 24 * time.Hour},
+		}
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, streamConfigs); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
-		if err := events.CreateConsumersForService(natsCtx, natsClient, "analytics"); err != nil {
-			return fmt.Errorf("nats create consumers: %w", err)
+		consumerCfg := pkgnats.ConsumerConfig{
+			Stream:        constants.StreamReservationAnalytics,
+			Name:          constants.ConsumerAnalytics,
+			FilterSubject: constants.SubjectPatternAnalytics,
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			AckWait:       30 * time.Second,
+			MaxDeliver:    5,
+			DeliverPolicy: jetstream.DeliverNewPolicy,
+		}
+		if _, err := natsClient.CreateConsumer(natsCtx, consumerCfg.Stream, consumerCfg.ToJetStreamConfig()); err != nil {
+			return fmt.Errorf("nats create consumer: %w", err)
 		}
 
 		natsH := natshandler.NewHandler(uc, natsClient)

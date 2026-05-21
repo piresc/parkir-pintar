@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/reservation/constants"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
 // Type aliases for convenience within this package.
-type SpotUpdatedEvent = events.SpotUpdatedEvent
-type ReservationEvent = events.ReservationEvent
+type SpotUpdatedEvent = constants.SpotUpdatedEvent
+type ReservationEvent = constants.ReservationEvent
 
 // EventPublisher defines the interface for publishing domain events.
 type EventPublisher interface {
@@ -36,7 +36,7 @@ func (p *Publisher) PublishSpotUpdated(ctx context.Context, event SpotUpdatedEve
 		return fmt.Errorf("marshal spot updated event: %w", err)
 	}
 	msgID := fmt.Sprintf("spot-%s-%s-%d", event.SpotID, event.Status, time.Now().UnixNano())
-	return p.publisher.Publish(ctx, events.SubjectReservationSearchSpotUpdated, data, msgID)
+	return p.publisher.Publish(ctx, constants.SubjectSearchSpotUpdated, data, msgID)
 }
 
 // PublishReservationEvent publishes a reservation lifecycle event to analytics.

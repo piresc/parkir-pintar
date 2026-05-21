@@ -47,31 +47,6 @@ func (uc *analyticsUsecase) GetPeakHours(ctx context.Context) ([]model.PeakHourS
 	return peakHours, nil
 }
 
-func (uc *analyticsUsecase) GetIdleHours(ctx context.Context) ([]model.PeakHourStats, error) {
-	endDate := time.Now()
-	startDate := endDate.AddDate(0, 0, -defaultLookbackDays)
-
-	stats, err := uc.repo.GetHourlyStats(ctx, startDate, endDate)
-	if err != nil {
-		slog.Error("failed to get hourly stats for idle hours",
-			logger.Err(err))
-		return nil, apperror.Internal("failed to retrieve idle hour data")
-	}
-
-	var idleHours []model.PeakHourStats
-	for _, s := range stats {
-		if s.AvgOccupancy < idleThreshold {
-			idleHours = append(idleHours, s)
-		}
-	}
-
-	if idleHours == nil {
-		idleHours = []model.PeakHourStats{}
-	}
-
-	return idleHours, nil
-}
-
 func (uc *analyticsUsecase) PredictResources(ctx context.Context, horizon time.Duration) ([]model.ResourcePrediction, error) {
 	if horizon <= 0 {
 		return nil, apperror.BadRequest("horizon must be positive")

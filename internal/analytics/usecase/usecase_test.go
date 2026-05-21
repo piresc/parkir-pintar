@@ -89,47 +89,6 @@ func TestGetPeakHours_ShouldReturnError_WhenRepositoryFails(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
-func TestGetIdleHours_ShouldReturnBelowThresholdHours_WhenDataExists(t *testing.T) {
-	repo := new(MockRepository)
-
-	stats := []model.PeakHourStats{
-		{Hour: 8, DayOfWeek: 1, AvgOccupancy: 0.9, AvgReservations: 20, PeakScore: 5.0},
-		{Hour: 2, DayOfWeek: 1, AvgOccupancy: 0.1, AvgReservations: 2, PeakScore: 0.5},
-		{Hour: 3, DayOfWeek: 1, AvgOccupancy: 0.15, AvgReservations: 3, PeakScore: 0.6},
-		{Hour: 14, DayOfWeek: 1, AvgOccupancy: 0.5, AvgReservations: 10, PeakScore: 2.0},
-	}
-	repo.On("GetHourlyStats", mock.Anything, mock.Anything, mock.Anything).Return(stats, nil)
-
-	uc := NewUsecase(repo)
-
-	result, err := uc.GetIdleHours(t.Context())
-
-	require.NoError(t, err)
-	assert.Len(t, result, 2)
-	for _, r := range result {
-		assert.Less(t, r.AvgOccupancy, 0.30)
-	}
-	repo.AssertExpectations(t)
-}
-
-func TestGetIdleHours_ShouldReturnEmpty_WhenAllHoursAboveThreshold(t *testing.T) {
-	repo := new(MockRepository)
-
-	stats := []model.PeakHourStats{
-		{Hour: 8, DayOfWeek: 1, AvgOccupancy: 0.5, AvgReservations: 10, PeakScore: 2.0},
-		{Hour: 9, DayOfWeek: 1, AvgOccupancy: 0.7, AvgReservations: 15, PeakScore: 3.0},
-	}
-	repo.On("GetHourlyStats", mock.Anything, mock.Anything, mock.Anything).Return(stats, nil)
-
-	uc := NewUsecase(repo)
-
-	result, err := uc.GetIdleHours(t.Context())
-
-	require.NoError(t, err)
-	assert.Empty(t, result)
-	repo.AssertExpectations(t)
-}
-
 func TestPredictResources_ShouldReturnPredictions_WhenSufficientData(t *testing.T) {
 	repo := new(MockRepository)
 

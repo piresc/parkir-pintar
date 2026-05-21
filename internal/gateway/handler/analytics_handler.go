@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -24,6 +25,7 @@ func (ah *AnalyticsHandler) RegisterRoutes(engine *gin.Engine, mw *middleware.Mi
 
 	api.GET("/peak-hours", ah.GetPeakHours)
 	api.GET("/occupancy", ah.GetOccupancy)
+	api.GET("/predictions", ah.GetPredictions)
 }
 
 func (ah *AnalyticsHandler) GetPeakHours(c *gin.Context) {
@@ -38,6 +40,25 @@ func (ah *AnalyticsHandler) GetPeakHours(c *gin.Context) {
 
 func (ah *AnalyticsHandler) GetOccupancy(c *gin.Context) {
 	resp, err := ah.client.GetUsagePatterns(contextWithAuth(c), &analyticsv1.GetUsagePatternsRequest{})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp)
+}
+
+func (ah *AnalyticsHandler) GetPredictions(c *gin.Context) {
+	var horizonMinutes int32
+	if h := c.Query("horizon_minutes"); h != "" {
+		if v, err := strconv.Atoi(h); err == nil {
+			horizonMinutes = int32(v)
+		}
+	}
+
+	resp, err := ah.client.PredictResources(contextWithAuth(c), &analyticsv1.PredictResourcesRequest{
+		HorizonMinutes: horizonMinutes,
+	})
 	if err != nil {
 		writeGRPCError(c, err)
 		return

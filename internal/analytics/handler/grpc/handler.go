@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -64,4 +65,30 @@ func (h *Handler) GetUsagePatterns(ctx context.Context, _ *analyticsv1.GetUsageP
 		PeakHours:      peakHours,
 		IdleHours:      idleHours,
 	}, nil
+}
+
+const defaultPredictionHorizonMinutes = 60
+
+func (h *Handler) PredictResources(ctx context.Context, req *analyticsv1.PredictResourcesRequest) (*analyticsv1.PredictResourcesResponse, error) {
+	horizonMinutes := int(req.GetHorizonMinutes())
+	if horizonMinutes <= 0 {
+		horizonMinutes = defaultPredictionHorizonMinutes
+	}
+
+	predictions, err := h.uc.PredictResources(ctx, time.Duration(horizonMinutes)*time.Minute)
+	if err != nil {
+		return nil, mapError(err)
+	}
+
+	protoPredictions := make([]*analyticsv1.ResourcePrediction, 0, len(predictions))
+	for _, p := range predictions {
+		protoPredictions = append(protoPredictions, &analyticsv1.ResourcePrediction{
+			Timestamp:            p.Timestamp.Format(time.RFC3339),
+			PredictedOccupancy:   p.PredictedOccupancy,
+			RecommendedInstances: int32(p.RecommendedInstances),
+			Confidence:           p.Confidence,
+		})
+	}
+
+	return &analyticsv1.PredictResourcesResponse{Predictions: protoPredictions}, nil
 }

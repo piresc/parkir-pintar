@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AnalyticsService_GetPeakHours_FullMethodName     = "/analytics.v1.AnalyticsService/GetPeakHours"
 	AnalyticsService_GetUsagePatterns_FullMethodName = "/analytics.v1.AnalyticsService/GetUsagePatterns"
+	AnalyticsService_PredictResources_FullMethodName = "/analytics.v1.AnalyticsService/PredictResources"
 )
 
 // AnalyticsServiceClient is the client API for AnalyticsService service.
@@ -33,6 +34,8 @@ type AnalyticsServiceClient interface {
 	GetPeakHours(ctx context.Context, in *GetPeakHoursRequest, opts ...grpc.CallOption) (*GetPeakHoursResponse, error)
 	// GetUsagePatterns returns daily occupancy/usage patterns summarized over the last 30 days.
 	GetUsagePatterns(ctx context.Context, in *GetUsagePatternsRequest, opts ...grpc.CallOption) (*GetUsagePatternsResponse, error)
+	// PredictResources returns predicted occupancy and recommended resource allocation.
+	PredictResources(ctx context.Context, in *PredictResourcesRequest, opts ...grpc.CallOption) (*PredictResourcesResponse, error)
 }
 
 type analyticsServiceClient struct {
@@ -63,6 +66,16 @@ func (c *analyticsServiceClient) GetUsagePatterns(ctx context.Context, in *GetUs
 	return out, nil
 }
 
+func (c *analyticsServiceClient) PredictResources(ctx context.Context, in *PredictResourcesRequest, opts ...grpc.CallOption) (*PredictResourcesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PredictResourcesResponse)
+	err := c.cc.Invoke(ctx, AnalyticsService_PredictResources_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AnalyticsServiceServer is the server API for AnalyticsService service.
 // All implementations must embed UnimplementedAnalyticsServiceServer
 // for forward compatibility.
@@ -73,6 +86,8 @@ type AnalyticsServiceServer interface {
 	GetPeakHours(context.Context, *GetPeakHoursRequest) (*GetPeakHoursResponse, error)
 	// GetUsagePatterns returns daily occupancy/usage patterns summarized over the last 30 days.
 	GetUsagePatterns(context.Context, *GetUsagePatternsRequest) (*GetUsagePatternsResponse, error)
+	// PredictResources returns predicted occupancy and recommended resource allocation.
+	PredictResources(context.Context, *PredictResourcesRequest) (*PredictResourcesResponse, error)
 	mustEmbedUnimplementedAnalyticsServiceServer()
 }
 
@@ -88,6 +103,9 @@ func (UnimplementedAnalyticsServiceServer) GetPeakHours(context.Context, *GetPea
 }
 func (UnimplementedAnalyticsServiceServer) GetUsagePatterns(context.Context, *GetUsagePatternsRequest) (*GetUsagePatternsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUsagePatterns not implemented")
+}
+func (UnimplementedAnalyticsServiceServer) PredictResources(context.Context, *PredictResourcesRequest) (*PredictResourcesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PredictResources not implemented")
 }
 func (UnimplementedAnalyticsServiceServer) mustEmbedUnimplementedAnalyticsServiceServer() {}
 func (UnimplementedAnalyticsServiceServer) testEmbeddedByValue()                          {}
@@ -146,6 +164,24 @@ func _AnalyticsService_GetUsagePatterns_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AnalyticsService_PredictResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PredictResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AnalyticsServiceServer).PredictResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AnalyticsService_PredictResources_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AnalyticsServiceServer).PredictResources(ctx, req.(*PredictResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AnalyticsService_ServiceDesc is the grpc.ServiceDesc for AnalyticsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -160,6 +196,10 @@ var AnalyticsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUsagePatterns",
 			Handler:    _AnalyticsService_GetUsagePatterns_Handler,
+		},
+		{
+			MethodName: "PredictResources",
+			Handler:    _AnalyticsService_PredictResources_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

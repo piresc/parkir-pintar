@@ -281,6 +281,163 @@ func (x *GetUsagePatternsResponse) GetIdleHours() []int32 {
 	return nil
 }
 
+type PredictResourcesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Prediction horizon in minutes (default: 60).
+	HorizonMinutes int32 `protobuf:"varint,1,opt,name=horizon_minutes,json=horizonMinutes,proto3" json:"horizon_minutes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PredictResourcesRequest) Reset() {
+	*x = PredictResourcesRequest{}
+	mi := &file_analytics_v1_analytics_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PredictResourcesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PredictResourcesRequest) ProtoMessage() {}
+
+func (x *PredictResourcesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_analytics_v1_analytics_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PredictResourcesRequest.ProtoReflect.Descriptor instead.
+func (*PredictResourcesRequest) Descriptor() ([]byte, []int) {
+	return file_analytics_v1_analytics_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PredictResourcesRequest) GetHorizonMinutes() int32 {
+	if x != nil {
+		return x.HorizonMinutes
+	}
+	return 0
+}
+
+type PredictResourcesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Predictions   []*ResourcePrediction  `protobuf:"bytes,1,rep,name=predictions,proto3" json:"predictions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PredictResourcesResponse) Reset() {
+	*x = PredictResourcesResponse{}
+	mi := &file_analytics_v1_analytics_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PredictResourcesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PredictResourcesResponse) ProtoMessage() {}
+
+func (x *PredictResourcesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_analytics_v1_analytics_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PredictResourcesResponse.ProtoReflect.Descriptor instead.
+func (*PredictResourcesResponse) Descriptor() ([]byte, []int) {
+	return file_analytics_v1_analytics_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PredictResourcesResponse) GetPredictions() []*ResourcePrediction {
+	if x != nil {
+		return x.Predictions
+	}
+	return nil
+}
+
+type ResourcePrediction struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Timestamp            string                 `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	PredictedOccupancy   float64                `protobuf:"fixed64,2,opt,name=predicted_occupancy,json=predictedOccupancy,proto3" json:"predicted_occupancy,omitempty"`
+	RecommendedInstances int32                  `protobuf:"varint,3,opt,name=recommended_instances,json=recommendedInstances,proto3" json:"recommended_instances,omitempty"`
+	Confidence           float64                `protobuf:"fixed64,4,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ResourcePrediction) Reset() {
+	*x = ResourcePrediction{}
+	mi := &file_analytics_v1_analytics_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourcePrediction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourcePrediction) ProtoMessage() {}
+
+func (x *ResourcePrediction) ProtoReflect() protoreflect.Message {
+	mi := &file_analytics_v1_analytics_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourcePrediction.ProtoReflect.Descriptor instead.
+func (*ResourcePrediction) Descriptor() ([]byte, []int) {
+	return file_analytics_v1_analytics_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ResourcePrediction) GetTimestamp() string {
+	if x != nil {
+		return x.Timestamp
+	}
+	return ""
+}
+
+func (x *ResourcePrediction) GetPredictedOccupancy() float64 {
+	if x != nil {
+		return x.PredictedOccupancy
+	}
+	return 0
+}
+
+func (x *ResourcePrediction) GetRecommendedInstances() int32 {
+	if x != nil {
+		return x.RecommendedInstances
+	}
+	return 0
+}
+
+func (x *ResourcePrediction) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
 var File_analytics_v1_analytics_proto protoreflect.FileDescriptor
 
 const file_analytics_v1_analytics_proto_rawDesc = "" +
@@ -303,10 +460,22 @@ const file_analytics_v1_analytics_proto_rawDesc = "" +
 	"\n" +
 	"peak_hours\x18\x03 \x03(\x05R\tpeakHours\x12\x1d\n" +
 	"\n" +
-	"idle_hours\x18\x04 \x03(\x05R\tidleHours2\xcc\x01\n" +
+	"idle_hours\x18\x04 \x03(\x05R\tidleHours\"B\n" +
+	"\x17PredictResourcesRequest\x12'\n" +
+	"\x0fhorizon_minutes\x18\x01 \x01(\x05R\x0ehorizonMinutes\"^\n" +
+	"\x18PredictResourcesResponse\x12B\n" +
+	"\vpredictions\x18\x01 \x03(\v2 .analytics.v1.ResourcePredictionR\vpredictions\"\xb8\x01\n" +
+	"\x12ResourcePrediction\x12\x1c\n" +
+	"\ttimestamp\x18\x01 \x01(\tR\ttimestamp\x12/\n" +
+	"\x13predicted_occupancy\x18\x02 \x01(\x01R\x12predictedOccupancy\x123\n" +
+	"\x15recommended_instances\x18\x03 \x01(\x05R\x14recommendedInstances\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\x04 \x01(\x01R\n" +
+	"confidence2\xaf\x02\n" +
 	"\x10AnalyticsService\x12U\n" +
 	"\fGetPeakHours\x12!.analytics.v1.GetPeakHoursRequest\x1a\".analytics.v1.GetPeakHoursResponse\x12a\n" +
-	"\x10GetUsagePatterns\x12%.analytics.v1.GetUsagePatternsRequest\x1a&.analytics.v1.GetUsagePatternsResponseB.Z,parkir-pintar/proto/analytics/v1;analyticsv1b\x06proto3"
+	"\x10GetUsagePatterns\x12%.analytics.v1.GetUsagePatternsRequest\x1a&.analytics.v1.GetUsagePatternsResponse\x12a\n" +
+	"\x10PredictResources\x12%.analytics.v1.PredictResourcesRequest\x1a&.analytics.v1.PredictResourcesResponseB.Z,parkir-pintar/proto/analytics/v1;analyticsv1b\x06proto3"
 
 var (
 	file_analytics_v1_analytics_proto_rawDescOnce sync.Once
@@ -320,25 +489,31 @@ func file_analytics_v1_analytics_proto_rawDescGZIP() []byte {
 	return file_analytics_v1_analytics_proto_rawDescData
 }
 
-var file_analytics_v1_analytics_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_analytics_v1_analytics_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_analytics_v1_analytics_proto_goTypes = []any{
 	(*GetPeakHoursRequest)(nil),      // 0: analytics.v1.GetPeakHoursRequest
 	(*GetPeakHoursResponse)(nil),     // 1: analytics.v1.GetPeakHoursResponse
 	(*PeakHourStats)(nil),            // 2: analytics.v1.PeakHourStats
 	(*GetUsagePatternsRequest)(nil),  // 3: analytics.v1.GetUsagePatternsRequest
 	(*GetUsagePatternsResponse)(nil), // 4: analytics.v1.GetUsagePatternsResponse
+	(*PredictResourcesRequest)(nil),  // 5: analytics.v1.PredictResourcesRequest
+	(*PredictResourcesResponse)(nil), // 6: analytics.v1.PredictResourcesResponse
+	(*ResourcePrediction)(nil),       // 7: analytics.v1.ResourcePrediction
 }
 var file_analytics_v1_analytics_proto_depIdxs = []int32{
 	2, // 0: analytics.v1.GetPeakHoursResponse.stats:type_name -> analytics.v1.PeakHourStats
-	0, // 1: analytics.v1.AnalyticsService.GetPeakHours:input_type -> analytics.v1.GetPeakHoursRequest
-	3, // 2: analytics.v1.AnalyticsService.GetUsagePatterns:input_type -> analytics.v1.GetUsagePatternsRequest
-	1, // 3: analytics.v1.AnalyticsService.GetPeakHours:output_type -> analytics.v1.GetPeakHoursResponse
-	4, // 4: analytics.v1.AnalyticsService.GetUsagePatterns:output_type -> analytics.v1.GetUsagePatternsResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	7, // 1: analytics.v1.PredictResourcesResponse.predictions:type_name -> analytics.v1.ResourcePrediction
+	0, // 2: analytics.v1.AnalyticsService.GetPeakHours:input_type -> analytics.v1.GetPeakHoursRequest
+	3, // 3: analytics.v1.AnalyticsService.GetUsagePatterns:input_type -> analytics.v1.GetUsagePatternsRequest
+	5, // 4: analytics.v1.AnalyticsService.PredictResources:input_type -> analytics.v1.PredictResourcesRequest
+	1, // 5: analytics.v1.AnalyticsService.GetPeakHours:output_type -> analytics.v1.GetPeakHoursResponse
+	4, // 6: analytics.v1.AnalyticsService.GetUsagePatterns:output_type -> analytics.v1.GetUsagePatternsResponse
+	6, // 7: analytics.v1.AnalyticsService.PredictResources:output_type -> analytics.v1.PredictResourcesResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_analytics_v1_analytics_proto_init() }
@@ -352,7 +527,7 @@ func file_analytics_v1_analytics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_analytics_v1_analytics_proto_rawDesc), len(file_analytics_v1_analytics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

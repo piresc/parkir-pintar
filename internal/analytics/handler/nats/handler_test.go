@@ -29,14 +29,6 @@ func (m *MockUsecase) GetPeakHours(ctx context.Context) ([]model.PeakHourStats, 
 	return args.Get(0).([]model.PeakHourStats), args.Error(1)
 }
 
-func (m *MockUsecase) GetIdleHours(ctx context.Context) ([]model.PeakHourStats, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]model.PeakHourStats), args.Error(1)
-}
-
 func (m *MockUsecase) PredictResources(ctx context.Context, horizon time.Duration) ([]model.ResourcePrediction, error) {
 	args := m.Called(ctx, horizon)
 	if args.Get(0) == nil {

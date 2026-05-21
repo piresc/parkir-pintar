@@ -42,21 +42,6 @@ func (m *MockUsecase) EXPECT() *MockUsecaseMockRecorder {
 	return m.recorder
 }
 
-// GetIdleHours mocks base method.
-func (m *MockUsecase) GetIdleHours(ctx context.Context) ([]model.PeakHourStats, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetIdleHours", ctx)
-	ret0, _ := ret[0].([]model.PeakHourStats)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetIdleHours indicates an expected call of GetIdleHours.
-func (mr *MockUsecaseMockRecorder) GetIdleHours(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIdleHours", reflect.TypeOf((*MockUsecase)(nil).GetIdleHours), ctx)
-}
-
 // GetPeakHours mocks base method.
 func (m *MockUsecase) GetPeakHours(ctx context.Context) ([]model.PeakHourStats, error) {
 	m.ctrl.T.Helper()

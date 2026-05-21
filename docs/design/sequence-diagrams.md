@@ -185,7 +185,7 @@ sequenceDiagram
     end
 
     NT--)BS: Deliver no_show events
-    BS->>BS: Create penalty record<br/>(type=no_show, amount=50% of reservation)
+    BS->>BS: Mark billing as cancelled<br/>(refund booking fee — system failure only)
 
     NT--)SS: Deliver to search consumer
     SS->>SS: Mark spot as available again
@@ -195,7 +195,7 @@ sequenceDiagram
 
 ## 3. Payment Flow
 
-Driver pays for a completed reservation via Midtrans payment gateway.
+Driver pays for a completed reservation via Payment Gateway payment gateway.
 
 ```mermaid
 sequenceDiagram
@@ -204,7 +204,7 @@ sequenceDiagram
     participant GW as API Gateway
     participant PY as Payment Service
     participant CB as Circuit Breaker
-    participant MG as Midtrans Gateway
+    participant MG as Payment Gateway (stub)
     participant DB_PY as PostgreSQL (payment.*)
     participant BS as Billing Service
     participant DB_B as PostgreSQL (billing.*)
@@ -281,12 +281,12 @@ sequenceDiagram
     end
 ```
 
-### Webhook Callback (Async Payment Notification)
+### Payment Result (NATS Event)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant MG as Midtrans Gateway
+    participant MG as Payment Gateway (stub)
     participant GW as API Gateway
     participant PY as Payment Service
     participant DB_PY as PostgreSQL (payment.*)
@@ -460,13 +460,8 @@ sequenceDiagram
     BS->>DB_B: UPDATE billing_records<br/>SET billing_period_end = actual_end,<br/>amount = calculated_amount
     DB_B-->>BS: OK
 
-    alt Overstay detected (> 15 min grace)
-        BS->>DB_B: INSERT INTO penalties<br/>(type='overstay', amount=overstay_charge)
-        DB_B-->>BS: OK
-        BS->>DB_B: UPDATE billing_records<br/>SET total_amount = base + overstay + tax
-    end
-
-    BS-->>RS: BillingFinalized{total_amount, has_penalty}
+        BS->>DB_B: UPDATE billing_records<br/>SET total_amount = base + overnight_fees
+    BS-->>RS: BillingFinalized{total_amount}
     RS-->>GW: CheckOutResponse{status=completed, total_due}
     GW-->>C: 200 OK {checkout complete, billing summary}
 

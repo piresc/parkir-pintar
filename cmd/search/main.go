@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"parkir-pintar/internal/events"
 	searchgrpc "parkir-pintar/internal/search/handler/grpc"
 	searchnats "parkir-pintar/internal/search/handler/nats"
 	searchrepo "parkir-pintar/internal/search/repository"
-	searchsync "parkir-pintar/internal/search/sync"
 	searchuc "parkir-pintar/internal/search/usecase"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
@@ -95,7 +95,8 @@ func run() error {
 	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, redisClient)
 
 	repo := searchrepo.NewRepository(tracedPG.GetDB())
-	uc := searchuc.NewUsecase(repo, tracedRedis)
+	readModelRepo := searchrepo.NewReadModelRepository(tracedPG.GetDB())
+	uc := searchuc.NewUsecase(repo, readModelRepo, tracedRedis)
 	handler := searchgrpc.NewHandler(uc)
 
 	// --- Shutdown ---
@@ -111,16 +112,14 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
-		if err := pkgnats.CreateConsumersForService(natsCtx, natsClient, "search"); err != nil {
+		if err := events.CreateConsumersForService(natsCtx, natsClient, "search"); err != nil {
 			return fmt.Errorf("nats create consumers: %w", err)
 		}
 
-		readModelRepo := searchrepo.NewReadModelRepository(tracedPG.GetDB())
-		spotSync := searchsync.NewSpotSync(readModelRepo)
-		natsHandler := searchnats.NewHandler(spotSync, tracedRedis, natsClient, 0)
+		natsHandler := searchnats.NewHandler(uc, natsClient)
 		cc, err := natsHandler.InitConsumers()
 		if err != nil {
 			return fmt.Errorf("nats consumer init: %w", err)

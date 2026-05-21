@@ -11,8 +11,8 @@ import (
 	billingerrors "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
+	"parkir-pintar/internal/pricing"
 	"parkir-pintar/pkg/idempotency"
-	"parkir-pintar/pkg/pricing"
 )
 
 //go:generate mockgen -destination=../mocks/mock_usecase.go -package=mocks parkir-pintar/internal/billing Usecase

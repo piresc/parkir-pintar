@@ -9,9 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"parkir-pintar/internal/events"
 	reservation "parkir-pintar/internal/reservation"
 	grpcgw "parkir-pintar/internal/reservation/gateway/grpc"
 	natsgateway "parkir-pintar/internal/reservation/gateway/nats"
+	reservationasynq "parkir-pintar/internal/reservation/handler/asynq"
 	grpchandler "parkir-pintar/internal/reservation/handler/grpc"
 	natshandler "parkir-pintar/internal/reservation/handler/nats"
 	"parkir-pintar/internal/reservation/model"
@@ -163,10 +165,10 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
-		if err := pkgnats.CreateConsumersForService(natsCtx, natsClient, "reservation"); err != nil {
+		if err := events.CreateConsumersForService(natsCtx, natsClient, "reservation"); err != nil {
 			return fmt.Errorf("nats create consumers: %w", err)
 		}
 
@@ -184,12 +186,13 @@ func run() error {
 
 	// --- Layers ---
 	repo := reservationrepo.NewRepository(tracedPG.GetDB())
+	taskEnqueuer := reservationasynq.NewTaskEnqueuer(asynqClient)
 	uc := usecase.NewUsecase(
 		repo, usecase.NewLockerAdapter(redislockLocker),
 		grpcgw.NewBillingClient(billingGRPC),
 		grpcgw.NewPaymentClient(paymentGRPC),
 		presenceClient,
-		asynqClient,
+		taskEnqueuer,
 		eventPublisher,
 		cfg.Reservation.ExpiryTimeoutMinutes,
 		cfg.Reservation.PaymentTimeoutMinutes,
@@ -197,9 +200,10 @@ func run() error {
 	handler := grpchandler.NewHandler(uc)
 
 	// Register Asynq task handlers.
-	expiryHandler := taskqueue.NewReservationExpiryHandler(&usecaseExpirerAdapter{uc: uc})
-	paymentHandler := taskqueue.NewPaymentHoldTimeoutHandler(&usecaseFailerAdapter{uc: uc})
-	asynqServer.RegisterHandlers(expiryHandler, paymentHandler)
+	expiryHandler := reservationasynq.NewExpiryHandler(&usecaseExpirerAdapter{uc: uc})
+	paymentHandler := reservationasynq.NewPaymentTimeoutHandler(&usecaseFailerAdapter{uc: uc})
+	asynqServer.Register(reservationasynq.TypeReservationExpire, expiryHandler)
+	asynqServer.Register(reservationasynq.TypePaymentHoldTimeout, paymentHandler)
 
 	// --- gRPC Server ---
 	interceptors := grpcmiddleware.NewInterceptors(cfg.JWT.Secret, log, tracer, redisClient)

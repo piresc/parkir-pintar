@@ -14,7 +14,6 @@ import (
 
 	"parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/internal/shared/grpcerror"
 	reservationv1 "parkir-pintar/proto/reservation/v1"
 )
 
@@ -67,7 +66,7 @@ func (h *Handler) CreateReservation(ctx context.Context, req *reservationv1.Crea
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return reservationToProto(result), nil
@@ -82,7 +81,7 @@ func (h *Handler) GetReservation(ctx context.Context, req *reservationv1.GetRese
 	callerID := getUserIDFromContext(ctx)
 	result, err := h.uc.GetReservation(ctx, req.GetReservationId(), callerID)
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return reservationToProto(result), nil
@@ -99,7 +98,7 @@ func (h *Handler) CancelReservation(ctx context.Context, req *reservationv1.Canc
 		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return reservationToProto(result), nil
@@ -116,7 +115,7 @@ func (h *Handler) CheckIn(ctx context.Context, req *reservationv1.CheckInRequest
 		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return reservationToProto(result.Reservation), nil
@@ -133,7 +132,7 @@ func (h *Handler) CheckOut(ctx context.Context, req *reservationv1.CheckOutReque
 		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return &reservationv1.CheckOutResponse{
@@ -158,7 +157,7 @@ func (h *Handler) ConfirmReservation(ctx context.Context, req *reservationv1.Con
 		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return reservationToProto(result), nil
@@ -175,7 +174,7 @@ func (h *Handler) CompleteCheckout(ctx context.Context, req *reservationv1.Compl
 		CallerID:      getUserIDFromContext(ctx),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return &reservationv1.CheckOutResponse{
@@ -199,7 +198,7 @@ func (h *Handler) ExpireReservation(ctx context.Context, req *reservationv1.Expi
 		ReservationID: req.GetReservationId(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return &reservationv1.ReservationResponse{}, nil
@@ -213,7 +212,7 @@ func (h *Handler) ListByDriver(ctx context.Context, req *reservationv1.ListByDri
 
 	results, err := h.uc.ListByDriver(ctx, req.GetDriverId(), req.GetStatus())
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	var reservations []*reservationv1.ReservationResponse

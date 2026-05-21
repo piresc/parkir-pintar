@@ -1,8 +1,11 @@
-package nats
+package events
 
+// NATS subject constants for inter-service communication.
 const (
+	// Reservation → Search
 	SubjectReservationSearchSpotUpdated = "reservation.search.spot-updated"
 
+	// Reservation → Analytics
 	SubjectReservationAnalyticsCreated   = "reservation.analytics.created"
 	SubjectReservationAnalyticsConfirmed = "reservation.analytics.confirmed"
 	SubjectReservationAnalyticsCheckedIn = "reservation.analytics.checked-in"
@@ -11,18 +14,7 @@ const (
 	SubjectReservationAnalyticsExpired   = "reservation.analytics.expired"
 	SubjectReservationAnalyticsFailed    = "reservation.analytics.failed"
 
+	// Payment → Reservation
 	SubjectPaymentReservationSuccess = "payment.reservation.success"
 	SubjectPaymentReservationFailed  = "payment.reservation.failed"
-)
-
-const (
-	StreamReservationSearch    = "RESERVATION_SEARCH"
-	StreamReservationAnalytics = "RESERVATION_ANALYTICS"
-	StreamPaymentReservation   = "PAYMENT_RESERVATION"
-)
-
-const (
-	ConsumerSearchSpot         = "search-spot-consumer"
-	ConsumerAnalytics          = "analytics-consumer"
-	ConsumerReservationPayment = "reservation-payment-consumer"
 )

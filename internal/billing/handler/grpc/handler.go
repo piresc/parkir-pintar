@@ -9,7 +9,6 @@ import (
 
 	"parkir-pintar/internal/billing"
 	"parkir-pintar/internal/billing/model"
-	"parkir-pintar/internal/shared/grpcerror"
 	billingv1 "parkir-pintar/proto/billing/v1"
 )
 
@@ -40,7 +39,7 @@ func (h *Handler) StartBilling(ctx context.Context, req *billingv1.StartBillingR
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -63,7 +62,7 @@ func (h *Handler) CalculateFee(ctx context.Context, req *billingv1.CalculateFeeR
 		CheckOutAt:    req.GetCheckOutAt().AsTime(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -82,7 +81,7 @@ func (h *Handler) GenerateInvoice(ctx context.Context, req *billingv1.GenerateIn
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return billingRecordToProto(result), nil
@@ -97,7 +96,7 @@ func (h *Handler) ApplyOvernightFee(ctx context.Context, req *billingv1.ApplyOve
 		ReservationID: req.GetReservationId(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return billingRecordToProto(result), nil

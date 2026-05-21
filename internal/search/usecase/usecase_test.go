@@ -73,7 +73,7 @@ func TestGetAvailability_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
 
 	redis.On("Get", mock.Anything, "availability:car").Return(string(cachedJSON), nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 
 	result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{VehicleType: "car"})
 
@@ -96,7 +96,7 @@ func TestGetAvailability_ShouldQueryDB_WhenCacheMiss(t *testing.T) {
 	repo.On("GetAvailabilityByVehicleType", mock.Anything, "car").Return(floors, nil)
 	redis.On("Set", mock.Anything, "availability:car", mock.Anything, cacheTTL).Return(nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 
 	result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{VehicleType: "car"})
 
@@ -119,7 +119,7 @@ func TestGetAvailability_ShouldGracefullyDegrade_WhenRedisFailure(t *testing.T) 
 	repo.On("GetAvailabilityByVehicleType", mock.Anything, "motorcycle").Return(floors, nil)
 	redis.On("Set", mock.Anything, "availability:motorcycle", mock.Anything, cacheTTL).Return(errors.New("redis connection refused"))
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 
 	result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{VehicleType: "motorcycle"})
 
@@ -142,7 +142,7 @@ func TestGetFloorMap_ShouldReturnCachedData_WhenCacheHit(t *testing.T) {
 
 	redis.On("Get", mock.Anything, "floormap:1").Return(string(cachedJSON), nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 
 	result, err := uc.GetFloorMap(t.Context(), &model.GetFloorMapRequest{FloorNumber: 1})
 
@@ -164,7 +164,7 @@ func TestGetSpotDetails_ShouldQueryDB_WhenCalled(t *testing.T) {
 	}
 	repo.On("GetSpotByID", mock.Anything, "spot-1").Return(spot, nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 
 	result, err := uc.GetSpotDetails(t.Context(), &model.GetSpotDetailsRequest{SpotID: "spot-1"})
 

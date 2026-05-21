@@ -5,14 +5,24 @@ import (
 	"time"
 
 	"parkir-pintar/internal/search/model"
-	"parkir-pintar/internal/search/sync"
 )
+
+// SpotData represents a parking spot for the read model sync layer.
+type SpotData struct {
+	ID          string
+	FloorNumber int
+	SpotNumber  int
+	VehicleType string
+	SpotCode    string
+	Status      string
+}
 
 //go:generate mockgen -destination=mocks/mock_usecase.go -package=mocks parkir-pintar/internal/search Usecase
 type Usecase interface {
 	GetAvailability(ctx context.Context, req *model.GetAvailabilityRequest) ([]model.FloorAvailability, error)
 	GetFloorMap(ctx context.Context, req *model.GetFloorMapRequest) ([]model.SpotDetails, error)
 	GetSpotDetails(ctx context.Context, req *model.GetSpotDetailsRequest) (*model.SpotDetails, error)
+	HandleSpotUpdated(ctx context.Context, spot SpotData) error
 }
 
 //go:generate mockgen -destination=mocks/mock_repository.go -package=mocks parkir-pintar/internal/search Repository
@@ -24,7 +34,7 @@ type Repository interface {
 
 //go:generate mockgen -destination=mocks/mock_read_model_repository.go -package=mocks parkir-pintar/internal/search ReadModelRepository
 type ReadModelRepository interface {
-	UpsertSpot(ctx context.Context, spot sync.SpotData) error
+	UpsertSpot(ctx context.Context, spot SpotData) error
 	DeleteSpot(ctx context.Context, spotID string) error
 }
 

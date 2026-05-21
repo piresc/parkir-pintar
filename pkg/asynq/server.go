@@ -1,6 +1,8 @@
 package asynq
 
 import (
+	"fmt"
+
 	"github.com/hibiken/asynq"
 )
 
@@ -10,25 +12,27 @@ type Server struct {
 }
 
 func NewServer(redisAddr, redisPassword string, concurrency int) *Server {
-	srv := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: redisAddr, Password: redisPassword},
-		asynq.Config{
-			Concurrency: concurrency,
-		},
-	)
-	return &Server{
-		server: srv,
-		mux:    asynq.NewServeMux(),
+	redisOpt := asynq.RedisClientOpt{Addr: redisAddr, Password: redisPassword}
+	if concurrency <= 0 {
+		concurrency = 10
 	}
+	srv := asynq.NewServer(redisOpt, asynq.Config{
+		Concurrency: concurrency,
+	})
+	mux := asynq.NewServeMux()
+	return &Server{server: srv, mux: mux}
 }
 
-func (s *Server) RegisterHandlers(reservationExpireHandler, paymentTimeoutHandler asynq.Handler) {
-	s.mux.Handle(TypeReservationExpire, reservationExpireHandler)
-	s.mux.Handle(TypePaymentHoldTimeout, paymentTimeoutHandler)
+// Register registers a handler for a task type.
+func (s *Server) Register(taskType string, handler asynq.Handler) {
+	s.mux.Handle(taskType, handler)
 }
 
 func (s *Server) Start() error {
-	return s.server.Start(s.mux)
+	if err := s.server.Start(s.mux); err != nil {
+		return fmt.Errorf("start asynq server: %w", err)
+	}
+	return nil
 }
 
 func (s *Server) Shutdown() {

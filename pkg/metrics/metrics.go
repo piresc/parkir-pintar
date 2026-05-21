@@ -16,6 +16,7 @@ import (
 
 type Metrics struct {
 	provider *sdkmetric.MeterProvider
+	meter    otelmetric.Meter
 
 	HTTPRequestsTotal   otelmetric.Int64Counter
 	HTTPRequestDuration otelmetric.Float64Histogram
@@ -25,10 +26,6 @@ type Metrics struct {
 	GRPCRequestDuration otelmetric.Float64Histogram
 
 	DBQueryDuration otelmetric.Float64Histogram
-
-	ActiveParkingSessions otelmetric.Int64Gauge
-	OccupiedSpots         otelmetric.Int64Gauge
-	ReservationsTotal     otelmetric.Int64Counter
 }
 
 func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
@@ -69,6 +66,7 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 
 	m := &Metrics{
 		provider: provider,
+		meter:    meter,
 	}
 
 	m.HTTPRequestsTotal, err = meter.Int64Counter("http_requests_total",
@@ -117,28 +115,14 @@ func NewMetrics(serviceName string, otlpEndpoint string) (*Metrics, error) {
 		return nil, err
 	}
 
-	m.ActiveParkingSessions, err = meter.Int64Gauge("parking_active_sessions",
-		otelmetric.WithDescription("Number of currently active parking sessions"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.OccupiedSpots, err = meter.Int64Gauge("parking_occupied_spots",
-		otelmetric.WithDescription("Number of currently occupied parking spots"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	m.ReservationsTotal, err = meter.Int64Counter("parking_reservations_total",
-		otelmetric.WithDescription("Total number of parking reservations by status"),
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	return m, nil
+}
+
+// Meter returns the OpenTelemetry meter for creating additional instruments.
+// Domain-specific packages (e.g. internal/metrics) use this to register their
+// own counters and gauges on the same meter provider.
+func (m *Metrics) Meter() otelmetric.Meter {
+	return m.meter
 }
 
 func (m *Metrics) Shutdown(ctx context.Context) error {
@@ -153,22 +137,6 @@ func (m *Metrics) RecordDBQuery(ctx context.Context, operation, table string, du
 		otelmetric.WithAttributes(
 			attribute.String("db.operation", operation),
 			attribute.String("db.sql.table", table),
-		),
-	)
-}
-
-func (m *Metrics) SetActiveParkingSessions(ctx context.Context, count int64) {
-	m.ActiveParkingSessions.Record(ctx, count)
-}
-
-func (m *Metrics) SetOccupiedSpots(ctx context.Context, count int64) {
-	m.OccupiedSpots.Record(ctx, count)
-}
-
-func (m *Metrics) IncReservations(ctx context.Context, status string) {
-	m.ReservationsTotal.Add(ctx, 1,
-		otelmetric.WithAttributes(
-			attribute.String("status", status),
 		),
 	)
 }

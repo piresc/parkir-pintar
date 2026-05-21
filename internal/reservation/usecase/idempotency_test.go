@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/pricing"
 	reservation "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestCreateReservation_ShouldCreateDifferentRecords_WhenDifferentIdempotencyKeys verifies

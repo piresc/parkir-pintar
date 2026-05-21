@@ -11,6 +11,7 @@ package mocks
 
 import (
 	context "context"
+	search "parkir-pintar/internal/search"
 	model "parkir-pintar/internal/search/model"
 	reflect "reflect"
 
@@ -84,4 +85,18 @@ func (m *MockUsecase) GetSpotDetails(ctx context.Context, req *model.GetSpotDeta
 func (mr *MockUsecaseMockRecorder) GetSpotDetails(ctx, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSpotDetails", reflect.TypeOf((*MockUsecase)(nil).GetSpotDetails), ctx, req)
+}
+
+// HandleSpotUpdated mocks base method.
+func (m *MockUsecase) HandleSpotUpdated(ctx context.Context, spot search.SpotData) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleSpotUpdated", ctx, spot)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// HandleSpotUpdated indicates an expected call of HandleSpotUpdated.
+func (mr *MockUsecaseMockRecorder) HandleSpotUpdated(ctx, spot any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleSpotUpdated", reflect.TypeOf((*MockUsecase)(nil).HandleSpotUpdated), ctx, spot)
 }

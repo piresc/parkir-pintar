@@ -167,6 +167,7 @@ func TestMain(m *testing.M) {
 	billRepo := billingrepo.NewRepository(db)
 	payRepo := paymentrepo.NewRepository(db)
 	srchRepo := searchrepo.NewRepository(db)
+	srchReadModelRepo := searchrepo.NewReadModelRepository(db)
 
 	// Stub / adapters
 	stubGW := gateway.NewStubGateway(false)
@@ -182,7 +183,7 @@ func TestMain(m *testing.M) {
 	payAdapter := &paymentAdapter{uc: payUC}
 
 	resUC := reservationuc.NewUsecase(resRepo, redisAdapter, billAdapter, payAdapter, nil, nil, nil, 60, 10)
-	srchUC := searchuc.NewUsecase(srchRepo, srchRedisAdapter)
+	srchUC := searchuc.NewUsecase(srchRepo, srchReadModelRepo, srchRedisAdapter)
 
 	// -----------------------------------------------------------------------
 	// 6. Populate test environment

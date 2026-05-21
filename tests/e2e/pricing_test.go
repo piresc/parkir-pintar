@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"parkir-pintar/pkg/pricing"
+	"parkir-pintar/internal/pricing"
 )
 
 // TestPricing_ShouldHaveCorrectBookingFee verifies that the booking fee

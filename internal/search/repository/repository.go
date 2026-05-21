@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
+	"parkir-pintar/internal/search"
 	"parkir-pintar/internal/search/model"
-	"parkir-pintar/internal/search/sync"
 )
 
 var ErrNotFound = errors.New("spot not found")
@@ -23,7 +23,7 @@ type Repository interface {
 
 //go:generate mockgen -destination=../mocks/mock_read_model_repository.go -package=mocks parkir-pintar/internal/search/repository ReadModelRepository
 type ReadModelRepository interface {
-	UpsertSpot(ctx context.Context, spot sync.SpotData) error
+	UpsertSpot(ctx context.Context, spot search.SpotData) error
 	DeleteSpot(ctx context.Context, spotID string) error
 }
 
@@ -84,7 +84,7 @@ func (r *sqlxRepository) GetSpotByID(ctx context.Context, spotID string) (*model
 	return &spot, nil
 }
 
-func (r *sqlxReadModelRepository) UpsertSpot(ctx context.Context, spot sync.SpotData) error {
+func (r *sqlxReadModelRepository) UpsertSpot(ctx context.Context, spot search.SpotData) error {
 	query := `
 		INSERT INTO spot_read_model (id, floor_number, spot_number, vehicle_type, spot_code, status, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW())

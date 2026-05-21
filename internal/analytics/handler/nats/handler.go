@@ -10,6 +10,7 @@ import (
 
 	"parkir-pintar/internal/analytics"
 	"parkir-pintar/internal/analytics/model"
+	"parkir-pintar/internal/events"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
@@ -25,7 +26,7 @@ func NewHandler(uc analytics.Usecase, client *pkgnats.Client) *Handler {
 }
 
 func (h *Handler) InitConsumers() (jetstream.ConsumeContext, error) {
-	return h.client.Consume(pkgnats.ConsumerAnalytics, h.handleReservationEvent)
+	return h.client.Consume(events.ConsumerAnalytics, h.handleReservationEvent)
 }
 
 func (h *Handler) handleReservationEvent(msg jetstream.Msg) {

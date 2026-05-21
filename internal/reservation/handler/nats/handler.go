@@ -9,9 +9,9 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"parkir-pintar/internal/events"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/events"
 	"parkir-pintar/pkg/logger"
 	pkgnats "parkir-pintar/pkg/nats"
 )
@@ -47,7 +47,7 @@ func NewHandler(uc ReservationConfirmer, client *pkgnats.Client) *Handler {
 // Start begins consuming messages from the reservation-payment-consumer.
 // It returns an error if the consumer cannot be started.
 func (h *Handler) Start() error {
-	cc, err := h.client.Consume(pkgnats.ConsumerReservationPayment, h.handleMessage)
+	cc, err := h.client.Consume(events.ConsumerReservationPayment, h.handleMessage)
 	if err != nil {
 		return err
 	}

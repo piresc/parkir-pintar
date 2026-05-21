@@ -26,7 +26,7 @@ func BenchmarkGetAvailability_CacheHit(b *testing.B) {
 
 	redis.On("Get", mock.Anything, "availability:car").Return(string(cachedJSON), nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 	ctx := context.Background()
 	req := &model.GetAvailabilityRequest{VehicleType: "car"}
 
@@ -52,7 +52,7 @@ func BenchmarkGetAvailability_CacheMiss(b *testing.B) {
 	repo.On("GetAvailabilityByVehicleType", mock.Anything, "car").Return(floors, nil)
 	redis.On("Set", mock.Anything, mock.Anything, mock.Anything, cacheTTL).Return(nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 	ctx := context.Background()
 	req := &model.GetAvailabilityRequest{VehicleType: "car"}
 
@@ -82,7 +82,7 @@ func BenchmarkGetFloorMap_CacheHit(b *testing.B) {
 
 	redis.On("Get", mock.Anything, "floormap:1").Return(string(cachedJSON), nil)
 
-	uc := NewUsecase(repo, redis)
+	uc := NewUsecase(repo, nil, redis)
 	ctx := context.Background()
 	req := &model.GetFloorMapRequest{FloorNumber: 1}
 

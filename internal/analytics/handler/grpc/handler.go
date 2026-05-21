@@ -6,7 +6,6 @@ import (
 	"google.golang.org/grpc"
 
 	"parkir-pintar/internal/analytics"
-	"parkir-pintar/internal/shared/grpcerror"
 	analyticsv1 "parkir-pintar/proto/analytics/v1"
 )
 
@@ -26,7 +25,7 @@ func (h *Handler) RegisterService(s *grpc.Server) {
 func (h *Handler) GetPeakHours(ctx context.Context, _ *analyticsv1.GetPeakHoursRequest) (*analyticsv1.GetPeakHoursResponse, error) {
 	stats, err := h.uc.GetPeakHours(ctx)
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	protoStats := make([]*analyticsv1.PeakHourStats, 0, len(stats))
@@ -46,7 +45,7 @@ func (h *Handler) GetPeakHours(ctx context.Context, _ *analyticsv1.GetPeakHoursR
 func (h *Handler) GetUsagePatterns(ctx context.Context, _ *analyticsv1.GetUsagePatternsRequest) (*analyticsv1.GetUsagePatternsResponse, error) {
 	pattern, err := h.uc.GetUsagePatterns(ctx)
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	peakHours := make([]int32, 0, len(pattern.PeakHours))

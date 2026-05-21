@@ -11,7 +11,7 @@ package mocks
 
 import (
 	context "context"
-	sync "parkir-pintar/internal/search/sync"
+	search "parkir-pintar/internal/search"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -56,7 +56,7 @@ func (mr *MockReadModelRepositoryMockRecorder) DeleteSpot(ctx, spotID any) *gomo
 }
 
 // UpsertSpot mocks base method.
-func (m *MockReadModelRepository) UpsertSpot(ctx context.Context, spot sync.SpotData) error {
+func (m *MockReadModelRepository) UpsertSpot(ctx context.Context, spot search.SpotData) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpsertSpot", ctx, spot)
 	ret0, _ := ret[0].(error)

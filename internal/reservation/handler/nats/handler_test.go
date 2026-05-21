@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/events"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/events"
 )
 
 // --- Mock usecase ---

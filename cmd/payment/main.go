@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"parkir-pintar/internal/events"
 	paymentgateway "parkir-pintar/internal/payment/gateway"
 	paymenthandler "parkir-pintar/internal/payment/handler/grpc"
 	paymentrepo "parkir-pintar/internal/payment/repository"
@@ -95,7 +96,7 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
 

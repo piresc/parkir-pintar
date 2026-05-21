@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"parkir-pintar/pkg/events"
+	"parkir-pintar/internal/events"
 	pkgnats "parkir-pintar/pkg/nats"
 )
 
@@ -36,7 +36,7 @@ func (p *Publisher) PublishSpotUpdated(ctx context.Context, event SpotUpdatedEve
 		return fmt.Errorf("marshal spot updated event: %w", err)
 	}
 	msgID := fmt.Sprintf("spot-%s-%s-%d", event.SpotID, event.Status, time.Now().UnixNano())
-	return p.publisher.Publish(ctx, pkgnats.SubjectReservationSearchSpotUpdated, data, msgID)
+	return p.publisher.Publish(ctx, events.SubjectReservationSearchSpotUpdated, data, msgID)
 }
 
 // PublishReservationEvent publishes a reservation lifecycle event to analytics.

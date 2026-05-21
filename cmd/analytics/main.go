@@ -13,6 +13,7 @@ import (
 	natshandler "parkir-pintar/internal/analytics/handler/nats"
 	analyticsrepo "parkir-pintar/internal/analytics/repository"
 	analyticsuc "parkir-pintar/internal/analytics/usecase"
+	"parkir-pintar/internal/events"
 	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/database"
 	grpcmiddleware "parkir-pintar/pkg/grpcmiddleware"
@@ -103,10 +104,10 @@ func run() error {
 		}
 
 		natsCtx := context.Background()
-		if err := pkgnats.CreateStreams(natsCtx, natsClient); err != nil {
+		if err := pkgnats.CreateStreams(natsCtx, natsClient, events.DefaultStreamConfigs()); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
-		if err := pkgnats.CreateConsumersForService(natsCtx, natsClient, "analytics"); err != nil {
+		if err := events.CreateConsumersForService(natsCtx, natsClient, "analytics"); err != nil {
 			return fmt.Errorf("nats create consumers: %w", err)
 		}
 

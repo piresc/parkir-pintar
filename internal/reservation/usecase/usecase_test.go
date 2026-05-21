@@ -23,10 +23,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/pricing"
 	resv "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 
 	"github.com/jackc/pgx/v5/pgconn"

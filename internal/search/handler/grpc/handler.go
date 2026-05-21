@@ -7,16 +7,10 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	pkgconstants "parkir-pintar/internal/constants"
 	"parkir-pintar/internal/search"
 	"parkir-pintar/internal/search/model"
-	"parkir-pintar/internal/shared/grpcerror"
-	pkgconstants "parkir-pintar/pkg/constants"
 	searchv1 "parkir-pintar/proto/search/v1"
-)
-
-const (
-	vehicleTypeCar        = string(pkgconstants.VehicleTypeCar)
-	vehicleTypeMotorcycle = string(pkgconstants.VehicleTypeMotorcycle)
 )
 
 type Handler struct {
@@ -41,7 +35,7 @@ func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabi
 		VehicleType: req.GetVehicleType(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	protoFloors := make([]*searchv1.FloorAvailability, len(floors))
@@ -55,10 +49,10 @@ func (h *Handler) GetAvailability(ctx context.Context, req *searchv1.GetAvailabi
 			TotalMoto:     int32(f.TotalMoto),
 		}
 		switch req.GetVehicleType() {
-		case vehicleTypeCar:
+		case string(pkgconstants.VehicleTypeCar):
 			totalAvailable += int32(f.AvailableCar)
 			totalCapacity += int32(f.TotalCar)
-		case vehicleTypeMotorcycle:
+		case string(pkgconstants.VehicleTypeMotorcycle):
 			totalAvailable += int32(f.AvailableMoto)
 			totalCapacity += int32(f.TotalMoto)
 		default:
@@ -85,7 +79,7 @@ func (h *Handler) GetFloorMap(ctx context.Context, req *searchv1.GetFloorMapRequ
 		FloorNumber: int(req.GetFloorNumber()),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	protoSpots := make([]*searchv1.SpotInfo, len(spots))
@@ -112,7 +106,7 @@ func (h *Handler) GetSpotDetails(ctx context.Context, req *searchv1.GetSpotDetai
 		SpotID: req.GetSpotId(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return &searchv1.SpotDetailsResponse{

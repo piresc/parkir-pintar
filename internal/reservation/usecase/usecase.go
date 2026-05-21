@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 
+	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/pricing"
 	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/gateway"
@@ -21,8 +23,6 @@ import (
 	"parkir-pintar/pkg/apperror"
 	"parkir-pintar/pkg/database"
 	"parkir-pintar/pkg/logger"
-	pkgnats "parkir-pintar/pkg/nats"
-	"parkir-pintar/pkg/pricing"
 	"parkir-pintar/pkg/redislock"
 )
 
@@ -207,7 +207,7 @@ func (uc *reservationUsecase) CreateReservation(ctx context.Context, req *model.
 
 	// Step 8: Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusReserved))
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCreated, reservation, "created")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCreated, reservation, "created")
 
 	return reservation, nil
 }
@@ -296,7 +296,7 @@ func (uc *reservationUsecase) ConfirmReservation(ctx context.Context, req *model
 	}
 
 	// Publish analytics event (best-effort)
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsConfirmed, reservation, "confirmed")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsConfirmed, reservation, "confirmed")
 
 	// Cancel payment hold timeout — driver paid in time
 	if uc.taskEnqueuer != nil {
@@ -382,7 +382,7 @@ func (uc *reservationUsecase) CancelReservation(ctx context.Context, req *model.
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCancelled, reservation, "cancelled")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCancelled, reservation, "cancelled")
 
 	return reservation, nil
 }
@@ -458,7 +458,7 @@ func (uc *reservationUsecase) CheckIn(ctx context.Context, req *model.CheckInReq
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusOccupied))
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCheckedIn, reservation, "checked-in")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCheckedIn, reservation, "checked-in")
 
 	return response, nil
 }
@@ -585,7 +585,7 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsCompleted, reservation, "completed")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsCompleted, reservation, "completed")
 
 	return &model.CheckOutResponse{
 		Reservation:  reservation,
@@ -635,7 +635,7 @@ func (uc *reservationUsecase) ExpireReservation(ctx context.Context, req *model.
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsExpired, reservation, "expired")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsExpired, reservation, "expired")
 
 	return nil
 }
@@ -674,7 +674,7 @@ func (uc *reservationUsecase) FailReservation(ctx context.Context, req *model.Fa
 
 	// Publish events (best-effort)
 	uc.publishSpotUpdated(ctx, reservation.SpotID, string(constants.SpotStatusAvailable))
-	uc.publishAnalyticsEvent(ctx, pkgnats.SubjectReservationAnalyticsFailed, reservation, "failed")
+	uc.publishAnalyticsEvent(ctx, events.SubjectReservationAnalyticsFailed, reservation, "failed")
 
 	return nil
 }

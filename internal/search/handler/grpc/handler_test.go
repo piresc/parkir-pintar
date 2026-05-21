@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"parkir-pintar/internal/search"
 	"parkir-pintar/internal/search/model"
 	"parkir-pintar/internal/search/repository"
 	searchv1 "parkir-pintar/proto/search/v1"
@@ -41,6 +42,11 @@ func (m *mockUsecase) GetSpotDetails(ctx context.Context, req *model.GetSpotDeta
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*model.SpotDetails), args.Error(1)
+}
+
+func (m *mockUsecase) HandleSpotUpdated(ctx context.Context, spot search.SpotData) error {
+	args := m.Called(ctx, spot)
+	return args.Error(0)
 }
 
 func TestGetAvailability(t *testing.T) {

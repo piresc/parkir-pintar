@@ -10,7 +10,6 @@ import (
 
 	"parkir-pintar/internal/payment"
 	"parkir-pintar/internal/payment/model"
-	"parkir-pintar/internal/shared/grpcerror"
 	paymentv1 "parkir-pintar/proto/payment/v1"
 )
 
@@ -52,7 +51,7 @@ func (h *Handler) ProcessPayment(ctx context.Context, req *paymentv1.ProcessPaym
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return paymentToProto(result), nil
@@ -75,7 +74,7 @@ func (h *Handler) ProcessQRIS(ctx context.Context, req *paymentv1.ProcessQRISReq
 		IdempotencyKey: req.GetIdempotencyKey(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return paymentToProto(result), nil
@@ -90,7 +89,7 @@ func (h *Handler) RefundPayment(ctx context.Context, req *paymentv1.RefundPaymen
 		PaymentID: req.GetPaymentId(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return paymentToProto(result), nil
@@ -105,7 +104,7 @@ func (h *Handler) GetPaymentStatus(ctx context.Context, req *paymentv1.GetPaymen
 		PaymentID: req.GetPaymentId(),
 	})
 	if err != nil {
-		return nil, grpcerror.MapToGRPCError(err)
+		return nil, mapError(err)
 	}
 
 	return paymentToProto(result), nil

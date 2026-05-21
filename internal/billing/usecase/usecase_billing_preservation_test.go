@@ -12,7 +12,7 @@ import (
 	billingconstants "parkir-pintar/internal/billing/constants"
 	"parkir-pintar/internal/billing/model"
 	"parkir-pintar/internal/billing/repository"
-	"parkir-pintar/pkg/pricing"
+	"parkir-pintar/internal/pricing"
 
 	"pgregory.net/rapid"
 )

@@ -2,21 +2,31 @@
 package usecase
 
 import (
+	"context"
+
 	"parkir-pintar/internal/search"
 	"parkir-pintar/internal/search/repository"
 
 	"golang.org/x/sync/singleflight"
 )
 
-type searchUsecase struct {
-	repo  repository.Repository
-	redis RedisClient
-	sf    singleflight.Group
+// ReadModelRepository is the local interface for the read model persistence layer.
+type ReadModelRepository interface {
+	UpsertSpot(ctx context.Context, spot search.SpotData) error
+	DeleteSpot(ctx context.Context, spotID string) error
 }
 
-func NewUsecase(repo repository.Repository, redis RedisClient) search.Usecase {
+type searchUsecase struct {
+	repo          repository.Repository
+	readModelRepo ReadModelRepository
+	redis         RedisClient
+	sf            singleflight.Group
+}
+
+func NewUsecase(repo repository.Repository, readModelRepo ReadModelRepository, redis RedisClient) search.Usecase {
 	return &searchUsecase{
-		repo:  repo,
-		redis: redis,
+		repo:          repo,
+		readModelRepo: readModelRepo,
+		redis:         redis,
 	}
 }

@@ -39,7 +39,7 @@ func TestGetAvailability_ShouldReturnCached_WhenCacheHit(t *testing.T) {
 		cacheKey := "availability:" + vehicleType
 		redis.On("Get", mock.Anything, cacheKey).Return(string(cachedJSON), nil)
 
-		uc := NewUsecase(repo, redis)
+		uc := NewUsecase(repo, nil, redis)
 
 		result, err := uc.GetAvailability(t.Context(), &model.GetAvailabilityRequest{
 			VehicleType: vehicleType,
@@ -80,7 +80,7 @@ func TestGetFloorMap_ShouldReturnCached_WhenCacheHit(t *testing.T) {
 			return true // match any key for this test
 		})).Return(string(cachedJSON), nil)
 
-		uc := NewUsecase(repo, redis)
+		uc := NewUsecase(repo, nil, redis)
 
 		result, err := uc.GetFloorMap(t.Context(), &model.GetFloorMapRequest{
 			FloorNumber: floorNumber,

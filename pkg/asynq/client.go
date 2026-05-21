@@ -2,7 +2,6 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -26,41 +25,21 @@ func (c *Client) Close() error {
 	return c.client.Close()
 }
 
-func (c *Client) EnqueueReservationExpiry(ctx context.Context, reservationID string, delay time.Duration) (string, error) {
-	payload, err := json.Marshal(ReservationExpiryPayload{
-		ReservationID: reservationID,
-	})
+// Enqueue enqueues a task with the given type, payload, and delay.
+func (c *Client) Enqueue(ctx context.Context, taskType string, payload []byte, delay time.Duration, opts ...asynq.Option) (string, error) {
+	allOpts := make([]asynq.Option, 0, 1+len(opts))
+	allOpts = append(allOpts, asynq.ProcessIn(delay))
+	allOpts = append(allOpts, opts...)
+	task := asynq.NewTask(taskType, payload)
+	info, err := c.client.EnqueueContext(ctx, task, allOpts...)
 	if err != nil {
-		return "", fmt.Errorf("marshal reservation expiry payload: %w", err)
-	}
-
-	task := asynq.NewTask(TypeReservationExpire, payload)
-	info, err := c.client.EnqueueContext(ctx, task, asynq.ProcessIn(delay))
-	if err != nil {
-		return "", fmt.Errorf("enqueue reservation expiry task: %w", err)
+		return "", fmt.Errorf("enqueue task %s: %w", taskType, err)
 	}
 	return info.ID, nil
 }
 
-func (c *Client) EnqueuePaymentHoldTimeout(ctx context.Context, reservationID string, paymentID string, delay time.Duration) (string, error) {
-	payload, err := json.Marshal(PaymentHoldTimeoutPayload{
-		ReservationID: reservationID,
-		PaymentID:     paymentID,
-	})
-	if err != nil {
-		return "", fmt.Errorf("marshal payment hold timeout payload: %w", err)
-	}
-
-	taskID := fmt.Sprintf("payment-hold:%s", reservationID)
-	task := asynq.NewTask(TypePaymentHoldTimeout, payload)
-	info, err := c.client.EnqueueContext(ctx, task, asynq.ProcessIn(delay), asynq.TaskID(taskID))
-	if err != nil {
-		return "", fmt.Errorf("enqueue payment hold timeout task: %w", err)
-	}
-	return info.ID, nil
-}
-
-func (c *Client) CancelTask(ctx context.Context, taskID string) error {
+// CancelTask removes a pending task by ID.
+func (c *Client) CancelTask(_ context.Context, taskID string) error {
 	if err := c.inspector.DeleteTask("default", taskID); err != nil {
 		return fmt.Errorf("cancel task %s: %w", taskID, err)
 	}

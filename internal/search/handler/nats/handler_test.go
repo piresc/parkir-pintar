@@ -12,29 +12,43 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"parkir-pintar/internal/search/sync"
-	"parkir-pintar/pkg/events"
+	"parkir-pintar/internal/events"
+	"parkir-pintar/internal/search"
+	"parkir-pintar/internal/search/model"
 )
 
-// --- Mock SpotSync ---
+// --- Mock Usecase ---
 
-type MockSpotSync struct {
+type MockUsecase struct {
 	mock.Mock
 }
 
-func (m *MockSpotSync) HandleSpotUpdated(ctx context.Context, spot sync.SpotData) error {
+func (m *MockUsecase) GetAvailability(ctx context.Context, req *model.GetAvailabilityRequest) ([]model.FloorAvailability, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.FloorAvailability), args.Error(1)
+}
+
+func (m *MockUsecase) GetFloorMap(ctx context.Context, req *model.GetFloorMapRequest) ([]model.SpotDetails, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]model.SpotDetails), args.Error(1)
+}
+
+func (m *MockUsecase) GetSpotDetails(ctx context.Context, req *model.GetSpotDetailsRequest) (*model.SpotDetails, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*model.SpotDetails), args.Error(1)
+}
+
+func (m *MockUsecase) HandleSpotUpdated(ctx context.Context, spot search.SpotData) error {
 	args := m.Called(ctx, spot)
-	return args.Error(0)
-}
-
-// --- Mock RedisCache ---
-
-type MockRedisCache struct {
-	mock.Mock
-}
-
-func (m *MockRedisCache) Delete(ctx context.Context, key string) error {
-	args := m.Called(ctx, key)
 	return args.Error(0)
 }
 
@@ -105,28 +119,10 @@ func (m *MockMsg) DoubleAck(ctx context.Context) error {
 	return args.Error(0)
 }
 
-// --- Mock SpotRepository for constructing real SpotSync ---
-
-type MockSpotRepository struct {
-	mock.Mock
-}
-
-func (m *MockSpotRepository) UpsertSpot(ctx context.Context, spot sync.SpotData) error {
-	args := m.Called(ctx, spot)
-	return args.Error(0)
-}
-
-func (m *MockSpotRepository) DeleteSpot(ctx context.Context, spotID string) error {
-	args := m.Called(ctx, spotID)
-	return args.Error(0)
-}
-
 // --- Tests ---
 
 func TestHandleSpotUpdated_Success(t *testing.T) {
-	repo := new(MockSpotRepository)
-	redis := new(MockRedisCache)
-	spotSync := sync.NewSpotSync(repo)
+	uc := new(MockUsecase)
 
 	event := events.SpotUpdatedEvent{
 		SpotID:      "spot-1",
@@ -142,7 +138,7 @@ func TestHandleSpotUpdated_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := &MockMsg{data: data, subject: "spot.updated"}
-	repo.On("UpsertSpot", mock.Anything, sync.SpotData{
+	uc.On("HandleSpotUpdated", mock.Anything, search.SpotData{
 		ID:          "spot-1",
 		FloorNumber: 2,
 		SpotNumber:  15,
@@ -150,35 +146,30 @@ func TestHandleSpotUpdated_Success(t *testing.T) {
 		SpotCode:    "A-15",
 		Status:      "available",
 	}).Return(nil)
-	redis.On("Delete", mock.Anything, mock.Anything).Return(nil)
 	msg.On("Ack").Return(nil)
 
-	handler := &Handler{spotSync: spotSync, redis: redis, floorCount: 3}
+	handler := &Handler{uc: uc}
 	handler.handleSpotUpdated(msg)
 
-	repo.AssertExpectations(t)
+	uc.AssertExpectations(t)
 	msg.AssertCalled(t, "Ack")
 }
 
 func TestHandleSpotUpdated_InvalidJSON(t *testing.T) {
-	repo := new(MockSpotRepository)
-	redis := new(MockRedisCache)
-	spotSync := sync.NewSpotSync(repo)
+	uc := new(MockUsecase)
 
 	msg := &MockMsg{data: []byte("not valid json"), subject: "spot.updated"}
 	msg.On("Term").Return(nil)
 
-	handler := &Handler{spotSync: spotSync, redis: redis, floorCount: 3}
+	handler := &Handler{uc: uc}
 	handler.handleSpotUpdated(msg)
 
 	msg.AssertCalled(t, "Term")
-	repo.AssertNotCalled(t, "UpsertSpot", mock.Anything, mock.Anything)
+	uc.AssertNotCalled(t, "HandleSpotUpdated", mock.Anything, mock.Anything)
 }
 
-func TestHandleSpotUpdated_UpsertError(t *testing.T) {
-	repo := new(MockSpotRepository)
-	redis := new(MockRedisCache)
-	spotSync := sync.NewSpotSync(repo)
+func TestHandleSpotUpdated_UsecaseError(t *testing.T) {
+	uc := new(MockUsecase)
 
 	event := events.SpotUpdatedEvent{
 		SpotID:      "spot-2",
@@ -194,7 +185,7 @@ func TestHandleSpotUpdated_UpsertError(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := &MockMsg{data: data, subject: "spot.updated"}
-	repo.On("UpsertSpot", mock.Anything, sync.SpotData{
+	uc.On("HandleSpotUpdated", mock.Anything, search.SpotData{
 		ID:          "spot-2",
 		FloorNumber: 1,
 		SpotNumber:  5,
@@ -204,18 +195,16 @@ func TestHandleSpotUpdated_UpsertError(t *testing.T) {
 	}).Return(assert.AnError)
 	msg.On("Nak").Return(nil)
 
-	handler := &Handler{spotSync: spotSync, redis: redis, floorCount: 3}
+	handler := &Handler{uc: uc}
 	handler.handleSpotUpdated(msg)
 
-	repo.AssertExpectations(t)
+	uc.AssertExpectations(t)
 	msg.AssertCalled(t, "Nak")
 	msg.AssertNotCalled(t, "Ack")
 }
 
 func TestHandleSpotUpdated_AckError(t *testing.T) {
-	repo := new(MockSpotRepository)
-	redis := new(MockRedisCache)
-	spotSync := sync.NewSpotSync(repo)
+	uc := new(MockUsecase)
 
 	event := events.SpotUpdatedEvent{
 		SpotID:      "spot-3",
@@ -231,7 +220,7 @@ func TestHandleSpotUpdated_AckError(t *testing.T) {
 	require.NoError(t, err)
 
 	msg := &MockMsg{data: data, subject: "spot.updated"}
-	repo.On("UpsertSpot", mock.Anything, sync.SpotData{
+	uc.On("HandleSpotUpdated", mock.Anything, search.SpotData{
 		ID:          "spot-3",
 		FloorNumber: 3,
 		SpotNumber:  10,
@@ -239,53 +228,11 @@ func TestHandleSpotUpdated_AckError(t *testing.T) {
 		SpotCode:    "C-10",
 		Status:      "occupied",
 	}).Return(nil)
-	redis.On("Delete", mock.Anything, mock.Anything).Return(nil)
 	msg.On("Ack").Return(assert.AnError)
 
-	handler := &Handler{spotSync: spotSync, redis: redis, floorCount: 3}
+	handler := &Handler{uc: uc}
 	handler.handleSpotUpdated(msg)
 
-	repo.AssertExpectations(t)
+	uc.AssertExpectations(t)
 	msg.AssertCalled(t, "Ack")
-}
-
-func TestHandleSpotUpdated_CacheInvalidationError(t *testing.T) {
-	repo := new(MockSpotRepository)
-	redis := new(MockRedisCache)
-	spotSync := sync.NewSpotSync(repo)
-
-	event := events.SpotUpdatedEvent{
-		SpotID:      "spot-4",
-		FloorNumber: 1,
-		SpotNumber:  1,
-		VehicleType: "car",
-		SpotCode:    "A-01",
-		Status:      "available",
-		UpdatedAt:   time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
-	}
-
-	data, err := json.Marshal(event)
-	require.NoError(t, err)
-
-	msg := &MockMsg{data: data, subject: "spot.updated"}
-	repo.On("UpsertSpot", mock.Anything, sync.SpotData{
-		ID:          "spot-4",
-		FloorNumber: 1,
-		SpotNumber:  1,
-		VehicleType: "car",
-		SpotCode:    "A-01",
-		Status:      "available",
-	}).Return(nil)
-	// Cache deletion fails but should not prevent ack
-	redis.On("Delete", mock.Anything, mock.Anything).Return(assert.AnError)
-	msg.On("Ack").Return(nil)
-
-	handler := &Handler{spotSync: spotSync, redis: redis, floorCount: 2}
-	handler.handleSpotUpdated(msg)
-
-	repo.AssertExpectations(t)
-	msg.AssertCalled(t, "Ack")
-	// Verify cache invalidation was attempted for all expected keys
-	// floorCount=2: availability:car, availability:motorcycle, floormap:1, floormap:2
-	redis.AssertNumberOfCalls(t, "Delete", 4)
 }

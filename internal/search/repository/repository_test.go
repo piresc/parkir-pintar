@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"parkir-pintar/internal/search/sync"
+	"parkir-pintar/internal/search"
 )
 
 func setupMockDB(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
@@ -177,7 +177,7 @@ func TestUpsertSpot_Success(t *testing.T) {
 	db, mock := setupMockDB(t)
 	repo := NewReadModelRepository(db)
 
-	spot := sync.SpotData{
+	spot := search.SpotData{
 		ID:          "spot-1",
 		FloorNumber: 1,
 		SpotNumber:  1,
@@ -200,7 +200,7 @@ func TestUpsertSpot_DBError(t *testing.T) {
 	db, mock := setupMockDB(t)
 	repo := NewReadModelRepository(db)
 
-	spot := sync.SpotData{
+	spot := search.SpotData{
 		ID:          "spot-1",
 		FloorNumber: 1,
 		SpotNumber:  1,

@@ -3,7 +3,7 @@ package gateway
 import (
 	"context"
 
-	"parkir-pintar/pkg/events"
+	"parkir-pintar/internal/events"
 )
 
 type SpotUpdatedEvent = events.SpotUpdatedEvent

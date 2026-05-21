@@ -20,9 +20,7 @@ func TestNewMetrics_NoEndpoint(t *testing.T) {
 	assert.NotNil(t, m.GRPCRequestsTotal)
 	assert.NotNil(t, m.GRPCRequestDuration)
 	assert.NotNil(t, m.DBQueryDuration)
-	assert.NotNil(t, m.ActiveParkingSessions)
-	assert.NotNil(t, m.OccupiedSpots)
-	assert.NotNil(t, m.ReservationsTotal)
+	assert.NotNil(t, m.Meter())
 
 	err = m.Shutdown(context.Background())
 	assert.NoError(t, err)
@@ -51,37 +49,6 @@ func TestMetrics_RecordDBQuery_NoPanic(t *testing.T) {
 
 	assert.NotPanics(t, func() {
 		m.RecordDBQuery(context.Background(), "SELECT", "users", 0.042)
-	})
-}
-
-func TestMetrics_SetActiveParkingSessions_NoPanic(t *testing.T) {
-	m, err := NewMetrics("test-service", "")
-	require.NoError(t, err)
-	defer func() { _ = m.Shutdown(context.Background()) }()
-
-	assert.NotPanics(t, func() {
-		m.SetActiveParkingSessions(context.Background(), 42)
-	})
-}
-
-func TestMetrics_SetOccupiedSpots_NoPanic(t *testing.T) {
-	m, err := NewMetrics("test-service", "")
-	require.NoError(t, err)
-	defer func() { _ = m.Shutdown(context.Background()) }()
-
-	assert.NotPanics(t, func() {
-		m.SetOccupiedSpots(context.Background(), 10)
-	})
-}
-
-func TestMetrics_IncReservations_NoPanic(t *testing.T) {
-	m, err := NewMetrics("test-service", "")
-	require.NoError(t, err)
-	defer func() { _ = m.Shutdown(context.Background()) }()
-
-	assert.NotPanics(t, func() {
-		m.IncReservations(context.Background(), "confirmed")
-		m.IncReservations(context.Background(), "cancelled")
 	})
 }
 

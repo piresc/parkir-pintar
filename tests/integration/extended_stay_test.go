@@ -22,11 +22,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"parkir-pintar/internal/pricing"
 	reservationpkg "parkir-pintar/internal/reservation"
 	"parkir-pintar/internal/reservation/constants"
 	"parkir-pintar/internal/reservation/model"
 	"parkir-pintar/internal/reservation/usecase"
-	"parkir-pintar/pkg/pricing"
 )
 
 // TestExtendedStayFlow_ShouldBillStandardRate_WhenStayingPastReservationExpiry tests

@@ -3,8 +3,6 @@ package reservation
 import (
 	"context"
 	"time"
-
-	"parkir-pintar/pkg/events"
 )
 
 // BillingRecord is a local representation of billing data returned by the
@@ -63,14 +61,6 @@ type TaskEnqueuer interface {
 	EnqueueReservationExpiry(ctx context.Context, reservationID string, delay time.Duration) (string, error)
 	EnqueuePaymentHoldTimeout(ctx context.Context, reservationID string, paymentID string, delay time.Duration) (string, error)
 	CancelTask(ctx context.Context, taskID string) error
-}
-
-// EventPublisher defines the interface for publishing domain events.
-//
-//go:generate mockgen -destination=mocks/mock_event_publisher.go -package=mocks parkir-pintar/internal/reservation EventPublisher
-type EventPublisher interface {
-	PublishSpotUpdated(ctx context.Context, event events.SpotUpdatedEvent) error
-	PublishReservationEvent(ctx context.Context, subject string, event events.ReservationEvent) error
 }
 
 // Lock represents an acquired distributed lock.

@@ -123,7 +123,7 @@ security:
 ## proto: Generate protobuf/gRPC code
 proto:
 	@echo "==> Generating protobuf code..."
-	@cd proto && buf generate
+	@buf generate
 	@echo "==> Proto generation complete."
 
 ## docker-up: Start all services with docker compose

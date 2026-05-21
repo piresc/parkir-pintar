@@ -94,6 +94,25 @@ func (h *Handler) CancelReservation(c *gin.Context) {
 		return
 	}
 
+	userID := getUserID(c)
+	if userID == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
+
+	// Fetch reservation to verify ownership
+	getResp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	if getResp.GetDriverId() != userID {
+		response.Error(c, http.StatusForbidden, "not authorized to modify this reservation")
+		return
+	}
+
 	resp, err := h.reservation.CancelReservation(contextWithAuth(c), &reservationv1.CancelReservationRequest{
 		ReservationId: id,
 	})
@@ -109,6 +128,25 @@ func (h *Handler) CheckIn(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	userID := getUserID(c)
+	if userID == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
+
+	// Fetch reservation to verify ownership
+	getResp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	if getResp.GetDriverId() != userID {
+		response.Error(c, http.StatusForbidden, "not authorized to modify this reservation")
 		return
 	}
 
@@ -130,6 +168,25 @@ func (h *Handler) CheckOut(c *gin.Context) {
 		return
 	}
 
+	userID := getUserID(c)
+	if userID == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
+
+	// Fetch reservation to verify ownership
+	getResp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	if getResp.GetDriverId() != userID {
+		response.Error(c, http.StatusForbidden, "not authorized to modify this reservation")
+		return
+	}
+
 	resp, err := h.reservation.CheckOut(contextWithAuth(c), &reservationv1.CheckOutRequest{
 		ReservationId: id,
 	})
@@ -148,6 +205,25 @@ func (h *Handler) ConfirmReservation(c *gin.Context) {
 		return
 	}
 
+	userID := getUserID(c)
+	if userID == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
+
+	// Fetch reservation to verify ownership
+	getResp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	if getResp.GetDriverId() != userID {
+		response.Error(c, http.StatusForbidden, "not authorized to modify this reservation")
+		return
+	}
+
 	resp, err := h.reservation.ConfirmReservation(contextWithAuth(c), &reservationv1.ConfirmReservationRequest{
 		ReservationId: id,
 	})
@@ -163,6 +239,25 @@ func (h *Handler) CompleteCheckout(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 		response.Error(c, http.StatusBadRequest, "reservation id is required")
+		return
+	}
+
+	userID := getUserID(c)
+	if userID == "" {
+		response.Error(c, http.StatusUnauthorized, "user identity not found")
+		return
+	}
+
+	// Fetch reservation to verify ownership
+	getResp, err := h.reservation.GetReservation(contextWithAuth(c), &reservationv1.GetReservationRequest{
+		ReservationId: id,
+	})
+	if err != nil {
+		writeGRPCError(c, err)
+		return
+	}
+	if getResp.GetDriverId() != userID {
+		response.Error(c, http.StatusForbidden, "not authorized to modify this reservation")
 		return
 	}
 

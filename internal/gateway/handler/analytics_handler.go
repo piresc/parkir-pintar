@@ -29,6 +29,11 @@ func (ah *AnalyticsHandler) RegisterRoutes(engine *gin.Engine, mw *middleware.Mi
 }
 
 func (ah *AnalyticsHandler) GetPeakHours(c *gin.Context) {
+	if ah.client == nil {
+		response.Error(c, http.StatusServiceUnavailable, "analytics service unavailable")
+		return
+	}
+
 	resp, err := ah.client.GetPeakHours(contextWithAuth(c), &analyticsv1.GetPeakHoursRequest{})
 	if err != nil {
 		writeGRPCError(c, err)
@@ -39,6 +44,11 @@ func (ah *AnalyticsHandler) GetPeakHours(c *gin.Context) {
 }
 
 func (ah *AnalyticsHandler) GetOccupancy(c *gin.Context) {
+	if ah.client == nil {
+		response.Error(c, http.StatusServiceUnavailable, "analytics service unavailable")
+		return
+	}
+
 	resp, err := ah.client.GetUsagePatterns(contextWithAuth(c), &analyticsv1.GetUsagePatternsRequest{})
 	if err != nil {
 		writeGRPCError(c, err)
@@ -49,6 +59,11 @@ func (ah *AnalyticsHandler) GetOccupancy(c *gin.Context) {
 }
 
 func (ah *AnalyticsHandler) GetPredictions(c *gin.Context) {
+	if ah.client == nil {
+		response.Error(c, http.StatusServiceUnavailable, "analytics service unavailable")
+		return
+	}
+
 	var horizonMinutes int32
 	if h := c.Query("horizon_minutes"); h != "" {
 		if v, err := strconv.Atoi(h); err == nil {

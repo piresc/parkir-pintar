@@ -45,6 +45,7 @@ message BillingResponse {
   int64 booking_fee = 3;
   int64 parking_fee = 4;
   int64 overnight_fee = 5;
+  reserved 6, 7;
   int64 total_amount = 8;
   int32 duration_minutes = 9;
   int32 billed_hours = 10;

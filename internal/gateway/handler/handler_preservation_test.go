@@ -29,6 +29,11 @@ type preservationReservationClient struct {
 	lastCancelID   string
 	lastCheckInID  string
 	lastCheckOutID string
+	ownerDriverID  string // returned by GetReservation for ownership checks
+}
+
+func (m *preservationReservationClient) GetReservation(_ context.Context, in *reservationv1.GetReservationRequest, _ ...grpc.CallOption) (*reservationv1.ReservationResponse, error) {
+	return &reservationv1.ReservationResponse{Id: in.GetReservationId(), DriverId: m.ownerDriverID, Status: "confirmed"}, nil
 }
 
 func (m *preservationReservationClient) CreateReservation(_ context.Context, in *reservationv1.CreateReservationRequest, _ ...grpc.CallOption) (*reservationv1.ReservationResponse, error) {
@@ -127,12 +132,15 @@ func TestCancelReservation_ShouldPassID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
-		resSpy := &preservationReservationClient{}
+		resSpy := &preservationReservationClient{ownerDriverID: "test-driver"}
 		h := NewHandler(resSpy, nil, nil, nil, config.JWTConfig{Secret: "test", Expiration: 60, Issuer: "parkir-pintar"})
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
-		engine.DELETE("/api/v1/reservations/:id", h.CancelReservation)
+		engine.DELETE("/api/v1/reservations/:id", func(c *gin.Context) {
+			c.Set("user_id", "test-driver")
+			c.Next()
+		}, h.CancelReservation)
 
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/reservations/"+resID, nil)
 		w := httptest.NewRecorder()
@@ -148,12 +156,15 @@ func TestCheckIn_ShouldPassID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
-		resSpy := &preservationReservationClient{}
+		resSpy := &preservationReservationClient{ownerDriverID: "test-driver"}
 		h := NewHandler(resSpy, nil, nil, nil, config.JWTConfig{Secret: "test", Expiration: 60, Issuer: "parkir-pintar"})
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
-		engine.POST("/api/v1/reservations/:id/checkin", h.CheckIn)
+		engine.POST("/api/v1/reservations/:id/checkin", func(c *gin.Context) {
+			c.Set("user_id", "test-driver")
+			c.Next()
+		}, h.CheckIn)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/reservations/"+resID+"/checkin", nil)
 		w := httptest.NewRecorder()
@@ -169,12 +180,15 @@ func TestCheckOut_ShouldPassID_WhenCalled(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		resID := rapid.StringMatching(`[a-z0-9]{8}`).Draw(t, "resID")
 
-		resSpy := &preservationReservationClient{}
+		resSpy := &preservationReservationClient{ownerDriverID: "test-driver"}
 		h := NewHandler(resSpy, nil, nil, nil, config.JWTConfig{Secret: "test", Expiration: 60, Issuer: "parkir-pintar"})
 
 		gin.SetMode(gin.TestMode)
 		engine := gin.New()
-		engine.POST("/api/v1/reservations/:id/checkout", h.CheckOut)
+		engine.POST("/api/v1/reservations/:id/checkout", func(c *gin.Context) {
+			c.Set("user_id", "test-driver")
+			c.Next()
+		}, h.CheckOut)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/reservations/"+resID+"/checkout", nil)
 		w := httptest.NewRecorder()

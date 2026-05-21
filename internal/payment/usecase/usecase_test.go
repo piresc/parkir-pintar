@@ -176,6 +176,7 @@ func TestRefundPayment_ShouldReturnRefunded_WhenSuccessful(t *testing.T) {
 	repo.On("GetByID", mock.Anything, "pay-4").Return(existing, nil)
 	gw.On("Refund", mock.Anything, "txn-refund-123").Return(nil)
 	repo.On("UpdatePaymentWithStatusCheck", mock.Anything, mock.AnythingOfType("*model.Payment"), string(paymentconstants.PaymentStatusSuccess)).Return(nil)
+	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
 
 	uc := NewUsecase(repo, gw, nil)
 	req := &model.RefundPaymentRequest{PaymentID: "pay-4"}
@@ -258,9 +259,8 @@ func TestRefundPayment_ShouldSucceed_WhenIdempotencyKeyNotFound(t *testing.T) {
 	repo.On("GetByIdempotencyKey", mock.Anything, "refund-key-new").Return(nil, repository.ErrNotFound)
 	repo.On("GetByID", mock.Anything, "pay-first-refund").Return(existing, nil)
 	gw.On("Refund", mock.Anything, "txn-first-refund").Return(nil)
-	repo.On("UpdatePaymentWithStatusCheck", mock.Anything, mock.MatchedBy(func(p *model.Payment) bool {
-		return p.Status == string(paymentconstants.PaymentStatusRefunded)
-	}), string(paymentconstants.PaymentStatusSuccess)).Return(nil)
+	repo.On("UpdatePaymentWithStatusCheck", mock.Anything, mock.AnythingOfType("*model.Payment"), string(paymentconstants.PaymentStatusSuccess)).Return(nil)
+	repo.On("UpdatePayment", mock.Anything, mock.AnythingOfType("*model.Payment")).Return(nil)
 
 	uc := NewUsecase(repo, gw, nil)
 	req := &model.RefundPaymentRequest{

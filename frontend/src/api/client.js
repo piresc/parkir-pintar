@@ -43,7 +43,7 @@ async function apiRequest(method, path, body = null) {
 
 export const api = {
   // Auth
-  login: (driverId) => apiRequest('POST', '/api/v1/auth/login', { driver_id: driverId }),
+  login: (token) => apiRequest('POST', '/api/v1/auth/login', { token }),
 
   // Health
   getHealth: () => apiRequest('GET', '/health'),

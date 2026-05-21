@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"parkir-pintar/internal/analytics"
 	analyticsv1 "parkir-pintar/proto/analytics/v1"
@@ -68,11 +70,15 @@ func (h *Handler) GetUsagePatterns(ctx context.Context, _ *analyticsv1.GetUsageP
 }
 
 const defaultPredictionHorizonMinutes = 60
+const maxHorizonMinutes = 10080 // 7 days
 
 func (h *Handler) PredictResources(ctx context.Context, req *analyticsv1.PredictResourcesRequest) (*analyticsv1.PredictResourcesResponse, error) {
 	horizonMinutes := int(req.GetHorizonMinutes())
 	if horizonMinutes <= 0 {
 		horizonMinutes = defaultPredictionHorizonMinutes
+	}
+	if horizonMinutes > maxHorizonMinutes {
+		return nil, status.Error(codes.InvalidArgument, "horizon_minutes cannot exceed 10080 (7 days)")
 	}
 
 	predictions, err := h.uc.PredictResources(ctx, time.Duration(horizonMinutes)*time.Minute)

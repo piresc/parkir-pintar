@@ -93,6 +93,7 @@ func (uc *paymentUsecase) ProcessPayment(ctx context.Context, req *model.Process
 		payment.UpdatedAt = time.Now()
 		if updateErr := uc.repo.UpdatePayment(ctx, payment); updateErr != nil {
 			slog.Error("failed to update payment status to failed", logger.Err(updateErr))
+			return nil, fmt.Errorf("process payment update failed status: %w", updateErr)
 		}
 		if uc.eventPublisher != nil {
 			pubErr := uc.eventPublisher.PublishPaymentFailed(ctx, gateway.PaymentResultEvent{
@@ -162,8 +163,8 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 		return nil, fmt.Errorf("%w: current status %q", paymentconstants.ErrCannotRefund, payment.Status)
 	}
 
-	// the gateway to prevent double-refund from concurrent requests.
-	payment.Status = string(paymentconstants.PaymentStatusRefunded)
+	// Set intermediate "refunding" status to lock against concurrent refunds.
+	payment.Status = string(paymentconstants.PaymentStatusRefunding)
 	payment.UpdatedAt = time.Now()
 
 	if err := uc.repo.UpdatePaymentWithStatusCheck(ctx, payment, string(paymentconstants.PaymentStatusSuccess)); err != nil {
@@ -202,6 +203,16 @@ func (uc *paymentUsecase) RefundPayment(ctx context.Context, req *model.RefundPa
 				logger.Err(revertErr))
 		}
 		return nil, fmt.Errorf("%w: %w", paymentconstants.ErrRefundFailed, refundErr)
+	}
+
+	// Gateway succeeded — now mark as actually refunded
+	payment.Status = string(paymentconstants.PaymentStatusRefunded)
+	payment.UpdatedAt = time.Now()
+	if err := uc.repo.UpdatePayment(ctx, payment); err != nil {
+		slog.Error("failed to update payment to refunded after gateway success",
+			slog.String("payment_id", payment.ID),
+			logger.Err(err))
+		// Gateway already refunded, so we log but don't fail — eventual consistency
 	}
 
 	return payment, nil

@@ -16,6 +16,10 @@ type FeeResult struct {
 }
 
 func CalculateSessionFee(checkIn, checkOut time.Time) FeeResult {
+	if !checkOut.After(checkIn) {
+		return FeeResult{}
+	}
+
 	duration := checkOut.Sub(checkIn)
 	durationMinutes := int(duration.Minutes())
 
@@ -47,7 +51,7 @@ func countMidnightsCrossed(start, end time.Time) int {
 	sDay := time.Date(s.Year(), s.Month(), s.Day(), 0, 0, 0, 0, wib)
 	eDay := time.Date(e.Year(), e.Month(), e.Day(), 0, 0, 0, 0, wib)
 
-	days := int(eDay.Sub(sDay).Hours() / 24)
+	days := int(eDay.Sub(sDay) / (24 * time.Hour))
 	if days < 0 {
 		return 0
 	}

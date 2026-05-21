@@ -567,13 +567,24 @@ func (uc *reservationUsecase) CompleteCheckout(ctx context.Context, req *model.C
 
 	// Transition to completed and release spot atomically
 	if err := uc.repo.WithTransaction(ctx, func(tx *sqlx.Tx) error {
+		// Re-fetch with lock to prevent TOCTOU
+		current, err := uc.repo.GetByIDForUpdate(ctx, tx, reservation.ID)
+		if err != nil {
+			return fmt.Errorf("complete checkout re-fetch: %w", err)
+		}
+		if current.Status != string(constants.StatusCheckedOut) {
+			return apperror.Conflict("reservation status changed concurrently")
+		}
+
 		now := time.Now()
-		reservation.Status = string(constants.StatusCompleted)
-		reservation.UpdatedAt = now
-		if err := uc.repo.UpdateReservationTx(ctx, tx, reservation); err != nil {
+		current.Status = string(constants.StatusCompleted)
+		current.UpdatedAt = now
+		if err := uc.repo.UpdateReservationTx(ctx, tx, current); err != nil {
 			return fmt.Errorf("complete checkout: %w", err)
 		}
-		return uc.repo.UpdateSpotStatusTx(ctx, tx, reservation.SpotID, string(constants.SpotStatusAvailable))
+		// Update outer variable so the returned response reflects the new status
+		reservation = current
+		return uc.repo.UpdateSpotStatusTx(ctx, tx, current.SpotID, string(constants.SpotStatusAvailable))
 	}); err != nil {
 		slog.Error("failed to complete reservation after payment",
 			slog.String("reservation_id", reservation.ID),

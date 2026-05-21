@@ -333,7 +333,7 @@ func TestIdempotencyUnaryInterceptor_ShouldCacheResponse_WhenFirstCall(t *testin
 	assert.Equal(t, 1, callCount, "handler must be invoked on first call")
 }
 
-func TestIdempotencyUnaryInterceptor_ShouldAllowSecondCall_WhenFirstCompleted(t *testing.T) {
+func TestIdempotencyUnaryInterceptor_ShouldBlockSecondCall_WhenFirstCompleted(t *testing.T) {
 	rc, _ := newTestRedisClient(t)
 	interceptors := NewInterceptors("", nil, nil, rc)
 
@@ -354,16 +354,29 @@ func TestIdempotencyUnaryInterceptor_ShouldAllowSecondCall_WhenFirstCompleted(t 
 		return map[string]interface{}{"order_id": "ord-2"}, nil
 	}
 
+	// First call succeeds normally.
 	resp1, err := interceptor(ctx, nil, info, handler)
 	require.NoError(t, err)
 	assert.NotNil(t, resp1)
 	assert.Equal(t, 1, callCount)
 
-	resp2, err := interceptor(ctx, nil, info, handler)
+	// Second call with the same key should be rejected — the key is preserved
+	// with TTL to enforce idempotency for the duration of the window.
+	ctx2, cancel := context.WithTimeout(
+		metadata.NewIncomingContext(context.Background(), md),
+		200*time.Millisecond,
+	)
+	defer cancel()
 
-	require.NoError(t, err)
-	assert.NotNil(t, resp2)
-	assert.Equal(t, 2, callCount, "handler should be invoked again after first call completed (deduplication-only mode)")
+	resp2, err := interceptor(ctx2, nil, info, handler)
+
+	assert.Nil(t, resp2)
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Contains(t, []codes.Code{codes.DeadlineExceeded, codes.Aborted}, st.Code(),
+		"second call must be rejected with DeadlineExceeded or Aborted")
+	assert.Equal(t, 1, callCount, "handler must NOT be invoked again for a duplicate idempotency key")
 }
 
 func TestIdempotencyUnaryInterceptor_ShouldReturnInvalidArgument_WhenKeyMissing(t *testing.T) {

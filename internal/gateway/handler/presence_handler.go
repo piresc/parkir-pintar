@@ -18,6 +18,11 @@ type streamPresenceRequest struct {
 }
 
 func (h *Handler) StreamPresence(c *gin.Context) {
+	if h.presence == nil {
+		response.Error(c, http.StatusServiceUnavailable, "presence service unavailable")
+		return
+	}
+
 	var req streamPresenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid request body")

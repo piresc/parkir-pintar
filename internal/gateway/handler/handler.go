@@ -52,27 +52,25 @@ func getUserID(c *gin.Context) string {
 
 func (h *Handler) Login(c *gin.Context) {
 	var req struct {
-		DriverID string `json:"driver_id"`
+		Token string `json:"token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if req.DriverID == "" {
-		response.Error(c, http.StatusBadRequest, "driver_id is required")
+		response.Error(c, http.StatusBadRequest, "token is required")
 		return
 	}
 
-	token, expiresAt, err := auth.GenerateToken(req.DriverID, "driver", h.jwtCfg)
+	// Validate the provided JWT using the configured secret
+	claims, err := auth.ValidateToken(req.Token, h.jwtCfg.Secret)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "failed to generate token")
+		response.Error(c, http.StatusUnauthorized, "invalid or expired token")
 		return
 	}
 
 	response.Success(c, http.StatusOK, gin.H{
-		"token":      token,
-		"expires_at": expiresAt,
-		"driver_id":  req.DriverID,
+		"token":     req.Token,
+		"driver_id": claims.UserID,
+		"role":      claims.Role,
+		"message":   "authenticated successfully",
 	})
 }
 

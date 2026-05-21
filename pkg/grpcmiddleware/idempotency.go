@@ -67,12 +67,17 @@ func (i *Interceptors) IdempotencyUnaryInterceptor(cfg IdempotencyConfig) grpc.U
 		if acquired {
 			resp, handlerErr := handler(ctx, req)
 
-			if delErr := i.redisClient.Delete(ctx, redisKey); delErr != nil {
-				i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to delete key after handler completion",
-					slog.String("key", redisKey),
-					slog.String("error", delErr.Error()),
-				)
+			if handlerErr != nil {
+				// On failure, delete the key so the request can be retried.
+				if delErr := i.redisClient.Delete(ctx, redisKey); delErr != nil {
+					i.logger.LogAttrs(ctx, slog.LevelError, "idempotency: failed to delete key after handler failure",
+						slog.String("key", redisKey),
+						slog.String("error", delErr.Error()),
+					)
+				}
 			}
+			// On success, leave the key in Redis — it will expire naturally via TTL,
+			// preventing duplicate processing for the duration of the TTL window.
 
 			return resp, handlerErr
 		}

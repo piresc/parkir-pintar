@@ -6,10 +6,11 @@ type PaymentStatus string
 
 // Payment status constants.
 const (
-	PaymentStatusPending  PaymentStatus = "pending"
-	PaymentStatusSuccess  PaymentStatus = "success"
-	PaymentStatusFailed   PaymentStatus = "failed"
-	PaymentStatusRefunded PaymentStatus = "refunded"
+	PaymentStatusPending   PaymentStatus = "pending"
+	PaymentStatusSuccess   PaymentStatus = "success"
+	PaymentStatusFailed    PaymentStatus = "failed"
+	PaymentStatusRefunding PaymentStatus = "refunding"
+	PaymentStatusRefunded  PaymentStatus = "refunded"
 )
 
 // PaymentMethod represents a payment method type.

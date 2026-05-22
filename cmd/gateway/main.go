@@ -221,7 +221,7 @@ func run() error {
 
 	// Register gateway REST routes (with JWT auth).
 	jwtSecret := cfg.JWT.Secret
-	gwHandler := gatewayhandler.NewHandler(reservationGRPC, searchGRPC, paymentGRPC, presenceGRPC, cfg.JWT)
+	gwHandler := gatewayhandler.NewHandler(reservationGRPC, searchGRPC, paymentGRPC, presenceGRPC)
 	gwHandler.RegisterRoutes(engine, mw, jwtSecret)
 
 	// Register analytics REST routes (gRPC-backed, with JWT auth).

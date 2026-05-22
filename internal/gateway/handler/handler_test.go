@@ -53,7 +53,7 @@ func setupTestRouter(t *testing.T, h *Handler) *gin.Engine {
 }
 
 func TestJWTValidation_MissingToken(t *testing.T) {
-	h := NewHandler(nil, nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, nil, nil, nil)
 	router := setupTestRouter(t, h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/availability?vehicle_type=car", nil)
@@ -69,7 +69,7 @@ func TestJWTValidation_MissingToken(t *testing.T) {
 }
 
 func TestJWTValidation_InvalidToken(t *testing.T) {
-	h := NewHandler(nil, nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, nil, nil, nil)
 	router := setupTestRouter(t, h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/availability?vehicle_type=car", nil)
@@ -126,7 +126,7 @@ func TestWriteGRPCError(t *testing.T) {
 }
 
 func TestCreateReservation_InvalidBody(t *testing.T) {
-	h := NewHandler(nil, nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, nil, nil, nil)
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)
@@ -140,7 +140,7 @@ func TestCreateReservation_InvalidBody(t *testing.T) {
 }
 
 func TestGetFloorMap_InvalidFloor(t *testing.T) {
-	h := NewHandler(nil, nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, nil, nil, nil)
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)
@@ -153,7 +153,7 @@ func TestGetFloorMap_InvalidFloor(t *testing.T) {
 }
 
 func TestRouteRegistration(t *testing.T) {
-	h := NewHandler(nil, nil, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, nil, nil, nil)
 	router := setupTestRouter(t, h)
 
 	routes := router.Routes()
@@ -181,7 +181,7 @@ func TestRouteRegistration(t *testing.T) {
 
 // (will fail at gRPC level since client is nil, but validates routing works).
 func TestGetAvailability_NilClient(t *testing.T) {
-	h := NewHandler(nil, &mockSearchClient{}, nil, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, &mockSearchClient{}, nil, nil)
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)
@@ -194,7 +194,7 @@ func TestGetAvailability_NilClient(t *testing.T) {
 }
 
 func TestGetPaymentStatus_MockClient(t *testing.T) {
-	h := NewHandler(nil, nil, &mockPaymentClient{}, nil, config.JWTConfig{Secret: testJWTSecret, Expiration: 60, Issuer: "parkir-pintar"})
+	h := NewHandler(nil, nil, &mockPaymentClient{}, nil)
 	router := setupTestRouter(t, h)
 
 	token := generateTestToken(t)

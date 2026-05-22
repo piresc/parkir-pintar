@@ -8,9 +8,6 @@ import (
 
 // RegisterRoutes wires all gateway HTTP routes onto the given Gin engine.
 func (h *Handler) RegisterRoutes(engine *gin.Engine, mw *middleware.Middleware, jwtSecret string) {
-	public := engine.Group("/api/v1")
-	public.POST("/auth/login", h.Login)
-
 	api := engine.Group("/api/v1")
 	api.Use(mw.JWTAuth(jwtSecret))
 

@@ -10,8 +10,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"parkir-pintar/pkg/auth"
-	"parkir-pintar/pkg/config"
 	"parkir-pintar/pkg/middleware"
 	"parkir-pintar/pkg/response"
 
@@ -26,7 +24,6 @@ type Handler struct {
 	search      searchv1.SearchServiceClient
 	payment     paymentv1.PaymentServiceClient
 	presence    presencev1.PresenceServiceClient
-	jwtCfg      config.JWTConfig
 }
 
 func NewHandler(
@@ -34,44 +31,18 @@ func NewHandler(
 	search searchv1.SearchServiceClient,
 	payment paymentv1.PaymentServiceClient,
 	presence presencev1.PresenceServiceClient,
-	jwtCfg config.JWTConfig,
 ) *Handler {
 	return &Handler{
 		reservation: reservation,
 		search:      search,
 		payment:     payment,
 		presence:    presence,
-		jwtCfg:      jwtCfg,
 	}
 }
 
 // The JWT middleware guarantees this is always set for authenticated routes.
 func getUserID(c *gin.Context) string {
 	return c.GetString(middleware.KeyUserID)
-}
-
-func (h *Handler) Login(c *gin.Context) {
-	var req struct {
-		Token string `json:"token" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "token is required")
-		return
-	}
-
-	// Validate the provided JWT using the configured secret
-	claims, err := auth.ValidateToken(req.Token, h.jwtCfg.Secret)
-	if err != nil {
-		response.Error(c, http.StatusUnauthorized, "invalid or expired token")
-		return
-	}
-
-	response.Success(c, http.StatusOK, gin.H{
-		"token":     req.Token,
-		"driver_id": claims.UserID,
-		"role":      claims.Role,
-		"message":   "authenticated successfully",
-	})
 }
 
 func contextWithAuth(c *gin.Context) context.Context {

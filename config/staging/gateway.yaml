@@ -15,8 +15,6 @@ server:
   shutdown_timeout: 30
   allowed_origins:
     - "https://parkir-pintar.piresc.dev"
-    - "https://staging.parkir-pintar.id"
-    - "https://staging-admin.parkir-pintar.id"
 
 redis:
   db: 0

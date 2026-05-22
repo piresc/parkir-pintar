@@ -84,7 +84,7 @@ tests/          E2E + load tests
 | Deployment | Coolify (self-hosted) |
 | Reverse Proxy | Traefik |
 | CI/CD | GitHub Actions → GHCR → Coolify API |
-| Code Quality | SonarCloud, golangci-lint, OWASP ZAP |
+| Code Quality | SonarCloud, golangci-lint |
 
 ---
 

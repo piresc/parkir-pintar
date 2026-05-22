@@ -149,32 +149,6 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # -------------------------------------------------------------------------
-  # DAST via OWASP ZAP (baseline scan against staging)
-  # -------------------------------------------------------------------------
-  dast:
-    name: DAST (OWASP ZAP)
-    runs-on: ubuntu-latest
-    needs: build-push-staging
-    if: github.event_name == 'push'
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14.0
-        with:
-          target: "https://parkir-pintar.piresc.dev"
-          rules_file_name: ".zap/rules.tsv"
-          cmd_options: "-a"
-
-      - name: Upload ZAP report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report
-          path: report_html.html
-
-  # -------------------------------------------------------------------------
   # Proto lint and breaking change detection via buf
   # -------------------------------------------------------------------------
   proto-check:

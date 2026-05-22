@@ -296,7 +296,6 @@ export default function () {
 | `gosec`      | SAST | Go-specific security issues             | Every PR          |
 | `govulncheck`| SCA  | Known vulnerabilities in dependencies   | Every PR          |
 | `gitleaks`   | Secret| Hardcoded secrets in source code       | Every PR (pre-commit) |
-| OWASP ZAP    | DAST | Runtime vulnerabilities (API scan)      | Weekly schedule   |
 | Trivy        | Container | Container image vulnerabilities     | Every image build |
 
 ### gosec Configuration
@@ -413,7 +412,7 @@ tests/fixtures/
 |------------------|------|-------------|------|-------------|----------|-------|
 | PR opened/sync   | ✅   | ✅          | ❌   | Smoke only  | ✅       | ✅    |
 | Push to main     | ✅   | ✅          | ✅   | Load        | ✅       | ✅    |
-| Weekly schedule  | ✅   | ✅          | ✅   | Stress+Soak | Full ZAP | ✅    |
+| Weekly schedule  | ✅   | ✅          | ✅   | Stress+Soak | ✅       | ✅    |
 | Release tag      | ✅   | ✅          | ✅   | Load        | Full     | ✅    |
 
 ### CI Pipeline Stages

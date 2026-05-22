@@ -25,28 +25,34 @@ export default function ActiveReservationPage() {
   const [loading, setLoading] = useState(false);
   const [spotCode, setSpotCode] = useState(null);
   const [fetching, setFetching] = useState(false);
+  const [viewedReservation, setViewedReservation] = useState(null);
 
-  // If we have an ID param but no active reservation matching it, fetch it directly
+  // Determine if we're viewing a specific past reservation via /reservation/:id
+  const isViewingPast = id && (!activeReservation || activeReservation.id !== id);
+
+  // If viewing a specific reservation by ID, fetch it into local state (don't overwrite active)
   useEffect(() => {
-    if (id && (!activeReservation || activeReservation.id !== id)) {
+    if (isViewingPast) {
       setFetching(true);
       api.getReservation(id)
         .then(res => {
           const data = res.data || res;
-          setReservation(data);
+          setViewedReservation(data);
         })
         .catch(e => setError(e.message))
         .finally(() => setFetching(false));
+    } else {
+      setViewedReservation(null);
     }
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, isViewingPast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch all reservations for history
   useEffect(() => {
     fetchReservations();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Determine which reservation to display as active
-  const reservation = activeReservation;
+  // Determine which reservation to display: viewed past reservation or active
+  const reservation = isViewingPast ? viewedReservation : activeReservation;
 
   useEffect(() => {
     const spotId = reservation?.spot_id;
@@ -144,22 +150,28 @@ export default function ActiveReservationPage() {
           <ReservationCard reservation={reservation} spotCode={spotCode} onExpire={handleExpire} />
           {error && <ErrorBanner message={error} />}
           {loading && <LoadingSpinner />}
-          <div className="action-buttons">
-            {reservation.status === 'confirmed' && (
-              <>
-                <Button variant="primary" onClick={handleCheckIn}>Check In</Button>
-                <Button variant="danger" onClick={handleCancel}>Cancel</Button>
-              </>
-            )}
-            {reservation.status === 'waiting_payment' && (
-              <Button variant="primary" onClick={() => navigate(`/payment/${reservation.id}`)}>
-                Complete Payment
-              </Button>
-            )}
-            {reservation.status === 'checked_in' && (
-              <Button variant="cta" onClick={handleCheckout}>Check Out</Button>
-            )}
-          </div>
+          {isViewingPast ? (
+            <div className="action-buttons">
+              <Button variant="primary" onClick={() => navigate('/my-spot')}>← Back to My Spot</Button>
+            </div>
+          ) : (
+            <div className="action-buttons">
+              {reservation.status === 'confirmed' && (
+                <>
+                  <Button variant="primary" onClick={handleCheckIn}>Check In</Button>
+                  <Button variant="danger" onClick={handleCancel}>Cancel</Button>
+                </>
+              )}
+              {reservation.status === 'waiting_payment' && (
+                <Button variant="primary" onClick={() => navigate(`/payment/${reservation.id}`)}>
+                  Complete Payment
+                </Button>
+              )}
+              {reservation.status === 'checked_in' && (
+                <Button variant="cta" onClick={handleCheckout}>Check Out</Button>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <GlassCard className="no-active-card">

@@ -7,9 +7,9 @@ function getToken() {
 function clearAuthAndRedirect() {
   localStorage.removeItem('pp_token');
   localStorage.removeItem('pp_driver_id');
-  // Redirect to login page
-  if (window.location.pathname !== '/login') {
-    window.location.href = '/login';
+  // Redirect to login page (root route)
+  if (window.location.pathname !== '/') {
+    window.location.href = '/';
   }
 }
 

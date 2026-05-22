@@ -261,6 +261,10 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend
+        env:
+          VITE_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          VITE_JWT_ISSUER: parkir-pintar
+          VITE_JWT_EXPIRATION_MINUTES: "60"
         run: npm run build
 
       - name: Log in to GitHub Container Registry

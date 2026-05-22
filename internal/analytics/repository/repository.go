@@ -74,7 +74,7 @@ func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 
 func (r *sqlxRepository) RecordEvent(ctx context.Context, event model.ReservationEvent) error {
 	query := `
-		INSERT INTO reservation_events (reservation_id, driver_id, spot_id, vehicle_type, status, timestamp)
+		INSERT INTO reservation.reservation_events (reservation_id, driver_id, spot_id, vehicle_type, status, timestamp)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 
 	_, err := r.db.ExecContext(ctx, query,

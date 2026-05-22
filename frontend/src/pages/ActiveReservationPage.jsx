@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useReservation } from '../contexts/ReservationContext';
 import ReservationCard from '../components/domain/ReservationCard';
-import LocationSimulator from '../components/domain/LocationSimulator';
 import Button from '../components/ui/Button';
 import ErrorBanner from '../components/ui/ErrorBanner';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -107,20 +106,6 @@ export default function ActiveReservationPage() {
     }
   }
 
-  async function handleLocation(body) {
-    setError(null);
-    try {
-      const resId = id || activeReservation?.id;
-      const res = await api.streamLocation(body);
-      if (res.data?.is_geofenced) {
-        const checkRes = await api.checkIn(resId);
-        setReservation(checkRes.data);
-      }
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
   async function handleCheckout() {
     setLoading(true);
     setError(null);
@@ -172,10 +157,7 @@ export default function ActiveReservationPage() {
               </Button>
             )}
             {reservation.status === 'checked_in' && (
-              <>
-                <LocationSimulator reservationId={id || reservation.id} onSend={handleLocation} />
-                <Button variant="cta" onClick={handleCheckout}>Check Out</Button>
-              </>
+              <Button variant="cta" onClick={handleCheckout}>Check Out</Button>
             )}
           </div>
         </>
@@ -198,7 +180,7 @@ export default function ActiveReservationPage() {
           <h3 className="history-title">History</h3>
           <div className="history-list">
             {pastReservations.map(r => (
-              <GlassCard key={r.id} className="history-item">
+              <GlassCard key={r.id} className="history-item" onClick={() => navigate(`/reservation/${r.id}`)}>
                 <div className="history-item-header">
                   <span className="history-spot">{r.spot_code || r.spot_id}</span>
                   <StatusBadge status={r.status} />

@@ -10,7 +10,15 @@ export function ReservationProvider({ children }) {
   const { driverId, isAuthenticated } = useAuth();
   const [currentReservation, setCurrentReservation] = useState(() => {
     const raw = localStorage.getItem('pp_reservation');
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Validate cached reservation belongs to current driver
+    const storedDriverId = localStorage.getItem('pp_driver_id');
+    if (parsed.driver_id && storedDriverId && parsed.driver_id !== storedDriverId) {
+      localStorage.removeItem('pp_reservation');
+      return null;
+    }
+    return parsed;
   });
   const [reservations, setReservations] = useState([]);
   const [loadingReservations, setLoadingReservations] = useState(false);

@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+  namespace: parkir-pintar
+  labels:
+    app: nats
+spec:
+  clusterIP: None
+  ports:
+    - name: client
+      port: 4222
+      targetPort: 4222
+    - name: cluster
+      port: 6222
+      targetPort: 6222
+    - name: monitoring
+      port: 8222
+      targetPort: 8222
+  selector:
+    app: nats
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  namespace: parkir-pintar
+spec:
+  serviceName: nats
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nats
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      tolerations:
+        - key: nats
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: nats
+          image: nats:2.10-alpine
+          args:
+            - --config
+            - /etc/nats/nats.conf
+            - --server_name
+            - $(POD_NAME)
+            - --cluster
+            - nats://$(POD_NAME).nats.parkir-pintar.svc.cluster.local:6222
+            - --routes
+            - nats://nats-0.nats.parkir-pintar.svc.cluster.local:6222,nats://nats-1.nats.parkir-pintar.svc.cluster.local:6222,nats://nats-2.nats.parkir-pintar.svc.cluster.local:6222
+            - --jetstream
+            - --store_dir
+            - /data
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: cluster
+              containerPort: 6222
+            - name: monitoring
+              containerPort: 8222
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/nats
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8222
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: config
+          configMap:
+            name: nats-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: gp3

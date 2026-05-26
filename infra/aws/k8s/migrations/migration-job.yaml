@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: parkir-pintar
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: migrate/migrate:v4.17.1
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Running all migrations..."
+              for svc in reservation billing payment search presence analytics; do
+                echo "--- Migrating $svc ---"
+                migrate -database "postgres://$DB_USERNAME:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_DATABASE?sslmode=require" -path /migrations/$svc up
+              done
+              echo "All migrations complete."
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+      volumes:
+        - name: migrations
+          configMap:
+            name: db-migrations
+            defaultMode: 0755

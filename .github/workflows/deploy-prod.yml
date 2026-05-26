@@ -15,7 +15,7 @@ permissions:
 
 env:
   AWS_REGION: ap-southeast-1
-  K8S_NAMESPACE: parkir-pintar
+  K8S_NAMESPACE: pirescer-parkir-pintar
 
 jobs:
   deploy:
@@ -59,7 +59,7 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
       - name: Configure kubectl
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name parkir-pintar-production
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name pirescer-parkir-pintar-production
 
       - name: Apply K8s base manifests
         run: |

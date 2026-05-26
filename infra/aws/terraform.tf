@@ -17,10 +17,10 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "parkir-pintar-tfstate"
-    key            = "production/terraform.tfstate"
+    bucket         = "pirescer-parkir-pintar-tfstate"
+    key            = "pirescer/production/terraform.tfstate"
     region         = "ap-southeast-1"
-    dynamodb_table = "parkir-pintar-tfstate-lock"
+    dynamodb_table = "pirescer-parkir-pintar-tfstate-lock"
     encrypt        = true
   }
 }

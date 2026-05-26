@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: db-migrate
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
 spec:
   ttlSecondsAfterFinished: 3600
   backoffLimit: 2

@@ -29,7 +29,7 @@ module "eks" {
       name = "default"
       selectors = [
         {
-          namespace = "parkir-pintar"
+          namespace = "pirescer-parkir-pintar"
           labels = {
             workload = "service"
           }
@@ -122,7 +122,7 @@ resource "kubernetes_namespace" "parkir_pintar" {
   depends_on = [module.eks]
 
   metadata {
-    name = "parkir-pintar"
+    name = "pirescer-parkir-pintar"
     annotations = {
       "scheduler.alpha.kubernetes.io/node-selector" = "workload=service"
     }

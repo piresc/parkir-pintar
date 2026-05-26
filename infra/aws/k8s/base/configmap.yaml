@@ -2,20 +2,20 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
 data:
   DB_PORT: "5432"
   REDIS_PORT: "6379"
-  NATS_URL: "nats.parkir-pintar.svc.cluster.local:4222"
+  NATS_URL: "nats.pirescer-parkir-pintar.svc.cluster.local:4222"
   JWT_ISSUER: "parkir-pintar"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://alloy.parkir-pintar.svc.cluster.local:4319"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://alloy.pirescer-parkir-pintar.svc.cluster.local:4319"
   ENVIRONMENT: "production"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: app-secrets
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
 type: Opaque
 stringData:
   DB_USERNAME: "CHANGE_ME"

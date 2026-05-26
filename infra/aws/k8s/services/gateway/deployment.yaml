@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gateway
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
   labels:
     app: gateway
     workload: service
@@ -60,7 +60,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gateway
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
 spec:
   selector:
     app: gateway

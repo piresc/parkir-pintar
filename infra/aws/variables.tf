@@ -5,7 +5,7 @@ variable "aws_region" {
 
 variable "project_name" {
   type    = string
-  default = "parkir-pintar"
+  default = "pirescer-parkir-pintar"
 }
 
 variable "environment" {

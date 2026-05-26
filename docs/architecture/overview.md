@@ -15,6 +15,12 @@ gRPC Request → Handler → Usecase → Repository → Database
 - **Repository**: Data access via sqlx with parameterized queries.
 - **Model**: Domain structs, request/response types, sentinel errors.
 
+## Authentication
+
+JWT tokens are generated client-side by the frontend driver picker UI. There is no server-side login endpoint. The frontend constructs a token with the selected driver identity and signs it using a shared secret.
+
+The gateway validates incoming JWTs on all `/api/v1/*` routes via the `JWTAuth` middleware. Internal services validate forwarded tokens via the gRPC `Auth` interceptor. Token claims carry `user_id` and `role`.
+
 ## Service Communication
 
 ### Synchronous (gRPC over HTTP/2)
@@ -39,7 +45,7 @@ Payment → NATS → Reservation (payment results)
 2. `CorsHandler` — explicit origins only (no wildcard + credentials)
 3. `RateLimiter` — per-IP token bucket rate limiting
 4. `TracingHandler` — OTEL span creation
-5. `JWTAuth` — JWT token validation (on API routes)
+5. `JWTAuth` — JWT token validation (on `/api/v1/*` routes)
 
 ## gRPC Middleware Chain (internal services)
 
@@ -47,7 +53,7 @@ Payment → NATS → Reservation (payment results)
 2. `Tracing` — OTEL span propagation
 3. `Logging` — structured request/response logging
 4. `RateLimit` — per-method rate limiting
-5. `Auth` — service-to-service authentication
+5. `Auth` — service-to-service JWT validation
 6. `Idempotency` — atomic SETNX deduplication (on write RPCs)
 
 ## Infrastructure
@@ -56,6 +62,20 @@ Payment → NATS → Reservation (payment results)
 - **Redis** via go-redis with pool size configuration (10 conns)
 - **NATS JetStream** for inter-service messaging with auto-reconnect
 - **OpenTelemetry** for all observability signals (traces, metrics, logs) via OTLP gRPC
+
+## Shared Packages (`pkg/`)
+
+All shared infrastructure lives in `pkg/`. These packages are generic — they must not import `internal/`. Domain logic stays in `internal/<service>/`.
+
+Key package groups:
+
+- **Connectivity**: `database`, `redis`, `nats`, `grpcclient`, `grpcserver`
+- **Observability**: `telemetry`, `tracing`, `logger`, `metrics`
+- **Resilience**: `circuitbreaker`, `redislock`, `retry`, `idempotency`, `ratelimit`
+- **HTTP/gRPC plumbing**: `middleware`, `grpcmiddleware`, `grpcerror`, `response`, `server`
+- **Cross-cutting**: `config`, `auth`, `apperror`, `health`, `asynq`
+
+See `docs/pkg/shared-packages.md` for full package documentation.
 
 ## Observability (Full OTel)
 
@@ -79,7 +99,7 @@ Go Service (OTel SDK)
 Key packages:
 - `pkg/telemetry` — unified init (TracerProvider + MeterProvider + LoggerProvider)
 - `pkg/tracing` — tracer abstraction with span helpers
-- `pkg/metrics` — OTel metric instruments (HTTP, gRPC, DB, NATS, business)
+- `pkg/metrics` — OTel metric instruments (HTTP, gRPC, DB)
 - `pkg/logger` — slog with dual output (stdout + OTLP) and trace correlation
 
 See `deploy/coolify/README.md` for full stack details.
@@ -87,14 +107,15 @@ See `deploy/coolify/README.md` for full stack details.
 ## Error Handling
 
 Sentinel errors are defined at the domain level (`model/errors.go`) and at the
-application level (`pkg/apperror/`). Use `errors.Is()` for checking and
+application level (`pkg/apperror/`). The `pkg/grpcerror` package maps `AppError`
+to gRPC status codes at service boundaries. Use `errors.Is()` for checking and
 `fmt.Errorf("%w", err)` for wrapping.
 
 ## Health Checks
 
 - `GET /health` — build info
 - `GET /health/live` — liveness (always 200)
-- `GET /health/ready` — readiness (checks Postgres, Redis, NATS)
+- `GET /health/ready` — readiness (checks Postgres, Redis)
 - `GET /health/detailed` — per-dependency status with durations
 
 ## Resilience Patterns
@@ -102,7 +123,7 @@ application level (`pkg/apperror/`). Use `errors.Is()` for checking and
 | Pattern | Implementation | Purpose |
 |---------|---------------|---------|
 | Circuit Breaker | `pkg/circuitbreaker/` | Fail fast when downstream is unhealthy |
-| Retry with Backoff | `pkg/httpclient/` | Handle transient failures |
+| Retry with Backoff | `pkg/retry/` | Handle transient failures |
 | Distributed Lock | `pkg/redislock/` | Prevent double-booking |
 | Idempotency | `pkg/grpcmiddleware/idempotency.go` | Prevent duplicate operations |
 | Graceful Degradation | Non-critical calls logged, not failed | Core flows survive non-core failures |

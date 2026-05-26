@@ -52,19 +52,56 @@ tests/          E2E + load tests
 
 ## Documentation Index
 
+Full documentation: **[docs/README.md](docs/README.md)**
+
+### Architecture & Design
+
 | Document | Description |
 |----------|-------------|
-| [API Flows](docs/api-flows/index.html) | Interactive docs for all 16 REST endpoints |
-| [Swagger](docs/swagger-ui/index.html) | OpenAPI spec + Swagger UI |
-| [Architecture](docs/architecture.md) | System overview, HLD/LLD, state machines, ERD |
-| [ER Diagram](docs/design/er-diagram.md) | Database schema relationships |
-| [Sequence Diagrams](docs/design/sequence-diagrams.md) | Key flow interactions |
-| [Design Patterns](docs/design/design-patterns.md) | Patterns used across services |
-| [Clarification Specs](docs/clarification-specs.md) | Requirement analysis and decisions |
-| [SLO/SLI](docs/slo-sli.md) | Service level objectives and indicators |
-| [Testing Strategy](docs/testing/testing-strategy.md) | Test categories and approach |
+| [System Overview](docs/architecture/overview.md) | High-level architecture, communication, resilience patterns |
+| [ER Diagram](docs/architecture/er-diagram.md) | Database schema relationships (5 schemas) |
+| [Sequence Diagrams](docs/architecture/sequence-diagrams.md) | Key flow interactions |
+| [Design Patterns](docs/design/design-patterns.md) | 10 patterns used across services |
+| [Clarification Specs](docs/design/clarification-specs.md) | Requirement analysis and decisions |
 | [ADRs](docs/adr/) | Architecture Decision Records |
-| [Deploy README](deploy/coolify/README.md) | Coolify stacks, networks, CI/CD flow |
+
+### Services
+
+| Document | Description |
+|----------|-------------|
+| [Gateway](docs/services/gateway.md) | REST→gRPC transcoding, JWT auth, rate limiting |
+| [Reservation](docs/services/reservation.md) | Full lifecycle, spot locking, state machine |
+| [Billing](docs/services/billing.md) | Fee calculation (hourly + overnight + booking) |
+| [Payment](docs/services/payment.md) | QRIS processing, refunds, circuit breaker |
+| [Search](docs/services/search.md) | Availability queries, CQRS read model |
+| [Analytics](docs/services/analytics.md) | Peak hours, occupancy patterns, prediction |
+| [Presence](docs/services/presence.md) | Sensor-based occupancy verification |
+
+### API Reference
+
+| Document | Description |
+|----------|-------------|
+| [API Flows](docs/api/api-flows/index.html) | Interactive docs for all 16 REST endpoints |
+| [Swagger UI](docs/api/swagger-ui/index.html) | OpenAPI spec + interactive explorer |
+
+### Operations
+
+| Document | Description |
+|----------|-------------|
+| [Deployment](docs/operations/deployment.md) | Coolify architecture, CI/CD pipeline |
+| [Configuration](docs/operations/configuration.md) | YAML config system, secret management |
+| [Observability](docs/operations/observability.md) | OpenTelemetry, Grafana stack, custom metrics |
+| [SLO/SLI](docs/operations/slo-sli.md) | Service level objectives and alerting |
+| [Profiling](docs/operations/pprof.md) | Runtime profiling guide |
+
+### Development
+
+| Document | Description |
+|----------|-------------|
+| [Getting Started](docs/development/getting-started.md) | Local setup, Makefile targets, workflows |
+| [Testing Strategy](docs/development/testing.md) | Test pyramid, frameworks, CI integration |
+| [Frontend](docs/development/frontend.md) | React SPA architecture, build & deploy |
+| [Shared Packages](docs/pkg/shared-packages.md) | All 24 pkg/ packages with usage examples |
 
 ---
 

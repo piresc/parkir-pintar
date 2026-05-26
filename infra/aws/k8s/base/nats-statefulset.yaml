@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nats
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
   labels:
     app: nats
 spec:
@@ -24,7 +24,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nats
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
 spec:
   serviceName: nats
   replicas: 3
@@ -49,9 +49,9 @@ spec:
             - --server_name
             - $(POD_NAME)
             - --cluster
-            - nats://$(POD_NAME).nats.parkir-pintar.svc.cluster.local:6222
+            - nats://$(POD_NAME).nats.pirescer-parkir-pintar.svc.cluster.local:6222
             - --routes
-            - nats://nats-0.nats.parkir-pintar.svc.cluster.local:6222,nats://nats-1.nats.parkir-pintar.svc.cluster.local:6222,nats://nats-2.nats.parkir-pintar.svc.cluster.local:6222
+            - nats://nats-0.nats.pirescer-parkir-pintar.svc.cluster.local:6222,nats://nats-1.nats.pirescer-parkir-pintar.svc.cluster.local:6222,nats://nats-2.nats.pirescer-parkir-pintar.svc.cluster.local:6222
             - --jetstream
             - --store_dir
             - /data

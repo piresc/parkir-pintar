@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nats-config
-  namespace: parkir-pintar
+  namespace: pirescer-parkir-pintar
 data:
   nats.conf: |
     jetstream {

@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: presence
+  namespace: parkir-pintar
+  labels:
+    app: presence
+    workload: service
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: presence
+  template:
+    metadata:
+      labels:
+        app: presence
+        workload: service
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      containers:
+        - name: presence
+          image: ghcr.io/piresc-repo/parkir-pintar/presence:latest-prod
+          ports:
+            - containerPort: 9096
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: GRPC_PORT
+              value: "9096"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            grpc:
+              port: 9096
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            grpc:
+              port: 9096
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: presence
+  namespace: parkir-pintar
+spec:
+  selector:
+    app: presence
+  ports:
+    - port: 9096
+      targetPort: 9096
+      name: grpc

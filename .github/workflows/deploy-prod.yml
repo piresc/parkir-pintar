@@ -61,6 +61,15 @@ jobs:
       - name: Configure kubectl
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name pirescer-parkir-pintar-production
 
+      - name: Deploy observability stack
+        run: |
+          kubectl apply -f infra/aws/k8s/observability/namespace.yaml
+          kubectl apply -f infra/aws/k8s/observability/alloy.yaml
+          kubectl apply -f infra/aws/k8s/observability/prometheus.yaml
+          kubectl apply -f infra/aws/k8s/observability/tempo.yaml
+          kubectl apply -f infra/aws/k8s/observability/loki.yaml
+          kubectl apply -f infra/aws/k8s/observability/grafana.yaml
+
       - name: Apply K8s base manifests
         run: |
           kubectl apply -f infra/aws/k8s/base/nats-configmap.yaml

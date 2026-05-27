@@ -1,7 +1,6 @@
 aws_region  = "ap-southeast-3"
 project_name = "pirescer-parkir-pintar"
 environment  = "production"
-domain_name  = "parkir-pintar.piresc.dev"
 db_username  = "parkir_admin"
 db_password  = "CHANGE-ME-USE-STRONG-PASSWORD"
 redis_auth_token = "CHANGE-ME-USE-STRONG-TOKEN"

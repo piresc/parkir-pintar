@@ -82,8 +82,6 @@ jobs:
           for svc in gateway reservation billing payment search presence analytics; do
             kubectl apply -f infra/aws/k8s/services/$svc/deployment.yaml
           done
-          kubectl apply -f infra/aws/k8s/services/frontend/deployment.yaml
-          kubectl apply -f infra/aws/k8s/services/frontend/ingress.yaml
           kubectl apply -f infra/aws/k8s/autoscaling/hpa.yaml
 
       - name: Run DB migrations
@@ -99,11 +97,10 @@ jobs:
             echo "Updating $svc to $VERSION"
             kubectl set image deployment/$svc $svc=ghcr.io/${{ github.repository }}/${svc}:${VERSION} -n $K8S_NAMESPACE
           done
-          kubectl set image deployment/frontend frontend=ghcr.io/${{ github.repository }}-frontend:${VERSION} -n $K8S_NAMESPACE
 
       - name: Wait for all rollouts
         run: |
-          for svc in gateway reservation billing payment search presence analytics frontend; do
+          for svc in gateway reservation billing payment search presence analytics; do
             echo "Waiting for $svc rollout..."
             kubectl rollout status deployment/$svc -n $K8S_NAMESPACE --timeout=300s
           done
@@ -120,6 +117,6 @@ jobs:
         if: failure()
         run: |
           echo "::error::Deploy failed — rolling back all services"
-          for svc in gateway reservation billing payment search presence analytics frontend; do
+          for svc in gateway reservation billing payment search presence analytics; do
             kubectl rollout undo deployment/$svc -n $K8S_NAMESPACE || true
           done

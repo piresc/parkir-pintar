@@ -18,11 +18,6 @@ variable "vpc_cidr" {
   default = "10.0.0.0/16"
 }
 
-variable "domain_name" {
-  type    = string
-  default = "parkir-pintar.piresc.dev"
-}
-
 variable "db_username" {
   type      = string
   sensitive = true

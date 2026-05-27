@@ -24,8 +24,8 @@ module "db" {
   skip_final_snapshot = true
 
   vpc_security_group_ids = [module.eks.cluster_security_group_id]
-  db_subnet_group_name   = module.vpc.database_subnet_group_name
-  create_db_subnet_group       = false
+  subnet_ids             = module.vpc.private_subnets
+  create_db_subnet_group       = true
   create_cloudwatch_log_group  = false
 
   tags = {

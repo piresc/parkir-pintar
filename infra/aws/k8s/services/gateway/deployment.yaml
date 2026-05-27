@@ -60,9 +60,10 @@ metadata:
   name: gateway
   namespace: pirescer-parkir-pintar
 spec:
+  type: LoadBalancer
   selector:
     app: gateway
   ports:
-    - port: 8080
+    - port: 80
       targetPort: 8080
       name: http

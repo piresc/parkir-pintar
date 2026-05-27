@@ -48,7 +48,7 @@ jobs:
             -var="db_password=${{ secrets.DB_PASSWORD }}" \
             -var="redis_auth_token=${{ secrets.REDIS_AUTH_TOKEN }}" \
             -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-
+            -var="github_repo=${{ github.repository }}" \
             -out=tfplan
 
       - name: Terraform Apply

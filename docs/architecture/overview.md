@@ -63,6 +63,43 @@ Payment → NATS → Reservation (payment results)
 - **NATS JetStream** for inter-service messaging with auto-reconnect
 - **OpenTelemetry** for all observability signals (traces, metrics, logs) via OTLP gRPC
 
+### Deployment Environments
+
+| | Staging | Production |
+|---|---|---|
+| **Platform** | Coolify (Docker Compose on VPS) | AWS EKS (Kubernetes on Fargate + EC2) |
+| **Region** | Coolify VPS | ap-southeast-3 (Jakarta) |
+| **Database** | Docker PostgreSQL | AWS RDS PostgreSQL 14 (managed, encrypted) |
+| **Cache** | Docker Redis | AWS ElastiCache Redis 7.0 (managed) |
+| **Messaging** | Docker NATS | NATS StatefulSet on EC2 (persistent volume) |
+| **Networking** | Docker bridge networks | AWS VPC (private subnets, NAT Gateway, NLB) |
+| **Service Discovery** | Docker DNS (`service:port`) | K8s DNS + env vars (`service.namespace.svc.cluster.local`) |
+| **Scaling** | Fixed 1 replica | HPA auto-scaling (2→10 replicas, CPU-based) |
+| **Observability** | Alloy → Prometheus/Tempo/Loki/Grafana (Docker) | Same stack on Fargate pods |
+| **TLS** | Traefik + Let's Encrypt | HTTP only (NLB) |
+| **Deploy** | Auto on push to main (Coolify webhook) | Manual trigger (GitHub Actions → kubectl) |
+
+### Production Architecture (AWS EKS)
+
+```
+Internet → NLB (port 80) → Gateway (Fargate)
+                                │
+                    ┌───────────┼───────────────────────┐
+                    │           │                       │
+                    ▼           ▼                       ▼
+              Reservation    Search              Billing/Payment
+              (Fargate)      (Fargate)           (Fargate)
+                    │           │                       │
+                    ▼           ▼                       ▼
+              ┌─────────────────────────────────────────────┐
+              │  NATS JetStream (EC2, persistent volume)    │
+              │  RDS PostgreSQL (managed, schema-per-svc)   │
+              │  ElastiCache Redis (managed)                │
+              └─────────────────────────────────────────────┘
+```
+
+All services run on Fargate (serverless pods). Only NATS runs on EC2 (needs persistent disk). Infrastructure managed by Terraform (`infra/aws/`).
+
 ## Shared Packages (`pkg/`)
 
 All shared infrastructure lives in `pkg/`. These packages are generic — they must not import `internal/`. Domain logic stays in `internal/<service>/`.
@@ -102,7 +139,7 @@ Key packages:
 - `pkg/metrics` — OTel metric instruments (HTTP, gRPC, DB)
 - `pkg/logger` — slog with dual output (stdout + OTLP) and trace correlation
 
-See `deploy/coolify/README.md` for full stack details.
+See `docs/operations/deployment.md` for full stack details (staging + production).
 
 ## Error Handling
 

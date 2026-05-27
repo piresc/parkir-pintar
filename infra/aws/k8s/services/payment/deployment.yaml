@@ -23,8 +23,6 @@ spec:
         app: payment
         workload: service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: payment
           image: ghcr.io/piresc-repo/parkir-pintar/payment:latest-prod

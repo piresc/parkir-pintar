@@ -129,25 +129,4 @@ resource "kubernetes_namespace" "parkir_pintar" {
   }
 }
 
-resource "kubernetes_secret" "ghcr_pull_secret" {
-  depends_on = [module.eks]
 
-  metadata {
-    name      = "ghcr-pull-secret"
-    namespace = kubernetes_namespace.parkir_pintar.metadata[0].name
-  }
-
-  type = "kubernetes.io/dockerconfigjson"
-
-  data = {
-    ".dockerconfigjson" = jsonencode({
-      auths = {
-        "ghcr.io" = {
-          auth     = base64encode("${var.ghcr_username}:${var.ghcr_token}")
-          username = var.ghcr_username
-          password = var.ghcr_token
-        }
-      }
-    })
-  }
-}

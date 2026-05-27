@@ -23,8 +23,6 @@ spec:
         app: frontend
         workload: service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: frontend
           image: ghcr.io/piresc-repo/parkir-pintar-frontend:latest-prod

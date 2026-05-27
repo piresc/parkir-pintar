@@ -23,8 +23,6 @@ spec:
         app: search
         workload: service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: search
           image: ghcr.io/piresc-repo/parkir-pintar/search:latest-prod

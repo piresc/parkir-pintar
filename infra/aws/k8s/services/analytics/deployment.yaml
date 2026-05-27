@@ -23,8 +23,6 @@ spec:
         app: analytics
         workload: service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: analytics
           image: ghcr.io/piresc-repo/parkir-pintar/analytics:latest-prod

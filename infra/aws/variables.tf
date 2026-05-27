@@ -43,15 +43,6 @@ variable "jwt_secret" {
   sensitive = true
 }
 
-variable "ghcr_username" {
-  type = string
-}
-
-variable "ghcr_token" {
-  type      = string
-  sensitive = true
-}
-
 variable "nats_instance_count" {
   type    = number
   default = 3

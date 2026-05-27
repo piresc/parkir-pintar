@@ -23,8 +23,6 @@ spec:
         app: presence
         workload: service
     spec:
-      imagePullSecrets:
-        - name: ghcr-pull-secret
       containers:
         - name: presence
           image: ghcr.io/piresc-repo/parkir-pintar/presence:latest-prod

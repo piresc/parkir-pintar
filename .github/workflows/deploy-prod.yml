@@ -31,63 +31,15 @@ jobs:
           role-session-name: github-actions-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "~1.9"
-
-      - name: Terraform Init
-        working-directory: infra/aws
-        run: terraform init
-
-      - name: Terraform Plan
-        working-directory: infra/aws
-        run: |
-          terraform plan \
-            -var="db_username=${{ secrets.DB_USERNAME }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="redis_auth_token=${{ secrets.REDIS_AUTH_TOKEN }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var="github_repo=${{ github.repository }}" \
-            -out=tfplan
-
-      - name: Terraform Apply
-        working-directory: infra/aws
-        run: terraform apply -auto-approve tfplan
-
       - name: Configure kubectl
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name piresc-parkir
 
-      - name: Deploy observability stack
-        run: |
-          kubectl apply -f infra/aws/k8s/observability/namespace.yaml
-          kubectl apply -f infra/aws/k8s/observability/alloy.yaml
-          kubectl apply -f infra/aws/k8s/observability/prometheus.yaml
-          kubectl apply -f infra/aws/k8s/observability/tempo.yaml
-          kubectl apply -f infra/aws/k8s/observability/loki.yaml
-          kubectl apply -f infra/aws/k8s/observability/grafana.yaml
-
-      - name: Apply K8s base manifests
-        run: |
-          kubectl apply -f infra/aws/k8s/base/nats-configmap.yaml
-          kubectl apply -f infra/aws/k8s/base/nats-statefulset.yaml
-          kubectl apply -f infra/aws/k8s/base/configmap.yaml
-
-      - name: Wait for NATS ready
-        run: |
-          kubectl wait --for=condition=ready pod -l app=nats -n $K8S_NAMESPACE --timeout=180s
-
-      - name: Apply all service manifests
+      - name: Apply service manifests
         run: |
           for svc in gateway reservation billing payment search presence analytics; do
             kubectl apply -f infra/aws/k8s/services/$svc/deployment.yaml
           done
           kubectl apply -f infra/aws/k8s/autoscaling/hpa.yaml
-
-      - name: Run DB migrations
-        run: |
-          kubectl apply -f infra/aws/k8s/migrations/migration-job.yaml
-          kubectl wait --for=condition=complete job/db-migrate -n $K8S_NAMESPACE --timeout=120s
 
       - name: Update images to release version
         env:
@@ -107,8 +59,6 @@ jobs:
 
       - name: Smoke test
         run: |
-          echo "Waiting 30s for LB propagation..."
-          sleep 30
           kubectl run smoke-test --rm -i --restart=Never --image=curlimages/curl:latest -n $K8S_NAMESPACE -- \
             curl -sf http://gateway.$K8S_NAMESPACE.svc.cluster.local:8080/health
           echo "Health check passed!"

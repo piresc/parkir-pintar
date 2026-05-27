@@ -61,5 +61,5 @@ variable "nats_ec2_max_size" {
 variable "github_repo" {
   description = "GitHub repository name (org/repo) for OIDC trust"
   type        = string
-  default     = "ParkirPintar/parkir-pintar"
+  default     = "piresc/parkir-pintar"
 }

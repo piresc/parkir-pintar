@@ -21,7 +21,7 @@ stringData:
   DB_USERNAME: "CHANGE_ME"
   DB_PASSWORD: "CHANGE_ME"
   DB_HOST: "CHANGE_ME"
-  DB_DATABASE: "parkir_pintar"
+  DB_DATABASE: "pirescer_parkir_pintar"
   REDIS_HOST: "CHANGE_ME"
   REDIS_PASSWORD: "CHANGE_ME"
   JWT_SECRET: "CHANGE_ME"

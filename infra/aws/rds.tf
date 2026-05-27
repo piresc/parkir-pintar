@@ -15,7 +15,7 @@ module "db" {
   storage_type      = "gp3"
   storage_encrypted = true
 
-  db_name  = "parkir_pintar"
+  db_name  = "pirescer_parkir_pintar"
   username = var.db_username
   password = var.db_password
   port     = 5432

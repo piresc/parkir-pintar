@@ -1,4 +1,4 @@
-aws_region  = "ap-southeast-1"
+aws_region  = "ap-southeast-3"
 project_name = "pirescer-parkir-pintar"
 environment  = "production"
 domain_name  = "parkir-pintar.piresc.dev"

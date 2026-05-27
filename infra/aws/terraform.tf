@@ -19,7 +19,7 @@ terraform {
   backend "s3" {
     bucket         = "pirescer-parkir-pintar-tfstate"
     key            = "pirescer/production/terraform.tfstate"
-    region         = "ap-southeast-1"
+    region         = "ap-southeast-3"
     dynamodb_table = "pirescer-parkir-pintar-tfstate-lock"
     encrypt        = true
   }

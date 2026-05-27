@@ -5,8 +5,10 @@ metadata:
   namespace: pirescer-parkir-pintar
 data:
   nats.conf: |
+    cluster {
+      name: nats
+    }
     jetstream {
-      store_dir: /data
       max_memory_store: 256MB
       max_file_store: 5GB
     }

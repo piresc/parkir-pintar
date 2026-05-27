@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: analytics
-          image: ghcr.io/piresc-repo/parkir-pintar/analytics:latest-prod
+          image: ghcr.io/piresc/parkir-pintar/analytics:latest-prod
           ports:
             - containerPort: 9095
               name: grpc

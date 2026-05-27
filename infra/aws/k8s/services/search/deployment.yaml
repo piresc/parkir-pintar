@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: search
-          image: ghcr.io/piresc-repo/parkir-pintar/search:latest-prod
+          image: ghcr.io/piresc/parkir-pintar/search:latest-prod
           ports:
             - containerPort: 9092
               name: grpc

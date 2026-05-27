@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: reservation
-          image: ghcr.io/piresc-repo/parkir-pintar/reservation:latest-prod
+          image: ghcr.io/piresc/parkir-pintar/reservation:latest-prod
           ports:
             - containerPort: 9091
               name: grpc

@@ -22,6 +22,10 @@ module "eks" {
     vpc-cni = {
       most_recent = true
     }
+    aws-ebs-csi-driver = {
+      most_recent              = true
+      service_account_role_arn = module.ebs_csi_irsa.iam_role_arn
+    }
   }
 
   fargate_profiles = {
@@ -33,6 +37,9 @@ module "eks" {
           labels = {
             workload = "service"
           }
+        },
+        {
+          namespace = "pirescer-monitoring"
         }
       ]
     }
@@ -60,20 +67,27 @@ module "eks" {
       labels = {
         role = "nats"
       }
-
-      taints = {
-        nats = {
-          key    = "nats"
-          value  = "true"
-          effect = "NO_SCHEDULE"
-        }
-      }
     }
   }
 
   tags = {
     Project     = var.project_name
     Environment = var.environment
+  }
+}
+
+module "ebs_csi_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name             = "piresc-parkir-ebs-csi"
+  attach_ebs_csi_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:ebs-csi-controller-sa"]
+    }
   }
 }
 
@@ -128,5 +142,3 @@ resource "kubernetes_namespace" "parkir_pintar" {
     }
   }
 }
-
-

@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: payment
-          image: ghcr.io/piresc-repo/parkir-pintar/payment:latest-prod
+          image: ghcr.io/piresc/parkir-pintar/payment:latest-prod
           ports:
             - containerPort: 9094
               name: grpc

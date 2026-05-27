@@ -107,10 +107,13 @@ func run() error {
 		natsCtx := context.Background()
 		streamConfigs := []pkgnats.StreamConfig{
 			{Name: constants.StreamReservationAnalytics, Subjects: []string{constants.SubjectPatternAnalytics}, Retention: jetstream.LimitsPolicy, Storage: jetstream.FileStorage, MaxAge: 7 * 24 * time.Hour},
+			{Name: constants.StreamReservationSearch, Subjects: []string{constants.SubjectPatternSearch}, Retention: jetstream.LimitsPolicy, Storage: jetstream.FileStorage, MaxAge: 7 * 24 * time.Hour},
 		}
 		if err := pkgnats.CreateStreams(natsCtx, natsClient, streamConfigs); err != nil {
 			return fmt.Errorf("nats create streams: %w", err)
 		}
+
+		// Analytics event consumer
 		consumerCfg := pkgnats.ConsumerConfig{
 			Stream:        constants.StreamReservationAnalytics,
 			Name:          constants.ConsumerAnalytics,
@@ -124,13 +127,33 @@ func run() error {
 			return fmt.Errorf("nats create consumer: %w", err)
 		}
 
+		// Spot snapshot consumer
+		spotConsumerCfg := pkgnats.ConsumerConfig{
+			Stream:        constants.StreamReservationSearch,
+			Name:          constants.ConsumerAnalyticsSpot,
+			FilterSubject: constants.SubjectPatternSearch,
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			AckWait:       30 * time.Second,
+			MaxDeliver:    5,
+			DeliverPolicy: jetstream.DeliverNewPolicy,
+		}
+		if _, err := natsClient.CreateConsumer(natsCtx, spotConsumerCfg.Stream, spotConsumerCfg.ToJetStreamConfig()); err != nil {
+			return fmt.Errorf("nats create spot consumer: %w", err)
+		}
+
 		natsH := natshandler.NewHandler(uc, natsClient)
 		cc, err := natsH.InitConsumers()
 		if err != nil {
 			return fmt.Errorf("nats consumer init: %w", err)
 		}
 
+		spotCC, err := natsH.InitSpotConsumer()
+		if err != nil {
+			return fmt.Errorf("nats spot consumer init: %w", err)
+		}
+
 		shutdownMgr.Register(func(_ context.Context) error { cc.Stop(); return nil })
+		shutdownMgr.Register(func(_ context.Context) error { spotCC.Stop(); return nil })
 		shutdownMgr.Register(func(ctx context.Context) error { natsClient.Close(ctx); return nil })
 	}
 

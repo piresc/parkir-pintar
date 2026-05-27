@@ -50,6 +50,11 @@ func (m *MockUsecase) RecordEvent(ctx context.Context, event model.ReservationEv
 	return args.Error(0)
 }
 
+func (m *MockUsecase) HandleSpotUpdated(ctx context.Context, spot model.SpotSnapshot) error {
+	args := m.Called(ctx, spot)
+	return args.Error(0)
+}
+
 // --- Mock NATS message ---
 
 type MockMsg struct {

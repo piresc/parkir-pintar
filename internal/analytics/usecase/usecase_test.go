@@ -37,6 +37,11 @@ func (m *MockRepository) RecordEvent(ctx context.Context, event model.Reservatio
 	return args.Error(0)
 }
 
+func (m *MockRepository) UpsertSpotSnapshot(ctx context.Context, spot model.SpotSnapshot) error {
+	args := m.Called(ctx, spot)
+	return args.Error(0)
+}
+
 func TestGetPeakHours_ShouldReturnAboveAverageHours_WhenDataExists(t *testing.T) {
 	repo := new(MockRepository)
 

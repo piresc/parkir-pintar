@@ -1,5 +1,5 @@
 -- Parkir Pintar — Full Schema (squashed)
--- Schemas: reservation, billing, payment, search, presence
+-- Schemas: reservation, billing, payment, search, presence, analytics
 
 BEGIN;
 
@@ -12,6 +12,7 @@ CREATE SCHEMA IF NOT EXISTS billing;
 CREATE SCHEMA IF NOT EXISTS payment;
 CREATE SCHEMA IF NOT EXISTS search;
 CREATE SCHEMA IF NOT EXISTS presence;
+CREATE SCHEMA IF NOT EXISTS analytics;
 
 -- =============================================================================
 -- RESERVATION SCHEMA
@@ -152,6 +153,38 @@ CREATE TABLE presence.presence_logs (
 );
 
 CREATE INDEX idx_presence_reservation_time ON presence.presence_logs (reservation_id, recorded_at);
+
+-- =============================================================================
+-- ANALYTICS SCHEMA
+-- =============================================================================
+
+CREATE TABLE analytics.reservation_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reservation_id UUID NOT NULL,
+    driver_id TEXT NOT NULL,
+    spot_id UUID NOT NULL,
+    vehicle_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_analytics_events_reservation_id ON analytics.reservation_events (reservation_id);
+CREATE INDEX idx_analytics_events_status ON analytics.reservation_events (status);
+CREATE INDEX idx_analytics_events_timestamp ON analytics.reservation_events (timestamp);
+CREATE INDEX idx_analytics_events_created_at ON analytics.reservation_events (timestamp, status);
+
+CREATE TABLE analytics.spot_snapshot (
+    id UUID PRIMARY KEY,
+    floor_number INTEGER NOT NULL,
+    spot_number INTEGER NOT NULL,
+    vehicle_type VARCHAR(20) NOT NULL,
+    spot_code VARCHAR(10) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'available',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_analytics_spot_snapshot_status ON analytics.spot_snapshot (status);
+CREATE INDEX idx_analytics_spot_snapshot_vehicle ON analytics.spot_snapshot (vehicle_type);
 
 -- Seed: 400 parking spots (5 floors × 30 car + 50 motorcycle per floor)
 -- spot_code format: F1-C-001 (car floor 1 spot 1), F3-M-025 (motorcycle floor 3 spot 25)

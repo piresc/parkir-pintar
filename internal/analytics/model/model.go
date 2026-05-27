@@ -39,3 +39,13 @@ type ReservationEvent struct {
 	Status        string    `json:"status" db:"status"`
 	Timestamp     time.Time `json:"timestamp" db:"timestamp"`
 }
+
+type SpotSnapshot struct {
+	ID          string    `json:"id" db:"id"`
+	FloorNumber int       `json:"floor_number" db:"floor_number"`
+	SpotNumber  int       `json:"spot_number" db:"spot_number"`
+	VehicleType string    `json:"vehicle_type" db:"vehicle_type"`
+	SpotCode    string    `json:"spot_code" db:"spot_code"`
+	Status      string    `json:"status" db:"status"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}

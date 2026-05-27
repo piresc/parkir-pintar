@@ -13,4 +13,5 @@ type Usecase interface {
 	PredictResources(ctx context.Context, horizon time.Duration) ([]model.ResourcePrediction, error)
 	GetUsagePatterns(ctx context.Context) (*model.UsagePattern, error)
 	RecordEvent(ctx context.Context, event model.ReservationEvent) error
+	HandleSpotUpdated(ctx context.Context, spot model.SpotSnapshot) error
 }

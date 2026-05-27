@@ -85,6 +85,7 @@ jobs:
           done
           kubectl apply -f infra/aws/k8s/services/frontend/deployment.yaml
           kubectl apply -f infra/aws/k8s/services/frontend/ingress.yaml
+          kubectl apply -f infra/aws/k8s/autoscaling/hpa.yaml
 
       - name: Run DB migrations
         run: |

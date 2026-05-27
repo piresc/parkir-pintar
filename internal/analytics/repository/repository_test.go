@@ -147,7 +147,7 @@ func TestRecordEvent_Success(t *testing.T) {
 		Timestamp:     time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
 	}
 
-	mock.ExpectExec(`INSERT INTO reservation.reservation_events`).
+	mock.ExpectExec(`INSERT INTO reservation_events`).
 		WithArgs(event.ReservationID, event.DriverID, event.SpotID, event.VehicleType, event.Status, event.Timestamp).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
@@ -170,7 +170,7 @@ func TestRecordEvent_DBError(t *testing.T) {
 		Timestamp:     time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
 	}
 
-	mock.ExpectExec(`INSERT INTO reservation.reservation_events`).
+	mock.ExpectExec(`INSERT INTO reservation_events`).
 		WithArgs(event.ReservationID, event.DriverID, event.SpotID, event.VehicleType, event.Status, event.Timestamp).
 		WillReturnError(sql.ErrConnDone)
 

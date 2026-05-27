@@ -159,6 +159,17 @@ func (uc *analyticsUsecase) RecordEvent(ctx context.Context, event model.Reserva
 	return nil
 }
 
+func (uc *analyticsUsecase) HandleSpotUpdated(ctx context.Context, spot model.SpotSnapshot) error {
+	if err := uc.repo.UpsertSpotSnapshot(ctx, spot); err != nil {
+		slog.Error("failed to upsert spot snapshot",
+			slog.String("spot_id", spot.ID),
+			slog.String("status", spot.Status),
+			logger.Err(err))
+		return apperror.Internal("failed to upsert spot snapshot")
+	}
+	return nil
+}
+
 func linearRegression(data []model.DailyOccupancy) (slope, intercept float64) {
 	n := float64(len(data))
 	if n == 0 {

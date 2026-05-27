@@ -144,3 +144,190 @@ Every service defines a Docker healthcheck:
 | NATS | HTTP | `wget --spider http://localhost:8222/healthz` |
 
 All healthchecks use: interval 10s, timeout 5s, retries 3–5, start period 10–30s.
+
+---
+
+## Production — AWS EKS
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  AWS EKS Cluster (piresc-parkir)  —  ap-southeast-3 (Jakarta)       │
+│                                                                      │
+│  ┌─── Fargate (serverless) ──────────────────────────────────────┐  │
+│  │  gateway ×2       → REST API, port 8080 (NLB public port 80)  │  │
+│  │  reservation ×2   → gRPC :9091                                │  │
+│  │  billing ×2       → gRPC :9092                                │  │
+│  │  payment ×2       → gRPC :9093                                │  │
+│  │  search ×2        → gRPC :9094                                │  │
+│  │  analytics ×2     → gRPC :9095                                │  │
+│  │  presence ×2      → gRPC :9095                                │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  ┌─── EC2 Node Group (2× t3.medium) ────────────────────────────┐  │
+│  │  nats-0  → NATS JetStream :4222 (10Gi gp2 persistent volume) │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  ┌─── Observability (Fargate) ───────────────────────────────────┐  │
+│  │  alloy ×1 → OTLP collector :4317                              │  │
+│  │  prometheus ×1 → metrics :9090                                 │  │
+│  │  tempo ×1 → traces :3200                                      │  │
+│  │  loki ×1 → logs :3100                                         │  │
+│  │  grafana ×1 → dashboards :3000                                │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  ┌─── Managed Services ──────────────────────────────────────────┐  │
+│  │  RDS PostgreSQL 14 (db.t3.small, 20GB gp3, encrypted)         │  │
+│  │  ElastiCache Redis 7.0 (cache.t3.small)                       │  │
+│  │  NLB (internet-facing, IP-mode targeting Fargate pods)         │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Infrastructure (Terraform)
+
+All AWS resources are defined in `infra/aws/` and managed by Terraform:
+
+| File | Creates |
+|------|---------|
+| `network.tf` | VPC, 2 AZs, public/private subnets, NAT Gateway |
+| `eks.tf` | EKS cluster, Fargate profile, EC2 node group, EBS CSI driver |
+| `rds.tf` | RDS PostgreSQL 14 |
+| `elasticache.tf` | ElastiCache Redis 7.0 |
+| `iam-oidc.tf` | GitHub Actions OIDC provider + IAM role |
+| `s3.tf` | Terraform state bucket + DynamoDB lock |
+
+### Kubernetes Manifests
+
+```
+infra/aws/k8s/
+├── base/              # NATS StatefulSet, ConfigMaps, Secrets
+├── services/          # 7 Go service Deployments + gateway LoadBalancer
+├── autoscaling/       # HPA (CPU-based, 2→10 replicas)
+├── observability/     # Prometheus, Grafana, Tempo, Loki, Alloy
+└── migrations/        # DB migration Job template
+```
+
+### CI/CD Pipeline (Production)
+
+```
+Tag v1.0.0 → build-push-prod.yml → GHCR (7 images tagged v1.0.0 + latest-prod)
+                                          │
+Manual trigger → deploy-prod.yml          │
+  ├── Configure AWS (OIDC)                │
+  ├── kubectl apply services + HPA        │
+  ├── kubectl set image (v1.0.0)  ◄───────┘
+  ├── kubectl rollout status (wait)
+  ├── Smoke test (curl /health)
+  └── On failure → kubectl rollout undo
+```
+
+### First-Time Setup
+
+Prerequisites: AWS CLI, Terraform, kubectl installed.
+
+```bash
+# 1. Bootstrap state storage
+aws s3api create-bucket --bucket pirescer-parkir-pintar-tfstate --region ap-southeast-3 --create-bucket-configuration LocationConstraint=ap-southeast-3
+aws dynamodb create-table --table-name pirescer-parkir-pintar-tfstate-lock --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region ap-southeast-3
+
+# 2. Create terraform.tfvars (from example)
+cd infra/aws && cp terraform.tfvars.example terraform.tfvars
+# Edit with real passwords
+
+# 3. Deploy infrastructure (~15 min)
+terraform init && terraform apply
+
+# 4. Connect kubectl
+aws eks update-kubeconfig --region ap-southeast-3 --name piresc-parkir
+
+# 5. Deploy K8s resources
+bash setup.sh
+```
+
+### Subsequent Deploys
+
+```bash
+# Via GitHub Actions (recommended):
+# 1. Tag a release
+git tag v1.1.0 && git push origin v1.1.0
+# 2. Go to Actions → Deploy Production → Run workflow (enter v1.1.0)
+
+# Or manually:
+kubectl set image deployment/gateway gateway=ghcr.io/piresc/parkir-pintar/gateway:v1.1.0 -n pirescer-parkir-pintar
+# Repeat for all services
+```
+
+### Service Discovery
+
+Services find each other via environment variables:
+
+| Env Var | Value |
+|---------|-------|
+| `GRPC_RESERVATION_TARGET` | `reservation:9091` |
+| `GRPC_SEARCH_TARGET` | `search:9094` |
+| `GRPC_BILLING_TARGET` | `billing:9092` |
+| `GRPC_PAYMENT_TARGET` | `payment:9093` |
+| `GRPC_ANALYTICS_TARGET` | `analytics:9095` |
+| `GRPC_PRESENCE_TARGET` | `presence:9095` |
+| `DB_HOST` | RDS IP (from `terraform output db_endpoint`) |
+| `REDIS_HOST` | ElastiCache IP |
+| `NATS_URL` | `nats.pirescer-parkir-pintar.svc.cluster.local:4222` |
+| `DB_SCHEMA` | Per-service: reservation, billing, payment, search, presence, analytics |
+
+### Auto-Scaling (HPA)
+
+| Service | Min | Max | Target CPU |
+|---------|-----|-----|-----------|
+| reservation | 2 | 10 | 60% |
+| search | 2 | 10 | 60% |
+| gateway | 2 | 8 | 60% |
+| billing | 2 | 8 | 60% |
+| payment | 2 | 6 | 60% |
+| analytics | 2 | 6 | 60% |
+| presence | 2 | 6 | 60% |
+
+### Health Probes (EKS)
+
+| Service | Probe Type | Port |
+|---------|-----------|------|
+| Gateway | HTTP GET `/health` | 8080 |
+| All gRPC services | TCP Socket | Service port |
+| NATS | HTTP GET `/healthz` | 8222 |
+
+### Security
+
+| Resource | Access |
+|----------|--------|
+| Gateway NLB | Public (port 80, JWT-protected) |
+| EKS API | Public (IAM auth required) |
+| RDS PostgreSQL | Private (VPC only, port 5432) |
+| ElastiCache Redis | Private (VPC only, port 6379) |
+| NATS | Private (ClusterIP only) |
+| Grafana/Prometheus | Private (ClusterIP only) |
+
+### Cost (~$320/mo)
+
+| Resource | Monthly |
+|----------|---------|
+| EKS Fargate (15 pods) | ~$150 |
+| EC2 node group (2× t3.medium) | ~$60 |
+| RDS PostgreSQL | ~$25 |
+| ElastiCache Redis | ~$29 |
+| NAT Gateway | ~$40 |
+| NLB | ~$18 |
+
+### Staging vs Production
+
+| | Staging | Production |
+|---|---|---|
+| Platform | Coolify (Docker Compose) | AWS EKS (Kubernetes) |
+| URL | `https://parkir-pintar.piresc.dev` | `http://k8s-pirescer-gateway-....elb.ap-southeast-3.amazonaws.com` |
+| TLS | ✅ (Traefik + Let's Encrypt) | ❌ (HTTP only) |
+| Replicas | 1 per service | 2 per service (auto-scales) |
+| Database | Docker PostgreSQL | AWS RDS (managed) |
+| Redis | Docker Redis | AWS ElastiCache (managed) |
+| Deploy trigger | Auto on push to main | Manual (workflow_dispatch) |
+| Frontend | ✅ Deployed | ❌ Backend only |
+| Rollback | Manual | Automatic on smoke test failure |

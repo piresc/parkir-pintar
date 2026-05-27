@@ -23,7 +23,7 @@ module "db" {
   publicly_accessible = false
   skip_final_snapshot = true
 
-  vpc_security_group_ids = [module.eks.cluster_security_group_id]
+  vpc_security_group_ids = ["sg-00e0c4c9f76ced26f"]
   subnet_ids             = module.vpc.private_subnets
   create_db_subnet_group       = true
   create_cloudwatch_log_group  = false

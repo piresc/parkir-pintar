@@ -21,7 +21,7 @@ resource "aws_elasticache_replication_group" "redis" {
 
   parameter_group_name = "default.redis7"
   subnet_group_name    = aws_elasticache_subnet_group.redis.name
-  security_group_ids   = [module.eks.cluster_security_group_id]
+  security_group_ids = ["sg-00e0c4c9f76ced26f"]
 
   automatic_failover_enabled = false
 

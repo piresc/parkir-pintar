@@ -43,7 +43,7 @@ Each service initializes the full OpenTelemetry pipeline via `pkg/telemetry.Init
 ```go
 providers, err := telemetry.Init(ctx, telemetry.Config{
     ServiceName:     "parkir-pintar-gateway",
-    OTLPEndpoint:    "alloy:4317",       // gRPC endpoint
+    OTLPEndpoint:    "alloy:4317",       // gRPC endpoint (staging: alloy:4317, prod: alloy.pirescer-monitoring.svc.cluster.local:4317)
     TraceSampleRate: 1.0,                 // 100% in staging
     MetricInterval:  15 * time.Second,    // push interval
 })

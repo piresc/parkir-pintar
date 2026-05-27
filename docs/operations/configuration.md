@@ -38,7 +38,7 @@ if err != nil {
 | `local` | `config/local/<service>.yaml` | `config/.env` file (auto-loaded) | Debug enabled, noop tracing |
 | `test` | `config/test/<service>.yaml` | `config/.env` file (auto-loaded) | Minimal config for unit tests |
 | `staging` | `config/staging/<service>.yaml` | Coolify env vars | Full tracing, production-like |
-| `production` | `config/production/<service>.yaml` | Coolify env vars | Strict validation, optimized pools |
+| `production` | `config/staging/<service>.yaml` | K8s Secrets + ConfigMaps (AWS EKS) | Strict validation, optimized pools |
 
 The `APP_ENV` environment variable selects which directory to load from. In staging/production, the `.env` file is not loaded — all secrets must come from the container runtime environment.
 

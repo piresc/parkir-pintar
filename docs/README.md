@@ -44,7 +44,7 @@ Comprehensive documentation for the ParkirPintar smart parking reservation syste
 
 | Document | Description |
 |----------|-------------|
-| [Deployment](operations/deployment.md) | Coolify architecture, CI/CD pipeline, network topology |
+| [Deployment](operations/deployment.md) | Coolify staging, AWS EKS production, CI/CD pipeline (4 workflows) |
 | [Configuration](operations/configuration.md) | YAML config system, environment hierarchy, secret management |
 | [Observability](operations/observability.md) | OpenTelemetry pipeline, Grafana stack, custom metrics |
 | [SLO/SLI](operations/slo-sli.md) | Service level objectives, indicators, and alerting rules |

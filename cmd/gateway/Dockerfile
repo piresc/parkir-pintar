@@ -32,8 +32,6 @@ WORKDIR /app
 COPY --from=builder /build/service .
 COPY --from=builder /build/config ./config
 COPY --from=builder /build/db/migrations ./db/migrations
-COPY --from=builder /build/docs/swagger.yaml ./docs/swagger.yaml
-COPY --from=builder /build/docs/swagger-ui ./docs/swagger-ui
 
 USER appuser
 

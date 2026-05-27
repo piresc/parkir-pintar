@@ -27,7 +27,7 @@ spec:
         - name: search
           image: ghcr.io/piresc/parkir-pintar/search:latest-prod
           ports:
-            - containerPort: 9092
+            - containerPort: 9094
               name: grpc
           envFrom:
             - configMapRef:
@@ -36,7 +36,9 @@ spec:
                 name: app-secrets
           env:
             - name: GRPC_PORT
-              value: "9092"
+              value: "9094"
+            - name: DB_SCHEMA
+              value: "search"
           resources:
             requests:
               cpu: 100m
@@ -45,13 +47,13 @@ spec:
               cpu: 250m
               memory: 256Mi
           livenessProbe:
-            grpc:
-              port: 9092
+            tcpSocket:
+              port: 9094
             initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
-            grpc:
-              port: 9092
+            tcpSocket:
+              port: 9094
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
@@ -64,6 +66,6 @@ spec:
   selector:
     app: search
   ports:
-    - port: 9092
-      targetPort: 9092
+    - port: 9094
+      targetPort: 9094
       name: grpc

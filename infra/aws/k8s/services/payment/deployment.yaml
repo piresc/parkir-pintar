@@ -27,7 +27,7 @@ spec:
         - name: payment
           image: ghcr.io/piresc/parkir-pintar/payment:latest-prod
           ports:
-            - containerPort: 9094
+            - containerPort: 9093
               name: grpc
           envFrom:
             - configMapRef:
@@ -36,7 +36,9 @@ spec:
                 name: app-secrets
           env:
             - name: GRPC_PORT
-              value: "9094"
+              value: "9093"
+            - name: DB_SCHEMA
+              value: "payment"
           resources:
             requests:
               cpu: 100m
@@ -45,13 +47,13 @@ spec:
               cpu: 250m
               memory: 256Mi
           livenessProbe:
-            grpc:
-              port: 9094
+            tcpSocket:
+              port: 9093
             initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
-            grpc:
-              port: 9094
+            tcpSocket:
+              port: 9093
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
@@ -64,6 +66,6 @@ spec:
   selector:
     app: payment
   ports:
-    - port: 9094
-      targetPort: 9094
+    - port: 9093
+      targetPort: 9093
       name: grpc

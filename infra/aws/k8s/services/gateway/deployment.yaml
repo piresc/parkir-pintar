@@ -34,6 +34,19 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secrets
+          env:
+            - name: GRPC_RESERVATION_TARGET
+              value: "reservation:9091"
+            - name: GRPC_SEARCH_TARGET
+              value: "search:9094"
+            - name: GRPC_BILLING_TARGET
+              value: "billing:9092"
+            - name: GRPC_PAYMENT_TARGET
+              value: "payment:9093"
+            - name: GRPC_ANALYTICS_TARGET
+              value: "analytics:9095"
+            - name: GRPC_PRESENCE_TARGET
+              value: "presence:9095"
           resources:
             requests:
               cpu: 100m
@@ -59,6 +72,10 @@ kind: Service
 metadata:
   name: gateway
   namespace: pirescer-parkir-pintar
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
   type: LoadBalancer
   selector:

@@ -11,9 +11,6 @@ spec:
     - name: client
       port: 4222
       targetPort: 4222
-    - name: cluster
-      port: 6222
-      targetPort: 6222
     - name: monitoring
       port: 8222
       targetPort: 8222
@@ -27,7 +24,7 @@ metadata:
   namespace: pirescer-parkir-pintar
 spec:
   serviceName: nats
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: nats
@@ -36,41 +33,20 @@ spec:
       labels:
         app: nats
     spec:
-      tolerations:
-        - key: nats
-          value: "true"
-          effect: NoSchedule
       containers:
         - name: nats
           image: nats:2.10-alpine
           args:
-            - --config
-            - /etc/nats/nats.conf
-            - --server_name
-            - $(POD_NAME)
-            - --cluster
-            - nats://$(POD_NAME).nats.pirescer-parkir-pintar.svc.cluster.local:6222
-            - --routes
-            - nats://nats-0.nats.pirescer-parkir-pintar.svc.cluster.local:6222,nats://nats-1.nats.pirescer-parkir-pintar.svc.cluster.local:6222,nats://nats-2.nats.pirescer-parkir-pintar.svc.cluster.local:6222
-            - --jetstream
-            - --store_dir
-            - /data
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+            - "-c"
+            - "/etc/nats/nats.conf"
+            - "-js"
+            - "-sd"
+            - "/data"
           ports:
-            - name: client
-              containerPort: 4222
-            - name: cluster
-              containerPort: 6222
-            - name: monitoring
-              containerPort: 8222
+            - containerPort: 4222
+              name: client
+            - containerPort: 8222
+              name: monitoring
           resources:
             requests:
               cpu: 250m

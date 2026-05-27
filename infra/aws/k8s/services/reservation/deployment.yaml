@@ -37,6 +37,10 @@ spec:
           env:
             - name: GRPC_PORT
               value: "9091"
+            - name: DB_SCHEMA
+              value: "reservation"
+            - name: GRPC_BILLING_TARGET
+              value: "billing:9092"
           resources:
             requests:
               cpu: 100m
@@ -45,12 +49,12 @@ spec:
               cpu: 250m
               memory: 256Mi
           livenessProbe:
-            grpc:
+            tcpSocket:
               port: 9091
             initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
-            grpc:
+            tcpSocket:
               port: 9091
             initialDelaySeconds: 5
             periodSeconds: 10

@@ -2,7 +2,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"
 
-  cluster_name    = "${var.project_name}-${var.environment}"
+  cluster_name    = "piresc-parkir"
   cluster_version = "1.32"
 
   vpc_id     = module.vpc.vpc_id

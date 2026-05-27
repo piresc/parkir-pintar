@@ -56,7 +56,7 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
       - name: Configure kubectl
-        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name pirescer-parkir-pintar-production
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name piresc-parkir
 
       - name: Deploy observability stack
         run: |

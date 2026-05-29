@@ -25,12 +25,15 @@ resource "aws_elasticache_replication_group" "redis" {
 
   automatic_failover_enabled = false
 
-  auth_token                 = var.redis_auth_token
-  transit_encryption_enabled = true
-  at_rest_encryption_enabled = true
+  transit_encryption_enabled = false
+  at_rest_encryption_enabled = false
 
   tags = {
     Project     = var.project_name
     Environment = var.environment
+  }
+
+  lifecycle {
+    ignore_changes = [auth_token_update_strategy]
   }
 }

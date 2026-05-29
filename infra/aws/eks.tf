@@ -28,14 +28,6 @@ module "eks" {
     }
   }
 
-  aws_auth_roles = [
-    {
-      rolearn  = aws_iam_role.github_actions.arn
-      username = "github-actions"
-      groups   = ["system:masters"]
-    }
-  ]
-
   fargate_profiles = {
     default = {
       name = "default"

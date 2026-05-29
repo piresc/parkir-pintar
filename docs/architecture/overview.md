@@ -77,7 +77,7 @@ Payment → NATS → Reservation (payment results)
 | **Scaling** | Fixed 1 replica | HPA auto-scaling (2→10 replicas, CPU-based) |
 | **Observability** | Alloy → Prometheus/Tempo/Loki/Grafana (Docker) | Same stack on Fargate pods |
 | **TLS** | Traefik + Let's Encrypt | HTTP only (NLB) |
-| **Deploy** | Auto on push to main (Coolify webhook) | Manual trigger (GitHub Actions → kubectl) |
+| **Deploy** | Auto on push to main (Coolify webhook) | Auto on tag push (GitHub Actions → kubectl) |
 
 ### Production Architecture (AWS EKS)
 

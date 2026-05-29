@@ -213,15 +213,19 @@ infra/aws/k8s/
 
 ```
 Tag v1.0.0 → build-push-prod.yml → GHCR (7 images tagged v1.0.0 + latest-prod)
-                                          │
-Manual trigger → deploy-prod.yml          │
-  ├── Configure AWS (OIDC)                │
-  ├── kubectl apply services + HPA        │
-  ├── kubectl set image (v1.0.0)  ◄───────┘
-  ├── kubectl rollout status (wait)
-  ├── Smoke test (curl /health)
-  └── On failure → kubectl rollout undo
+                                      │
+                                      │ (on success, auto-triggers)
+                                      ▼
+                               deploy-prod.yml
+                                 ├── Configure AWS (OIDC)
+                                 ├── kubectl apply services + HPA
+                                 ├── kubectl set image (v1.0.0)
+                                 ├── kubectl rollout status (wait)
+                                 ├── Smoke test (curl /health)
+                                 └── On failure → kubectl rollout undo
 ```
+
+Production deploys are **automatic** — every tagged release is built and deployed without manual intervention. The `deploy-prod.yml` workflow also supports manual triggering via `workflow_dispatch` for emergency releases.
 
 ### First-Time Setup
 
@@ -328,6 +332,6 @@ Services find each other via environment variables:
 | Replicas | 1 per service | 2 per service (auto-scales) |
 | Database | Docker PostgreSQL | AWS RDS (managed) |
 | Redis | Docker Redis | AWS ElastiCache (managed) |
-| Deploy trigger | Auto on push to main | Manual (workflow_dispatch) |
+| Deploy trigger | Auto on push to main | Auto (on tag push) |
 | Frontend | ✅ Deployed | ❌ Backend only |
 | Rollback | Manual | Automatic on smoke test failure |

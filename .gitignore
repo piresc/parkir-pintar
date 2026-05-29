@@ -93,5 +93,6 @@ opencode.json
 
 # Agent planning files
 .hermes/
+docs/superpowers/
 aws/ awscliv2.zip
 analytics

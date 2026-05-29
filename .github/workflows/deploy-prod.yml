@@ -69,8 +69,7 @@ jobs:
 
       - name: Smoke test
         run: |
-          kubectl run smoke-test --rm -i --restart=Never --image=curlimages/curl:latest -n $K8S_NAMESPACE -- \
-            curl -sf http://gateway.$K8S_NAMESPACE.svc.cluster.local:8080/health
+          kubectl exec deployment/gateway -n $K8S_NAMESPACE -- wget -qO- --timeout=10 http://localhost:8080/health
           echo "Health check passed!"
 
       - name: Rollback on failure

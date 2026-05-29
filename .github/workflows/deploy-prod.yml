@@ -43,8 +43,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
           else
-            TAG=$(echo "${{ github.event.workflow_run.head_branch }}" | grep -oP 'v\d+\.\d+\.\d+')
-            echo "VERSION=$TAG" >> "$GITHUB_ENV"
+            echo "VERSION=latest-prod" >> "$GITHUB_ENV"
           fi
 
       - name: Apply service manifests

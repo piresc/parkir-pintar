@@ -1,13 +1,17 @@
 name: Deploy Production
 
 on:
+  workflow_run:
+    workflows: ["Build & Push (Production)"]
+    types: [completed]
+    branches: [refs/tags/v*]
   workflow_dispatch:
     inputs:
       version:
-        description: "Image version tag (e.g. v1.0.0)"
+        description: "Image version tag (e.g. v0.1.0)"
         required: true
         type: string
-        default: "v1.0.0"
+        default: "v0.1.0"
 
 permissions:
   contents: read
@@ -21,6 +25,7 @@ jobs:
   deploy:
     name: Deploy to AWS EKS
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -34,6 +39,15 @@ jobs:
       - name: Configure kubectl
         run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name piresc-parkir
 
+      - name: Determine version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> "$GITHUB_ENV"
+          else
+            TAG=$(echo "${{ github.event.workflow_run.head_branch }}" | grep -oP 'v\d+\.\d+\.\d+')
+            echo "VERSION=$TAG" >> "$GITHUB_ENV"
+          fi
+
       - name: Apply service manifests
         run: |
           for svc in gateway reservation billing payment search presence analytics; do
@@ -42,8 +56,6 @@ jobs:
           kubectl apply -f infra/aws/k8s/autoscaling/hpa.yaml
 
       - name: Update images to release version
-        env:
-          VERSION: ${{ github.event.inputs.version }}
         run: |
           for svc in gateway reservation billing payment search presence analytics; do
             echo "Updating $svc to $VERSION"

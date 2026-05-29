@@ -2,7 +2,7 @@ name: Deploy Production
 
 on:
   workflow_run:
-    workflows: ["Build & Push (Production)"]
+    workflows: ["Build Production"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -49,9 +49,9 @@ jobs:
       - name: Apply service manifests
         run: |
           for svc in gateway reservation billing payment search presence analytics; do
-            kubectl apply -f infra/aws/k8s/services/$svc/deployment.yaml
+            kubectl apply -f deploy/production/kubernetes/services/$svc/deployment.yaml
           done
-          kubectl apply -f infra/aws/k8s/autoscaling/hpa.yaml
+          kubectl apply -f deploy/production/kubernetes/autoscaling/hpa.yaml
 
       - name: Update images to release version
         run: |

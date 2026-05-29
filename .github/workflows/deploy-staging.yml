@@ -7,7 +7,7 @@ on:
       - docs/**
       - "**.md"
       - .github/**
-      - deploy/coolify/README.md
+      - deploy/staging/README.md
 
 permissions:
   contents: read

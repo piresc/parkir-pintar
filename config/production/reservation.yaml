@@ -3,7 +3,7 @@
 
 app:
   name: parkir-pintar-reservation
-  environment: staging
+  environment: production
   debug: false
   version: "0.1.0"
 
@@ -13,8 +13,6 @@ server:
   read_timeout: 15
   write_timeout: 15
   shutdown_timeout: 30
-  allowed_origins:
-    - "https://parkir-pintar.piresc.dev"
 
 database:
   schema: public

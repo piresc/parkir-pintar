@@ -10,6 +10,7 @@ data:
   JWT_ISSUER: "parkir-pintar"
   OTEL_EXPORTER_OTLP_ENDPOINT: "alloy.pirescer-monitoring.svc.cluster.local:4317"
   ENVIRONMENT: "production"
+  APP_ENV: "production"
 ---
 apiVersion: v1
 kind: Secret

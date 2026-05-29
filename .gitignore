@@ -39,6 +39,7 @@ deploy/monitoring/.env
 /billing
 /payment
 /presence
+/analytics
 /notification
 
 # Generic patterns
@@ -95,4 +96,3 @@ opencode.json
 .hermes/
 docs/superpowers/
 aws/ awscliv2.zip
-analytics

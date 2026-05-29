@@ -14,7 +14,7 @@ server:
   write_timeout: 15
   shutdown_timeout: 30
   allowed_origins:
-    - "https://staging.parkir-pintar.id"
+    - "https://parkir-pintar.piresc.dev"
 
 database:
   schema: public

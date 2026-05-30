@@ -100,7 +100,7 @@ Images are multi-stage builds: compile in a Go builder stage, copy the binary in
 
 ## Rolling Deploy Process
 
-The deploy script (`deploy/deploy.sh`) performs a health-checked rolling restart:
+The deploy script (`deploy/staging/deploy-webhook.sh`) performs a health-checked rolling restart:
 
 ```bash
 # Order: leaf services first, gateway last
@@ -187,7 +187,7 @@ All healthchecks use: interval 10s, timeout 5s, retries 3–5, start period 10�
 
 ### Infrastructure (Terraform)
 
-All AWS resources are defined in `infra/aws/` and managed by Terraform:
+All AWS resources are defined in `deploy/production/terraform/` and managed by Terraform:
 
 | File | Creates |
 |------|---------|
@@ -201,7 +201,7 @@ All AWS resources are defined in `infra/aws/` and managed by Terraform:
 ### Kubernetes Manifests
 
 ```
-infra/aws/k8s/
+deploy/production/kubernetes/
 ├── base/              # NATS StatefulSet, ConfigMaps, Secrets
 ├── services/          # 7 Go service Deployments + gateway LoadBalancer
 ├── autoscaling/       # HPA (CPU-based, 2→10 replicas)
@@ -237,7 +237,7 @@ aws s3api create-bucket --bucket pirescer-parkir-pintar-tfstate --region ap-sout
 aws dynamodb create-table --table-name pirescer-parkir-pintar-tfstate-lock --attribute-definitions AttributeName=LockID,AttributeType=S --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST --region ap-southeast-3
 
 # 2. Create terraform.tfvars (from example)
-cd infra/aws && cp terraform.tfvars.example terraform.tfvars
+cd deploy/production/terraform && cp terraform.tfvars.example terraform.tfvars
 # Edit with real passwords
 
 # 3. Deploy infrastructure (~15 min)

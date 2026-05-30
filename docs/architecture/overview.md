@@ -112,7 +112,7 @@ Key package groups:
 - **HTTP/gRPC plumbing**: `middleware`, `grpcmiddleware`, `grpcerror`, `response`, `server`
 - **Cross-cutting**: `config`, `auth`, `apperror`, `health`, `asynq`
 
-See `docs/pkg/shared-packages.md` for full package documentation.
+See `docs/development/shared-packages.md` for full package documentation.
 
 ## Observability (Full OTel)
 

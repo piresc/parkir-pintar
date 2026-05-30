@@ -53,7 +53,7 @@ This starts PostgreSQL (`:5432`), Redis (`:6379`), and NATS (`:4222` / monitorin
 make migrate-up
 ```
 
-Applies all SQL migrations from `db/migrations/<service>/` for each service schema.
+Applies all SQL migrations from `db/migrations/` to the database. All service schemas are created in a single init migration.
 
 ### 4. Run services
 
@@ -151,15 +151,16 @@ make load-test-spike    # spike profile
 | `docker-down` | Stop and remove infrastructure containers |
 | `docker-logs` | Tail Docker Compose logs |
 | `migrate-up` | Apply all database migrations |
-| `migrate-down` | Rollback last migration per service |
-| `migrate-create SVC=<name> NAME=<desc>` | Create a new migration file |
-| `load-test` | Run k6 smoke test |
+| `migrate-down` | Rollback last migration |
+| `migrate-create NAME=<desc>` | Create a new migration file |
+| `load-test` | Run k6 load test |
 | `load-test-stress` | Run k6 stress test |
 | `load-test-spike` | Run k6 spike test |
 | `ci` | Run full CI pipeline locally (fmt, vet, lint, security, test, build) |
 | `clean` | Remove build artifacts and caches |
 | `tools` | Install all development tools |
 | `mod` | Tidy and verify Go modules |
+| `swagger` | Serve Swagger UI locally (http://localhost:8090) |
 | `generate` | Run go generate |
 
 ## Proto Generation Workflow
@@ -204,15 +205,15 @@ Generated files are placed alongside their corresponding Go packages using the `
 4. Add the service to `docker-compose.yml`
 5. Define proto files in `proto/<service>/`
 6. Run `make proto` and implement the service
-7. Create migrations: `make migrate-create SVC=<service> NAME=init_schema`
+7. Create migrations: `make migrate-create NAME=init_schema`
 
 ### Adding a database migration
 
 ```bash
-make migrate-create SVC=reservation NAME=add_vehicle_type_column
+make migrate-create NAME=add_vehicle_type_column
 ```
 
-This creates timestamped up/down SQL files in `db/migrations/reservation/`. Write the migration SQL, then apply:
+This creates timestamped up/down SQL files in `db/migrations/`. Write the migration SQL, then apply:
 
 ```bash
 make migrate-up

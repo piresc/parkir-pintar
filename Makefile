@@ -20,6 +20,7 @@ COMPOSE_FILE := deploy/local/docker-compose.yml
 # Migration
 MIGRATE := $(shell which migrate 2>/dev/null || echo "migrate")
 MIGRATION_DIR := db/migrations
+DATABASE_URL ?= postgres://parkir:parkir@localhost:5432/parkirpintar?sslmode=disable
 
 # Coverage
 COVERAGE_DIR := .coverage
@@ -36,7 +37,7 @@ LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.buildTime=$(BUILD_TIME)"
 
 .PHONY: help build test test-coverage bench lint security proto \
         docker-up docker-down migrate-up migrate-down load-test ci \
-        clean tools fmt vet
+        clean tools fmt vet swagger
 
 ## help: Show this help message
 help:
@@ -148,51 +149,40 @@ docker-down:
 docker-logs:
 	$(DOCKER_COMPOSE) -f $(COMPOSE_FILE) logs -f
 
-## migrate-up: Run database migrations (all services)
+## migrate-up: Run database migrations
 migrate-up:
 	@echo "==> Running migrations..."
-	@for svc in $(SERVICES); do \
-		if [ -d "$(MIGRATION_DIR)/$$svc" ]; then \
-			echo "  Migrating $$svc..."; \
-			$(MIGRATE) -path $(MIGRATION_DIR)/$$svc -database "$${DATABASE_URL_$$(echo $$svc | tr a-z A-Z)}" up; \
-		fi; \
-	done
+	$(MIGRATE) -path $(MIGRATION_DIR) -database "$(DATABASE_URL)" up
 	@echo "==> Migrations complete."
 
-## migrate-down: Rollback last migration (all services)
+## migrate-down: Rollback last migration
 migrate-down:
 	@echo "==> Rolling back migrations..."
-	@for svc in $(SERVICES); do \
-		if [ -d "$(MIGRATION_DIR)/$$svc" ]; then \
-			echo "  Rolling back $$svc..."; \
-			$(MIGRATE) -path $(MIGRATION_DIR)/$$svc -database "$${DATABASE_URL_$$(echo $$svc | tr a-z A-Z)}" down 1; \
-		fi; \
-	done
+	$(MIGRATE) -path $(MIGRATION_DIR) -database "$(DATABASE_URL)" down 1
 	@echo "==> Rollback complete."
 
-## migrate-create: Create a new migration (usage: make migrate-create SVC=reservation NAME=add_index)
+## migrate-create: Create a new migration (usage: make migrate-create NAME=add_index)
 migrate-create:
-	@if [ -z "$(SVC)" ] || [ -z "$(NAME)" ]; then \
-		echo "Error: SVC and NAME required. Usage: make migrate-create SVC=reservation NAME=add_index"; exit 1; \
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME required. Usage: make migrate-create NAME=add_index"; exit 1; \
 	fi
-	@mkdir -p $(MIGRATION_DIR)/$(SVC)
-	$(MIGRATE) create -ext sql -dir $(MIGRATION_DIR)/$(SVC) -seq $(NAME)
+	$(MIGRATE) create -ext sql -dir $(MIGRATION_DIR) -seq $(NAME)
 
-## load-test: Run k6 smoke test
+## load-test: Run k6 load test
 load-test:
-	@echo "==> Running k6 smoke test..."
-	$(K6) run --vus 10 --duration 30s tests/load/smoke.js
-	@echo "==> Smoke test complete."
+	@echo "==> Running k6 load test..."
+	$(K6) run tests/load/k6_load_test.js
+	@echo "==> Load test complete."
 
 ## load-test-stress: Run k6 stress test
 load-test-stress:
 	@echo "==> Running k6 stress test..."
-	$(K6) run tests/load/stress.js
+	$(K6) run --vus 50 --duration 5m tests/load/k6_load_test.js
 
 ## load-test-spike: Run k6 spike test
 load-test-spike:
 	@echo "==> Running k6 spike test..."
-	$(K6) run tests/load/spike.js
+	$(K6) run --vus 100 --duration 1m tests/load/k6_load_test.js
 
 ## ci: Run all checks locally (mirrors CI pipeline)
 ci: fmt vet lint security test-coverage build
@@ -230,3 +220,9 @@ mod:
 generate:
 	@echo "==> Running go generate..."
 	$(GO) generate ./...
+
+## swagger: Serve Swagger UI locally (http://localhost:8090/swagger-ui/)
+swagger:
+	@echo "==> Serving Swagger UI at http://localhost:8090/swagger-ui/"
+	@echo "    Press Ctrl+C to stop."
+	@cd docs/api && python3 -m http.server 8090

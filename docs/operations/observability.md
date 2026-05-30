@@ -220,4 +220,4 @@ logger.InfoContext(ctx, "reservation created",
 ## Related Documentation
 
 - [SLO/SLI Definitions](./slo-sli.md) — service level objectives, alerting rules, and Prometheus recording rules
-- [Runtime Profiling (pprof)](./pprof.md) — CPU, memory, and goroutine profiling for performance diagnosis
+- [Runtime Profiling (pprof)](./profiling.md) — CPU, memory, and goroutine profiling for performance diagnosis

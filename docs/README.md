@@ -37,8 +37,13 @@ Comprehensive documentation for the ParkirPintar smart parking reservation syste
 | Document | Description |
 |----------|-------------|
 | [Design Patterns](design/design-patterns.md) | 10 patterns used across services (Repository, Circuit Breaker, CQRS-lite, etc.) |
-| [Clarification Specs](design/clarification-specs.md) | Requirement analysis and architectural decisions |
-| [ADRs](adr/) | Architecture Decision Records (5 records) |
+| [ADRs](adr/) | Architecture Decision Records (6 records) |
+
+## Requirements
+
+| Document | Description |
+|----------|-------------|
+| [Clarification Specs](requirements/clarification-specs.md) | Requirement analysis and architectural decisions |
 
 ## Operations
 
@@ -48,7 +53,7 @@ Comprehensive documentation for the ParkirPintar smart parking reservation syste
 | [Configuration](operations/configuration.md) | YAML config system, environment hierarchy, secret management |
 | [Observability](operations/observability.md) | OpenTelemetry pipeline, Grafana stack, custom metrics |
 | [SLO/SLI](operations/slo-sli.md) | Service level objectives, indicators, and alerting rules |
-| [Profiling](operations/pprof.md) | Runtime profiling guide (CPU, heap, goroutine, trace) |
+| [Profiling](operations/profiling.md) | Runtime profiling guide (CPU, heap, goroutine, trace) |
 
 ## Development
 
@@ -62,4 +67,4 @@ Comprehensive documentation for the ParkirPintar smart parking reservation syste
 
 | Document | Description |
 |----------|-------------|
-| [Package Reference](pkg/shared-packages.md) | All 24 pkg/ packages — purpose, exports, usage examples |
+| [Package Reference](development/shared-packages.md) | All 24 pkg/ packages — purpose, exports, usage examples |

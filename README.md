@@ -62,7 +62,7 @@ Full documentation: **[docs/README.md](docs/README.md)**
 | [ER Diagram](docs/architecture/er-diagram.md) | Database schema relationships (5 schemas) |
 | [Sequence Diagrams](docs/architecture/sequence-diagrams.md) | Key flow interactions |
 | [Design Patterns](docs/design/design-patterns.md) | 10 patterns used across services |
-| [Clarification Specs](docs/design/clarification-specs.md) | Requirement analysis and decisions |
+| [Clarification Specs](docs/requirements/clarification-specs.md) | Requirement analysis and decisions |
 | [ADRs](docs/adr/) | Architecture Decision Records |
 
 ### Services
@@ -92,7 +92,7 @@ Full documentation: **[docs/README.md](docs/README.md)**
 | [Configuration](docs/operations/configuration.md) | YAML config system, secret management |
 | [Observability](docs/operations/observability.md) | OpenTelemetry, Grafana stack, custom metrics |
 | [SLO/SLI](docs/operations/slo-sli.md) | Service level objectives and alerting |
-| [Profiling](docs/operations/pprof.md) | Runtime profiling guide |
+| [Profiling](docs/operations/profiling.md) | Runtime profiling guide |
 
 ### Development
 
@@ -101,7 +101,7 @@ Full documentation: **[docs/README.md](docs/README.md)**
 | [Getting Started](docs/development/getting-started.md) | Local setup, Makefile targets, workflows |
 | [Testing Strategy](docs/development/testing.md) | Test pyramid, frameworks, CI integration |
 | [Frontend](docs/development/frontend.md) | React SPA architecture, build & deploy |
-| [Shared Packages](docs/pkg/shared-packages.md) | All 24 pkg/ packages with usage examples |
+| [Shared Packages](docs/development/shared-packages.md) | All 24 pkg/ packages with usage examples |
 
 ---
 

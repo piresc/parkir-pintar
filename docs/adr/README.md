@@ -13,7 +13,7 @@ ADRs document significant architectural decisions, their context, and consequenc
 | [0003](0003-nats-event-driven.md) | NATS JetStream for Asynchronous Event-Driven Communication | Accepted |
 | [0004](0004-distributed-locking-redis.md) | Redis SETNX for Distributed Locking on Spot Reservation | Accepted |
 | [0005](0005-opentelemetry-observability.md) | OpenTelemetry Pipeline for Observability | Accepted |
-| [0006](0006-terraform-iac.md) | Terraform for Infrastructure-as-Code Targeting GCP Cloud Run | Accepted |
+| [0006](0006-terraform-iac.md) | Terraform for Infrastructure-as-Code Targeting AWS EKS | Accepted |
 
 ## Format
 

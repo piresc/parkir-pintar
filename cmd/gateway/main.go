@@ -197,10 +197,7 @@ func run() error {
 	// Register pprof debug endpoints (only if ENABLE_PPROF=true).
 	gatewayhandler.RegisterPprof(engine, mw, cfg.JWT.Secret)
 
-	// Serve Swagger UI.
-	engine.StaticFile("/swagger/doc.yaml", "./docs/swagger.yaml")
-	engine.StaticFile("/swagger", "./docs/swagger-ui/index.html")
-	engine.StaticFile("/swagger/", "./docs/swagger-ui/index.html")
+	// Swagger UI: open docs/api/swagger-ui/index.html directly in browser (no server needed).
 
 	// Register health endpoints (before auth middleware).
 	healthSvc := health.NewService(log)

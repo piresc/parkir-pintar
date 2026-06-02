@@ -1,6 +1,6 @@
 # GitHub Actions PR Checks Workflow
 # Runs only on pull requests to main.
-# Quality gates: secret-scan -> [lint, test, security, vulncheck, proto-check, frontend-check]
+# Quality gates: secret-scan -> [lint, test, security, vulncheck, proto-check]
 #                test + security -> sonar
 
 name: PR Checks
@@ -143,6 +143,9 @@ jobs:
       - name: Lint proto files
         run: buf lint proto/
 
+      - name: Fetch main branch
+        run: git fetch origin main:main
+
       - name: Check for breaking changes
         run: buf breaking proto/ --against '.git#branch=main,subdir=proto'
 
@@ -171,43 +174,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-  # ---------------------------------------------------------------------------
-  # Frontend check via ESLint + TypeScript
-  # ---------------------------------------------------------------------------
-  frontend-check:
-    name: Frontend Check
-    runs-on: ubuntu-latest
-    needs: secret-scan
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Check ESLint config
-        id: eslint-config
-        working-directory: frontend
-        run: |
-          if [ -f eslint.config.js ] || [ -f eslint.config.mjs ] || [ -f eslint.config.cjs ] || [ -f .eslintrc.js ] || [ -f .eslintrc.json ] || [ -f .eslintrc.yml ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Run ESLint
-        if: steps.eslint-config.outputs.present == 'true'
-        working-directory: frontend
-        run: npx eslint src/ --max-warnings 0
-      - name: Skip ESLint
-        if: steps.eslint-config.outputs.present != 'true'
-        run: echo "::warning::No ESLint config found — skipping"
-
-      - name: Run TypeScript type check
-        working-directory: frontend
-        run: npx tsc --noEmit

@@ -66,7 +66,7 @@ CREATE UNIQUE INDEX idx_reservations_one_active_per_driver ON reservation.reserv
 CREATE INDEX idx_parking_spots_availability ON reservation.parking_spots (vehicle_type, status, floor_number);
 
 CREATE TABLE reservation.reservation_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reservation_id UUID NOT NULL,
     driver_id TEXT NOT NULL,
     spot_id UUID NOT NULL,
@@ -159,7 +159,7 @@ CREATE INDEX idx_presence_reservation_time ON presence.presence_logs (reservatio
 -- =============================================================================
 
 CREATE TABLE analytics.reservation_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reservation_id UUID NOT NULL,
     driver_id TEXT NOT NULL,
     spot_id UUID NOT NULL,

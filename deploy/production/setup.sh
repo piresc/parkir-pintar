@@ -63,6 +63,13 @@ kubectl apply -f kubernetes/migrations/migration-job.yaml
 kubectl wait --for=condition=complete job/db-migrate -n pirescer-parkir-pintar --timeout=120s
 
 echo ""
+echo "=== Step 7.5: Sync search read model ==="
+DB_PASSWORD=$(grep db_password terraform/terraform.tfvars | grep -oP '"\K[^"]+')
+kubectl run psql-sync --rm -i --restart=Never --image=postgres:14-alpine -n pirescer-parkir-pintar -- \
+  psql "postgres://parkir_admin:${DB_PASSWORD}@${DB_HOST}:5432/pirescer_parkir_pintar?sslmode=disable" \
+  -c "INSERT INTO search.spot_read_model (id, floor_number, spot_number, vehicle_type, spot_code, status, updated_at) SELECT id, floor_number, spot_number, vehicle_type, spot_code, status, updated_at FROM reservation.parking_spots ON CONFLICT (id) DO NOTHING;"
+
+echo ""
 echo "=== Step 8: Deploy services + HPA ==="
 for svc in gateway reservation billing payment search presence analytics; do
   kubectl apply -f kubernetes/services/$svc/deployment.yaml

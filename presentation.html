@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=0.5">
+<title>ParkirPintar — Kompetensi Assessment</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100vw; height: 100vh; overflow: hidden; background: #f5f5f5; font-family: 'Inter', sans-serif; color: #1a1a1a; }
+
+  .deck { width: 100vw; height: 100vh; position: relative; }
+  .slide { position: absolute; inset: 0; display: none; padding: 56px 72px; flex-direction: column; background: #fff; }
+  .slide.active { display: flex; }
+
+  .slide > .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .header .comp-tag { font-size: 12px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #dc2626; }
+  .header .sub-tag { font-size: 12px; font-weight: 500; color: #737373; }
+  .header .page { font-size: 12px; color: #a3a3a3; font-weight: 500; }
+
+  .slide hr { border: none; border-top: 2px solid #dc2626; width: 48px; margin: 0 0 20px 0; }
+
+  .slide h2 { font-size: 24px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; line-height: 1.3; }
+  .slide h3 { font-size: 16px; font-weight: 500; color: #737373; margin-bottom: 20px; }
+
+  .level-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 4px; margin-bottom: 16px; align-self: flex-start; }
+  .level-badge.l4 { color: #fff; background: #dc2626; }
+  .level-badge.l3 { color: #fff; background: #ca8a04; }
+
+  .evidence { flex: 1; display: grid; gap: 10px; align-content: start; }
+  .evidence.cols2 { grid-template-columns: 1fr 1fr; }
+  .evidence.cols1 { grid-template-columns: 1fr; }
+
+  .ev { display: flex; gap: 12px; padding: 12px 14px; border-left: 3px solid #fee2e2; background: #fafafa; border-radius: 0 6px 6px 0; }
+  .ev .ico { font-size: 16px; flex-shrink: 0; width: 28px; text-align: center; }
+  .ev .txt h4 { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 2px; }
+  .ev .txt p { font-size: 11.5px; color: #737373; line-height: 1.5; }
+
+  /* Title slide */
+  .slide-title { justify-content: center; align-items: flex-start; background: #fff; border-bottom: 4px solid #dc2626; }
+  .slide-title .pretitle { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #dc2626; margin-bottom: 12px; }
+  .slide-title h1 { font-size: 52px; font-weight: 800; line-height: 1.1; color: #1a1a1a; margin-bottom: 12px; }
+  .slide-title h1 span { color: #dc2626; }
+  .slide-title .subtitle { font-size: 16px; color: #737373; max-width: 640px; line-height: 1.6; margin-bottom: 28px; }
+  .slide-title .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+  .slide-title .meta-item { font-size: 13px; color: #737373; display: flex; align-items: center; gap: 6px; }
+  .slide-title .meta-item::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #dc2626; }
+  .slide-title .live { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 13px; color: #dc2626; font-weight: 500; margin-top: 28px; }
+  .live .dot { width: 7px; height: 7px; border-radius: 50%; background: #dc2626; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  /* Summary slide */
+  .slide-summary { background: #fff; border-top: 4px solid #dc2626; }
+  .slide-summary h2 { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+  .summary-grid { display: grid; grid-template-columns: 1.3fr .8fr; gap: 36px; }
+  .summary-strengths { list-style: none; }
+  .summary-strengths li { padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; color: #525252; }
+  .summary-strengths li::before { content: '\2713'; color: #dc2626; margin-right: 8px; font-weight: 700; }
+  .summary-growth h3 { font-size: 15px; color: #dc2626; font-weight: 600; margin-bottom: 10px; }
+  .summary-growth li { font-size: 12px; color: #737373; padding: 5px 0; margin-left: 16px; }
+  .summary-level { font-size: 48px; font-weight: 800; color: #dc2626; margin-bottom: 8px; }
+  .summary-level-label { font-size: 14px; color: #737373; font-weight: 500; }
+
+  /* Nav */
+  .nav { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 100; }
+  .nav .dot { width: 8px; height: 8px; border-radius: 50%; background: #d4d4d4; cursor: pointer; transition: all .2s; }
+  .nav .dot.active { background: #dc2626; width: 22px; border-radius: 5px; }
+  .nav-hint { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); font-size: 10px; color: #a3a3a3; z-index: 100; }
+
+  .fade-up { animation: fadeInUp .4s ease both; }
+  .fade-up:nth-child(1) { animation-delay: .03s; }
+  .fade-up:nth-child(2) { animation-delay: .08s; }
+  .fade-up:nth-child(3) { animation-delay: .13s; }
+  .fade-up:nth-child(4) { animation-delay: .18s; }
+  .fade-up:nth-child(5) { animation-delay: .23s; }
+  .fade-up:nth-child(6) { animation-delay: .28s; }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+<!-- ========== SLIDE 1: TITLE ========== -->
+<div class="slide slide-title active" data-slide="0">
+  <div class="pretitle">Kompetensi Assessment</div>
+  <h1>ParkirPintar<br><span>Software Engineer — Level 4</span></h1>
+  <p class="subtitle">Production-grade smart parking reservation system — 7 Go microservices, gRPC, NATS JetStream, Docker/K8s, full observability. <strong>277 commits in 23 days.</strong></p>
+  <div class="meta">
+    <span class="meta-item">Go 1.25 + gRPC</span>
+    <span class="meta-item">PostgreSQL + Redis</span>
+    <span class="meta-item">Docker + Kubernetes</span>
+    <span class="meta-item">Terraform IaC</span>
+    <span class="meta-item">OTel Observability</span>
+  </div>
+  <div class="live"><span class="dot"></span> parkir-pintar.piresc.dev</div>
+</div>
+
+<!-- ========== KOMPETENSI 0: SOFTWARE REQUIREMENT ========== -->
+
+<!-- 0.1 Menggali kebutuhan user -->
+<div class="slide" data-slide="1">
+  <div class="header"><span class="comp-tag">Kompetensi 0 &middot; Software Requirement</span><span class="page">2 / 24</span></div>
+  <h2>Menggali Kebutuhan User</h2>
+  <h3>Sub: Mencatat, mengidentifikasi, dan mengklarifikasi kebutuhan</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">📄</div><div class="txt"><h4>clarification-specs.md — 440-line Requirements Analysis</h4><p>Documents 17 requirement items cross-referenced against the assessment blueprint. Each entry marked PASS / FAIL / TODO with explicit action items. This is not just "recording requirements" — it's active requirement interrogation.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔍</div><div class="txt"><h4>Ambiguity Resolution — Vehicle Type Per-Booking</h4><p>Spec says "matches the vehicle type" but never defines whether it's per-driver or per-booking. Developer identified this gap: "Vehicle type is chosen per booking. A driver can reserve a car spot today and a motorcycle spot tomorrow." Implemented in schema (vehicle_type on reservations, not drivers).</p></div></div>
+    <div class="ev fade-up"><div class="ico">💰</div><div class="txt"><h4>Ambiguity Resolution — Overnight Fee &amp; Booking Fee</h4><p>Spec is ambiguous on overnight fee (flat once vs per midnight vs replacement of hourly). Developer chose per-midnight interpretation with concrete worked example: check-in 23:59 → check-out 06:01 = 60,000 IDR (booking 5k + hourly 7×5k + overnight 20k). Spec never clarifies booking fee timing — developer decided: "charged at confirmation, non-refundable."</p></div></div>
+    <div class="ev fade-up"><div class="ico">🧪</div><div class="txt"><h4>Edge Case Prediction Beyond Spec</h4><p>Multi-night stays (2+ midnights), what if driver never checks out (no auto-checkout — assumption documented), advance booking (decided: real-time only), payment timeout/retry behavior, context cancellation during retries. All documented and implemented.</p></div></div>
+  </div>
+</div>
+
+<!-- 0.2 Menganalisa kebutuhan user -->
+<div class="slide" data-slide="2">
+  <div class="header"><span class="comp-tag">Kompetensi 0 &middot; Software Requirement</span><span class="page">3 / 24</span></div>
+  <h2>Menganalisa Kebutuhan User</h2>
+  <h3>Sub: Analisis role, permission, keterkaitan fitur, validasi data, dampak resource</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">👤</div><div class="txt"><h4>Role &amp; Permission Analysis</h4><p>Driver role with JWT + ownership enforcement at gateway AND usecase layer (defense-in-depth). Admin role for pprof endpoints with requireAdmin() middleware. BYO-JWT for super-app integration — no user registration in scope.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔗</div><div class="txt"><h4>Cross-Role Feature Dependency</h4><p>Reservation → Billing → Payment flow fully analyzed. Search depends on reservation state. Section 8 of clarification-specs documents why presence and notification are unnecessary for single-area parking.</p></div></div>
+    <div class="ev fade-up"><div class="ico">✅</div><div class="txt"><h4>Data Validation Rules</h4><p>CHECK constraints at DB level (vehicle_type ∈ {car,motorcycle}, floor_number 1-5, status transitions). Handler-level validation for required fields (driver_id, vehicle_type, idempotency_key). State machine enforcement (ValidateTransition).</p></div></div>
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>Resource Impact Analysis</h4><p>HPA autoscaling (2-10 replicas) per service, configurable connection pool sizing (MaxConns, IdleConns, MaxLifetime), rate limiting (100 req/s per IP), Redis lock TTL, payment hold timeout. "Rekomendasikan alternatif" — Section 7 explains Asynq over DB poller, Section 6 explains stub payment with real provider interface.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>Alternative Solution Recommendations</h4><p>ADR-0001: Monolith vs Microservices trade-off analysis. ADR-0003: RabbitMQ vs Kafka vs NATS with pros/cons. ADR-0004: DB locks vs Redis locks. Each ADR has structured Context → Decision → Consequences.</p></div></div>
+  </div>
+</div>
+
+<!-- 0.3 Membuat spesifikasi kebutuhan -->
+<div class="slide" data-slide="3">
+  <div class="header"><span class="comp-tag">Kompetensi 0 &middot; Software Requirement</span><span class="page">4 / 24</span></div>
+  <h2>Membuat Spesifikasi Kebutuhan</h2>
+  <h3>Sub: Use case, wireframe, field spec, API spec, access control, non-functional spec</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">📐</div><div class="txt"><h4>Use Case &amp; Sequence Diagrams</h4><p>474-line Mermaid sequence diagrams covering CreateReservation, CheckIn, CheckOut, Payment, Cancellation, No-Show Expiry, Spot Contention flows.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🗃️</div><div class="txt"><h4>Field Specifications</h4><p>ERD defines: data types (BIGINT for money, TIMESTAMPTZ for times, UUID ids), mandatory fields (NOT NULL constraints), conditional fields (spot_id only for confirmed), validation rules (CHECK constraints, state machine). Separate concern: vehicle_type on reservations table, not drivers.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔌</div><div class="txt"><h4>API Specification</h4><p>Protobuf contracts for all 7 services. Swagger UI for 16 REST endpoints. buf for breaking-change detection in CI. gRPC metadata conventions (x-idempotency-key, authorization).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔐</div><div class="txt"><h4>Access Control Rules</h4><p>JWT RBAC + ownership enforcement at multiple layers. Driver can only modify own reservations. Admin endpoints restricted. Fail-closed (uid=="" → 401). No cross-driver reservation access.</p></div></div>
+    <div class="ev fade-up"><div class="ico">⚡</div><div class="txt"><h4>Non-Functional Specifications</h4><p>SLO/SLI defined (p95 < 500ms, error rate < 1%). Rate limiting config (100 req/s). Tracing sample rates per environment. Circuit breaker thresholds. HPA scaling rules. Connection pool tuning values.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🏷️</div><div class="txt"><h4>Explicit Assumptions (11 total)</h4><p>Real-time only (no advance booking). BYO-JWT for super-app. Payment stub with real interface. No sensor-based wrong-spot detection. No auto-checkout. Single parking area. All documented in README.</p></div></div>
+  </div>
+</div>
+
+<!-- 0.4 Mengelola perubahan kebutuhan -->
+<div class="slide" data-slide="4">
+  <div class="header"><span class="comp-tag">Kompetensi 0 &middot; Software Requirement</span><span class="page">5 / 24</span></div>
+  <h2>Mengelola Perubahan Kebutuhan</h2>
+  <h3>Sub: Mencatat perubahan, analisa dampak, kalkulasi resource, solusi alternatif</h3>
+  <span class="level-badge l3">Level 3–4</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">📋</div><div class="txt"><h4>Structured Change Impact Analysis</h4><p>clarification-specs.md categorizes changes by severity: "Must Fix (spec violations)" — e.g., remove vehicle_type from drivers table, add two-payment-moment flow. "Should Fix (quality/completeness)" — verify tests, wire circuit breaker, add user-selected hold logic. "Nice to Have (beyond spec)" — admin endpoints, billing history, WebSocket updates. Each change item lists cascading impact on other services/configs.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>ADR-Based Change Tracking</h4><p>5 Architecture Decision Records track what changed and why. Each follows Context → Decision → Consequences structure, enabling future developers to understand rationale even if decisions are later reversed.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔌</div><div class="txt"><h4>Cross-Service Impact Assessment</h4><p>When proposing NATS → Asynq switch: "Update gateway to not connect to presence/notification, remove from docker-compose, remove from K8s deployment, update REDME, update CI pipeline." Proto breaking-change detection via buf in CI prevents unintentional contract changes.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>Resource Impact on Alternative Solutions</h4><p>"Why Asynq over NATS: NATS is pub/sub for broadcast events, not designed for delayed task execution. Asynq is purpose-built for 'do X after delay'" — evaluates operational/financial cost of each alternative. "Why not DB poller: doesn't scale, ties up DB connections."</p></div></div>
+  </div>
+</div>
+
+<!-- ========== KOMPETENSI 1: SOFTWARE DESIGN ========== -->
+
+<!-- 1.1 Design application architecture -->
+<div class="slide" data-slide="5">
+  <div class="header"><span class="comp-tag">Kompetensi 1 &middot; Software Design</span><span class="page">6 / 24</span></div>
+  <h2>Design Application Architecture</h2>
+  <h3>Sub: Merancang arsitektur, alternatif desain, impact analysis</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🏗️</div><div class="txt"><h4>7 Microservices with Clear Boundaries</h4><p>gateway (REST→gRPC), search (availability), reservation (lifecycle + locking), billing (pricing engine), payment (QRIS), presence (occupancy), analytics (patterns). Each owns its PostgreSQL schema.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔀</div><div class="txt"><h4>Multi-Protocol Communication</h4><p>gRPC/HTTP2 for synchronous (request-response). NATS JetStream for async events (payment results, spot updates, analytics). Redis Asynq for delayed tasks (expiry, hold timeout).</p></div></div>
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>Alternative Architecture Analysis (ADR-0001)</h4><p>Evaluated monolithic vs microservices: "Independent scaling (presence high-write vs billing bursty-compute), independent deployment, fault isolation." Acknowledged negatives: operational complexity, distributed transactions, network overhead. Decision made with full trade-off awareness.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📈</div><div class="txt"><h4>Deployment &amp; Operations Impact</h4><p>Architecture considers deployability from day 1: per-service Dockerfiles, K8s HPA per service, schema-per-service migrations, circuit breakers for partial failure, graceful degradation documentation. Architecture review included deployment/operational impact.</p></div></div>
+  </div>
+</div>
+
+<!-- 1.2 Design component and module -->
+<div class="slide" data-slide="6">
+  <div class="header"><span class="comp-tag">Kompetensi 1 &middot; Software Design</span><span class="page">7 / 24</span></div>
+  <h2>Design Component &amp; Module</h2>
+  <h3>Sub: Component identification, keterkaitan, microservices/event sourcing structure</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🧅</div><div class="txt"><h4>Clean Architecture / Hexagonal per Service</h4><p>Handler (transport) → Usecase (business logic) → Repository (data access). Interfaces at service root, implementations in sub-packages. No framework magic — pure constructor injection, compile-time safe.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📦</div><div class="txt"><h4>24 Shared Packages (pkg/)</h4><p>config, telemetry, auth middleware, redislock, circuitbreaker, retry, idempotency, ratelimit, response helpers, database utilities, shutdown manager. Zero imports from internal/ — true reusability.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔗</div><div class="txt"><h4>Gateway Pattern for External Dependencies</h4><p>PaymentGateway, EventPublisher, BillingClient, PaymentClient, PresenceClient — all defined as interfaces. Each service wraps outbound calls behind adapters. Enables mocking and provider swapping without structural changes.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📡</div><div class="txt"><h4>Event-Driven Architecture (NATS JetStream)</h4><p>Streams with durable consumers, at-least-once delivery, explicit ack/nak. Subjects: parkir.presence.spot_updated, parkir.reservation.completed, parkir.payment.confirmed. Message deduplication via WithMsgID. Consumer replay support.</p></div></div>
+  </div>
+</div>
+
+<!-- 1.3 Design data structure -->
+<div class="slide" data-slide="7">
+  <div class="header"><span class="comp-tag">Kompetensi 1 &middot; Software Design</span><span class="page">8 / 24</span></div>
+  <h2>Design Data Structure</h2>
+  <h3>Sub: Schema design, data types, storage selection, index optimization</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🗄️</div><div class="txt"><h4>6 PostgreSQL Schemas (Schema-per-Service)</h4><p>reservation, billing, payment, search, presence, analytics. Logical separation with shared database instance. Each schema has independent migrations and data lifecycle.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔑</div><div class="txt"><h4>Advanced Indexing Strategy</h4><p>Composite indexes for common queries (idx_parking_spots_availability). Partial unique indexes for business rules (idx_reservations_active_spot WHERE status IN(...)). Conditional indexes for background workers (idx_reservations_stale_payment WHERE status='waiting_payment').</p></div></div>
+    <div class="ev fade-up"><div class="ico">🗺️</div><div class="txt"><h4>State Machine at DB Level</h4><p>CHECK constraints on status column enforce valid states. allowedTransitions map in model code with ValidateTransition() for double enforcement. Version column for optimistic concurrency on payment records.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📐</div><div class="txt"><h4>Type Selection &amp; Normalization</h4><p>BIGINT for monetary values (no floating-point). TIMESTAMPTZ for all temporal data. UUID primary keys with uuid-ossp. Proper normalization with CHECK constraints for value ranges. 400 spots seeded (5 floors × 80).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>Multiple Storage Backends</h4><p>PostgreSQL for relational (reservations, billing, payments). Redis for state (sessions, distributed locks, idempotency cache, rate limits). NATS JetStream for event streams. Each technology chosen for its appropriate use case — not one-size-fits-all.</p></div></div>
+  </div>
+</div>
+
+<!-- 1.4 Select and use framework and library -->
+<div class="slide" data-slide="8">
+  <div class="header"><span class="comp-tag">Kompetensi 1 &middot; Software Design</span><span class="page">9 / 24</span></div>
+  <h2>Select &amp; Use Framework &amp; Library</h2>
+  <h3>Sub: Technology stack selection, multi-stack evaluation, justification</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🐹</div><div class="txt"><h4>Go 1.25 — Core Language</h4><p>Performance, concurrency (goroutines), small binaries, strong typing. Industry standard for microservices. 44 direct dependencies — all well-known, actively maintained packages.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔌</div><div class="txt"><h4>gRPC + Protobuf v3 — Service Communication</h4><p>ADR-0002: HTTP/2 multiplexing, strong typing via proto contracts, bidirectional streaming support. buf for code generation + breaking change detection. Industry standard for polyglot microservices.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🌐</div><div class="txt"><h4>Gin — HTTP Gateway</h4><p>Most popular Go HTTP framework. Resource-based REST routing for external clients. Middleware stack: auth → rate limit → tracing → logging → panic recovery.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>OpenTelemetry — Full Observability</h4><p>ADR-0005: Traces + metrics + logs via OTLP. Prometheus + Grafana + Tempo + Loki + Alloy + Alertmanager. Structured JSON logging with trace_id/span_id injection. Vendor-neutral — no lock-in.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🧰</div><div class="txt"><h4>Key Library Justifications</h4><p>sqlx (type-safe queries, no ORM overhead), go-redis (standard Redis client), testify+mock+rapid (testing), testcontainers-go (real infra in tests), k6 (load testing), sony/gobreaker (proven circuit breaker), Asynq (delayed task queue). Each listed in README with justification.</p></div></div>
+  </div>
+</div>
+
+<!-- 1.5 Document Design Writing -->
+<div class="slide" data-slide="9">
+  <div class="header"><span class="comp-tag">Kompetensi 1 &middot; Software Design</span><span class="page">10 / 24</span></div>
+  <h2>Document Design Writing</h2>
+  <h3>Sub: Design documentation creation and review</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">📚</div><div class="txt"><h4>Complete Documentation Ecosystem — 15+ Dedicated Docs</h4><p>Architecture: overview.md (system + communication + resilience), er-diagram.md (full schema), sequence-diagrams.md (474 lines, all key flows). Design: patterns.md (10 patterns with trade-offs), clarification-specs.md (440 lines). ADRs: 5 structured decision records. API: Swagger UI + interactive flows (16 endpoints). Operations: deployment, configuration, observability, SLO/SLI, profiling. Development: getting started, testing strategy, frontend guide, shared packages. Services: 7 per-service docs.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📖</div><div class="txt"><h4>ADR Format — Context → Decision → Consequences</h4><p>Every architectural decision documented with: what problem are we solving, what alternatives did we consider, what did we choose, what are the positives AND negatives. Example (ADR-0003): RabbitMQ (too heavy) vs Kafka (overkill) vs NATS (lightweight, fit-for-purpose). Each consequence section lists both pros and cons — honest about trade-offs.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🏷️</div><div class="txt"><h4>Traceable Design Documentation</h4><p>README links to all design docs. Each doc cross-references others. Design patterns doc references specific service implementations. ADRs reference each other (e.g., ADR-0004 Redis locks references ADR-0001 microservices decision). ERD includes schema comments explaining business rules.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📐</div><div class="txt"><h4>Config-as-Documentation</h4><p>Makefile with self-documenting help target. YAML configs commented explaining what each value means. .env.example with explicit "no real secrets should be committed" warning. docker-compose with health check conditions and dependency ordering.</p></div></div>
+  </div>
+</div>
+
+<!-- ========== KOMPETENSI 2: SOFTWARE CONSTRUCTION ========== -->
+
+<!-- 2.1 Collaboration tools -->
+<div class="slide" data-slide="10">
+  <div class="header"><span class="comp-tag">Kompetensi 2 &middot; Software Construction</span><span class="page">11 / 24</span></div>
+  <h2>Collaboration Tools</h2>
+  <h3>Sub: Version control, issue tracker, CI/CD configuration</h3>
+  <span class="level-badge l3">Level 3</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">📝</div><div class="txt"><h4>Conventional Commits — 277 Commits</h4><p>Consistent prefix usage: feat:, fix:, refactor:, chore:, docs:, ci:, k8s:, infra:, deploy:. Descriptive messages. Rare lapses (3 "upd" commits). Feature-branch workflow (feat/, fix/, refactor/ prefixes). One semver tag (v0.1.0).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔧</div><div class="txt"><h4>Comprehensive .gitignore</h4><p>Organized sections: OS files, IDE, secrets (.env), Go artifacts, test/coverage, logs, Node modules, AI agent state. Multiple .gitignore files for context-specific ignoring (root, infra/aws/, frontend/).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>4 GitHub Actions Workflows</h4><p>ci-pr.yml: secret-scan → lint → test → security → sonarcloud. build-push-staging.yml: matrix build all services + frontend → GHCR → Coolify deploy webhook (with retry). build-push-prod.yml: semver tag → GHCR version tags → auto-release. deploy-prod.yml: manual → AWS EKS deploy → rollout check → smoke test → auto-rollback on failure.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🚧</div><div class="txt"><h4>Gaps: No Issue Tracking, No PR Templates</h4><p>No GitHub Issues integration in commits. No PR/Issue templates. No CODEOWNERS file. No project boards or milestones. Consistent with solo developer — these are team-scaling artifacts, not code quality gaps. If team grows beyond 1 person, these would need to be added.</p></div></div>
+  </div>
+</div>
+
+<!-- 2.2 Writing source code -->
+<div class="slide" data-slide="11">
+  <div class="header"><span class="comp-tag">Kompetensi 2 &middot; Software Construction</span><span class="page">12 / 24</span></div>
+  <h2>Writing Source Code</h2>
+  <h3>Sub: Coding convention, design patterns, language mastery, code review</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🎨</div><div class="txt"><h4>10+ Design Patterns Implemented</h4><p>Repository (data access abstraction), Gateway (external service adapters), Strategy (system-assigned vs user-selected), Adapter (lockerAdapter), State Machine (reservation transitions), Circuit Breaker (gobreaker wrapper), Pub/Sub (NATS JetStream), Idempotency (Redis-backed, generic), Saga/Compensation (double-booking recovery), Middleware Chain (gRPC interceptors).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🧬</div><div class="txt"><h4>Go Generics — Type-Safe Reusability</h4><p>idempotency.Check[T any] provides type-safe exactly-once semantics across payment and billing domains without code duplication. Compile-time type checking — no reflection, no interface{}.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📏</div><div class="txt"><h4>Coding Convention &amp; Style Guide</h4><p>gofmt enforced (make fmt). golangci-lint with 20+ linters (gosec, govet, staticcheck, errcheck, ineffassign, etc.). .golangci.yml in repo. Idiomatic Go naming: package lowercase, PascalCase structs, camelCase variables. 4-5 method interfaces (ISP).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🧹</div><div class="txt"><h4>Clean Code Principles</h4><p>DRY: 24 shared packages, no copy-paste across services. SOLID throughout: SRP (one file per concern), OCP (Strategy for assignment modes), LSP (mock substitution proves it), ISP (small interfaces), DIP (all dependencies injected). No global state. Optional dependencies nil-safe.</p></div></div>
+  </div>
+</div>
+
+<!-- 2.3 Manage data in application -->
+<div class="slide" data-slide="12">
+  <div class="header"><span class="comp-tag">Kompetensi 2 &middot; Software Construction</span><span class="page">13 / 24</span></div>
+  <h2>Manage Data in Application</h2>
+  <h3>Sub: CRUD operations, transaction/ACID, locking, concurrency, distributed data</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🔐</div><div class="txt"><h4>Three-Layer Double-Booking Prevention</h4><p>Layer 1: Redis distributed lock per spot (cross-process mutual exclusion). Layer 2: PostgreSQL SELECT FOR UPDATE (row-level lock within transaction). Layer 3: Partial unique index on active reservations per spot (idempotency + constraint). Defense-in-depth prevents TOCTOU races.</p></div></div>
+    <div class="ev fade-up"><div class="ico">💱</div><div class="txt"><h4>Transactional Integrity (ACID)</h4><p>WithTransaction pattern for atomic multi-table operations. Used in reservation lifecycle: create reservation + update spot status in one transaction. Optimistic concurrency via version column on payments (UpdatePaymentWithStatusCheck prevents double-refund).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>Event-Driven Data Flow (NATS JetStream)</h4><p>Async events decouple services: payment confirmed → reservation updated → billing calculated → search index refreshed. At-least-once delivery with explicit ack/nak. Message deduplication. Consumer replay for catch-up after downtime.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🗄️</div><div class="txt"><h4>Multiple Storage Paradigms</h4><p>PostgreSQL (relational ACID), Redis (key-value state + distributed locks + rate limiting + idempotency cache), NATS JetStream (durable event streams). sqlx with parameterized queries throughout — zero string interpolation in SQL. TracedPostgresClient wraps queries with OpenTelemetry spans.</p></div></div>
+  </div>
+</div>
+
+<!-- 2.4 Integrate and implement API -->
+<div class="slide" data-slide="13">
+  <div class="header"><span class="comp-tag">Kompetensi 2 &middot; Software Construction</span><span class="page">14 / 24</span></div>
+  <h2>Integrate &amp; Implement API</h2>
+  <h3>Sub: API design, versioning, rate limiting, circuit breaker, fallback</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🔌</div><div class="txt"><h4>Dual API Layer — gRPC + REST</h4><p>gRPC over HTTP/2 for internal service-to-service (strong types, streaming, multiplexing). REST via Gin for external clients. Gateway transcodes REST↔gRPC with auth context propagation via metadata.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📋</div><div class="txt"><h4>Protobuf Contract Management</h4><p>proto/ directory with structured definitions. buf for code generation + linting + breaking-change detection in CI. API versioning awareness. gRPC error codes mapped to HTTP status codes via dedicated mapError() functions.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🚦</div><div class="txt"><h4>Rate Limiting — Both Transport Layers</h4><p>Token bucket algorithm (100 req/s, burst 200) per IP. Applied at HTTP (Gin middleware) and gRPC (unary interceptor). Thread-safe with mutex. Automatic cleanup of stale entries every 5 minutes. Circuit breaker (sony/gobreaker) on external service calls.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🎯</div><div class="txt"><h4>Idempotency — Generic &amp; Reusable</h4><p>pkg/idempotency/ implements Redis SETNX with sentinel polling. Atomic claim → process → cache result. Concurrent requests poll (10ms intervals, 3s max) until first completes. Auto-cleanup on handler error (allows retry). Configurable method list and TTL. Applied to CreateReservation and Checkout.</p></div></div>
+    <div class="ev fade-up"><div class="ico">⚠️</div><div class="txt"><h4>Failure Handling — Retry, Circuit Breaker, Fallback</h4><p>gRPC client with configurable retry policy. Per-RPC deadlines. Circuit breaker wraps payment/billing clients — opens on repeated failures, half-open probing. Graceful degradation: payment failure doesn't crash reservation; non-core services (analytics) silently degrade.</p></div></div>
+  </div>
+</div>
+
+<!-- 2.5 Handling error/bug -->
+<div class="slide" data-slide="14">
+  <div class="header"><span class="comp-tag">Kompetensi 2 &middot; Software Construction</span><span class="page">15 / 24</span></div>
+  <h2>Handling Error / Bug</h2>
+  <h3>Sub: Error analysis, logging, instrumentation, prevention</h3>
+  <span class="level-badge l3">Level 3–4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🔍</div><div class="txt"><h4>Domain-Specific Sentinel Errors</h4><p>Per-module error types: ErrNotFound, ErrConflict, ErrStatusMismatch, ErrCannotRefund, ErrCancelled, ErrRefundFailed, ErrForbidden. Consistent fmt.Errorf("context: %w", err) wrapping preserves chain for errors.Is() checks up the call stack.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>Structured Instrumentation</h4><p>slog.Error() with contextual fields (payment_id, reservation_id, spot_code). OpenTelemetry traces for every gRPC call and DB query. Recovery middleware logs stack traces server-side, returns generic "internal server error" to clients — no information leakage.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>Graceful Degradation Patterns</h4><p>Non-critical operations (event publishing, presence verification, task enqueueing) log errors but don't fail main operation. Comments explicitly note "best-effort" semantics. Context cancellation detected and handled with fresh context for cleanup (context.WithTimeout(context.Background(), 5s)).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🚧</div><div class="txt"><h4>Gap: Centralized Error Aggregation (Level 4)</h4><p>Structured logging and tracing exist (Loki + Tempo), but no evidence of: error aggregation database, automated error classification, root cause analysis procedure, post-mortem template, preventive procedure changes from error data. Observability is strong (Level 3), but systematic error management pipeline is not yet Level 4.</p></div></div>
+  </div>
+</div>
+
+<!-- ========== KOMPETENSI 3: SOFTWARE QUALITY ========== -->
+
+<!-- 3.1 Prepare automated testing environment -->
+<div class="slide" data-slide="15">
+  <div class="header"><span class="comp-tag">Kompetensi 3 &middot; Software Quality</span><span class="page">16 / 24</span></div>
+  <h2>Prepare Automated Testing Environment</h2>
+  <h3>Sub: Test environment setup, sample data, automation</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">🐳</div><div class="txt"><h4>testcontainers-go — Real Infrastructure, Not Mocks</h4><p>Every test suite spawns real PostgreSQL 14 and Redis 7 via testcontainers-go. DOCKER_HOST configured. SQL migrations applied against test containers for schema setup. Tables truncated between tests for isolation. This means tests run against the same database engine as production — no SQL compatibility surprises.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🧪</div><div class="txt"><h4>Test Data Factory &amp; Helpers</h4><p>tests/testhelpers/ package provides t.Helper()-marked assertion functions, JWT generation utilities (GenerateTestJWT()), HTTP client helpers, fake gateway (NewStubGateway for configurable payment simulation). testhelpers.InsertTestDriver() factory function creates test data in one line. testhelpers.TruncateTables() ensures test isolation.</p></div></div>
+    <div class="ev fade-up"><div class="ico">⚡</div><div class="txt"><h4>k6 Load Testing Setup</h4><p>tests/load/k6_load_test.js — ramping VUs (1→50), smoke test scenario, custom metrics (error rate, search duration, reservation duration), thresholds (p95 < 500ms, error rate < 1%). Separate Go-based concurrent load tests (100 concurrent reservations).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔧</div><div class="txt"><h4>Makefile for Automated Test Execution</h4><p>make test (unit + race detector), make test-coverage (HTML reports), make test-integration (build-tagged), make bench, make ci (mirrors full CI pipeline locally). Race detector enabled on all test runs (-race flag).</p></div></div>
+  </div>
+</div>
+
+<!-- 3.2 Write automated test -->
+<div class="slide" data-slide="16">
+  <div class="header"><span class="comp-tag">Kompetensi 3 &middot; Software Quality</span><span class="page">17 / 24</span></div>
+  <h2>Write Automated Test</h2>
+  <h3>Sub: Unit, integration, E2E, non-functional tests, CI/CD integration</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🔺</div><div class="txt"><h4>Full Test Pyramid</h4><p>Unit (testify/mock, 90+ files) → Property-based (rapid, 12+ files) → Integration (testcontainers) → E2E (23 scenarios) → Docker E2E (full stack) → Load (k6 + Go) → Benchmarks. Every layer present, no gaps.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🎲</div><div class="txt"><h4>Property-Based Testing (Invariants)</h4><p>pgregory.net/rapid generates random inputs to verify invariants: idempotency (same key → same result), state machine (no invalid transitions), pricing (overnight logic correct for any duration), auth (malformed/expired tokens rejected). Catches bugs unit tests miss.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📋</div><div class="txt"><h4>23 E2E Scenarios — Spec-Compliant</h4><p>All 9 spec-required scenarios + extras: happy path, double-book prevention, spot contention, no-show expiry + release, cancellation (free & paid), extended stay (no overstay penalty), overnight fee, payment success, payment failure. Extras: race conditions, chaos tests, contract tests.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🛡️</div><div class="txt"><h4>CI-Integrated Quality Gates</h4><p>ci-pr.yml runs on every PR: gitleaks → golangci-lint (20+ linters) → test (race + coverage) → gosec → govulncheck → buf breaking → frontend checks → SonarCloud gate. Quality gate blocks merge on failure. sonar-project.properties configured with coverage report path.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📐</div><div class="txt"><h4>Test Naming &amp; Conventions</h4><p>Consistent Test[Scenario]_Should[Expected]_When[Condition] pattern. AAA (Arrange-Act-Assert) with inline comments. require for fail-fast critical, assert for non-critical. AssertExpectations(t) + AssertNotCalled(t) for mock contract verification. Requirements traceability (e.g., "Validates: Requirements 5.1, 5.2").</p></div></div>
+  </div>
+</div>
+
+<!-- ========== KOMPETENSI 4: SOFTWARE DEPLOYMENT ========== -->
+
+<!-- 4.1 Deploy application -->
+<div class="slide" data-slide="17">
+  <div class="header"><span class="comp-tag">Kompetensi 4 &middot; Software Deployment</span><span class="page">18 / 24</span></div>
+  <h2>Deploy Application</h2>
+  <h3>Sub: Cloud-native, multi-environment, IaaS, SSL, automated deployment</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🐳</div><div class="txt"><h4>Multi-Stage Docker (7 Services)</h4><p>Each service: Go builder stage → minimal Alpine runtime stage. Non-root appuser. Build metadata injected via ldflags. Docker layer caching in CI (cache-from: type=gha). docker-compose for local dev with proper depends_on + condition: service_healthy.</p></div></div>
+    <div class="ev fade-up"><div class="ico">☸️</div><div class="txt"><h4>Production Kubernetes (AWS EKS)</h4><p>Per-service deployments with resource requests/limits, liveness/readiness probes, HPA autoscaling (2-10 replicas), ConfigMap/Secret separation, migration Job, LoadBalancer for gateway, Fargate profiles. Rolling update strategy. Ordered deployment script (deploy.sh) with health-check polling.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🏗️</div><div class="txt"><h4>Terraform Infrastructure as Code</h4><p>EKS (v1.32) with Fargate + managed node groups, RDS PostgreSQL 14 (encrypted, private subnets, auto-scaling storage), ElastiCache Redis, VPC (public/private subnets, NAT gateway), IAM OIDC provider, S3 + DynamoDB remote state locking. terraform.tfvars.example for variable reference.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔒</div><div class="txt"><h4>SSL/TLS &amp; Network Security</h4><p>Traefik reverse proxy with Let's Encrypt auto-TLS (tls.certresolver=letsencrypt). Observability UIs restricted to Tailscale IP only (100.79.123.39). RDS in private subnets. VPC with public/private separation. Security groups on RDS.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔄</div><div class="txt"><h4>CI/CD — 4 Workflows, 2 Environments</h4><p>Staging: push to main → matrix build 7 services + frontend → GHCR (SHA tags) → Coolify webhook deploy with retry. Production: semver tag (v*) → GHCR (version + latest-prod) → auto GitHub Release → manual workflow_dispatch deploy to AWS EKS → rollout status checks → smoke test → automatic rollback on failure.</p></div></div>
+  </div>
+</div>
+
+<!-- 4.2 Performing data migration -->
+<div class="slide" data-slide="18">
+  <div class="header"><span class="comp-tag">Kompetensi 4 &middot; Software Deployment</span><span class="page">19 / 24</span></div>
+  <h2>Performing Data Migration</h2>
+  <h3>Sub: Data conversion, validation, sanitization, migration automation</h3>
+  <span class="level-badge l3">Level 3–4</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">📦</div><div class="txt"><h4>Versioned SQL Migrations with golang-migrate</h4><p>db/migrations/ with up/down pairs: 000001_init.up.sql (full 6-schema creation with indexes, constraints, seed data), 000001_init.down.sql (complete rollback). 000002_seed_drivers.up.sql for additional test data. Makefile targets: migrate-up, migrate-down, migrate-create.</p></div></div>
+    <div class="ev fade-up"><div class="ico">☸️</div><div class="txt"><h4>Production Migration Strategy — K8s Job</h4><p>infra/aws/k8s/migrations/migration-job.yaml defines a Kubernetes Job that runs before service deployment. Iterates over all 6 service schemas. Configurable retry and backoff. Ensures schema is always ahead of code — never backwards-incompatible.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🚧</div><div class="txt"><h4>Gap: Limited Migration History</h4><p>Only 2 migration files exist (init + seed). For a greenfield project this is expected, but a Level 4 demonstration would include: incremental migrations for realistic feature evolution, automated seed data generation (rather than hardcoded), data conversion scripts for schema changes (e.g., column renames with backfill), and migration validation in CI (dry-run + hash verification).</p></div></div>
+    <div class="ev fade-up"><div class="ico">📦</div><div class="txt"><h4>400 Spots Seed Data (5 Floors × 80)</h4><p>Init migration seeds 400 parking spots matching the spec: floor_number 1-5, vehicle_type car (30/floor) + motorcycle (50/floor). Proper CHECK constraints enforce the split. Seed data doubles as reference data for development and staging environments.</p></div></div>
+  </div>
+</div>
+
+<!-- 4.3 Document application feature -->
+<div class="slide" data-slide="19">
+  <div class="header"><span class="comp-tag">Kompetensi 4 &middot; Software Deployment</span><span class="page">20 / 24</span></div>
+  <h2>Document Application Feature</h2>
+  <h3>Sub: User manual, admin docs, integrated documentation system</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">📚</div><div class="txt"><h4>Comprehensive Documentation — 4 Audiences</h4><p>Architecture (system overview, ERD, sequence diagrams, design patterns, ADRs). API (Swagger UI, interactive flows, 16 endpoints documented). Operations (deployment guide, Coolify architecture, SLO/SLI, observability, profiling). Development (getting started, testing strategy, frontend guide, shared packages). Each audience has dedicated docs — not one-size-fits-all.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔗</div><div class="txt"><h4>Cross-Referenced Documentation System</h4><p>docs/README.md as index. Each doc cross-references others. Design patterns doc → specific service implementations. ADRs reference each other. README links to all docs. URL structure: docs/architecture/, docs/design/, docs/api/, docs/operations/, docs/development/, docs/services/, docs/adr/.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📖</div><div class="txt"><h4>Self-Documenting Infrastructure</h4><p>Makefile with help target describing ALL commands. YAML configs with inline comments explaining each value. .env.example with explicit purpose statements. docker-compose with health check comments. Proto files include service descriptions. Code has package-level doc comments.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>Deployment Documentation (User + Admin)</h4><p>Coolify README with architecture diagram, network topology, deployment flow, step-by-step setup instructions. README with Quick Start (3 commands to run). Config directory with local/staging separation, each config file reflecting production-readiness decisions.</p></div></div>
+  </div>
+</div>
+
+<!-- 4.4 Monitoring -->
+<div class="slide" data-slide="20">
+  <div class="header"><span class="comp-tag">Kompetensi 4 &middot; Software Deployment</span><span class="page">21 / 24</span></div>
+  <h2>Menambahkan Fitur Monitoring</h2>
+  <h3>Sub: Operational data, historical DB, notifications, predictive analytics</h3>
+  <span class="level-badge l4">Level 4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">📊</div><div class="txt"><h4>Full Grafana Observability Stack</h4><p>Prometheus (metrics, 15s scrape, 30d retention, alerting rules, K8s pod discovery). Grafana (dashboards, provisioned datasources). Tempo (distributed tracing). Loki (log aggregation). Alloy (OTel collector, OTLP receiver). Alertmanager (routing + notification). 3 exporters (postgres, redis, nats).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔍</div><div class="txt"><h4>Application-Level Health Probes</h4><p>Every service exposes /health, /health/live, /health/ready endpoints. Liveness and readiness probes in K8s deployments. Each check verifies actual dependencies (DB connection, Redis ping, NATS connectivity) — not just HTTP 200.</p></div></div>
+    <div class="ev fade-up"><div class="ico">📈</div><div class="txt"><h4>Historical Data &amp; Predictive Analytics</h4><p>Prometheus retains metrics for 30 days. Native analytics service tracks peak hours and occupancy patterns. PredictResources RPC provides resource forecasting. SLO/SLI documentation defines measurable targets. Custom metrics for business KPIs (reservation rate, payment success rate).</p></div></div>
+    <div class="ev fade-up"><div class="ico">📡</div><div class="txt"><h4>OpenTelemetry Tracing — Full Coverage</h4><p>Every gRPC call, every DB query, every Redis operation traced. otelHandler injects trace_id/span_id into structured logs for correlation. Fanout handler sends logs to both stdout and OTLP collector. Configurable sample rate per environment (dev 1.0, staging 0.1, prod 0.01).</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔔</div><div class="txt"><h4>Alerting Infrastructure</h4><p>Prometheus alerting rules defined. Alertmanager configured for routing. Dedicated observability deployment compose. Documentation on observability and SLO/SLI. Foundation for notification integration (email, WhatsApp, Telegram) — channel connectors not implemented yet.</p></div></div>
+  </div>
+</div>
+
+<!-- 4.5 Memperbaiki error di production -->
+<div class="slide" data-slide="21">
+  <div class="header"><span class="comp-tag">Kompetensi 4 &middot; Software Deployment</span><span class="page">22 / 24</span></div>
+  <h2>Memperbaiki Error di Production</h2>
+  <h3>Sub: Error diagnosis, root cause, preventive measures, post-mortem</h3>
+  <span class="level-badge l3">Level 3</span>
+  <hr>
+  <div class="evidence cols1">
+    <div class="ev fade-up"><div class="ico">🔍</div><div class="txt"><h4>Production Diagnostic Tooling — Strong Foundation</h4><p>Structured JSON logging with trace correlation (Loki + Tempo). Per-RPC error codes mapped to gRPC statuses. Recovery middleware captures panics with stack traces (server-side only, generic message to clients). Health probes with dependency checks. pprof endpoints for runtime profiling (restricted to admin role). This is a solid Level 3 diagnostic foundation.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🚧</div><div class="txt"><h4>Gap to Level 4 — No Formal Error Management Pipeline</h4><p>Level 4 requires: "Mengumpulkan data bug/error dari banyak aplikasi ke dalam satu database. Membuat rekapitulasi dan klasifikasi data error. Melakukan root cause analysis. Merumuskan metode instrumentasi untuk mengotomasi pengumpulan data error. Menghasilkan solusi generik. Merumuskan perubahan metode development. Menentukan langkah preventif. Merumuskan prosedur response time. Membuat laporan post mortem." The project has the data collection (Loki/Tempo/Prometheus) but not the analysis/remediation pipeline or documented procedures.</p></div></div>
+  </div>
+</div>
+
+<!-- ========== KOMPETENSI 5: SOFTWARE SECURITY ========== -->
+
+<!-- 5.1 Develop secure application -->
+<div class="slide" data-slide="22">
+  <div class="header"><span class="comp-tag">Kompetensi 5 &middot; Software Security</span><span class="page">23 / 24</span></div>
+  <h2>Develop Secure Application</h2>
+  <h3>Sub: Confidentiality, OWASP mitigation, vulnerability handling, compliance</h3>
+  <span class="level-badge l3">Level 3–4</span>
+  <hr>
+  <div class="evidence cols2">
+    <div class="ev fade-up"><div class="ico">🔐</div><div class="txt"><h4>JWT Authentication — Algorithm Pinning</h4><p>HS256 with jwt.WithValidMethods([]string{"HS256"}) — prevents algorithm confusion. 32-char minimum secret in non-local environments. Claims: UserID, Role, ExpiresAt, IssuedAt, Issuer. Dual middleware: HTTP (Gin) + gRPC (interceptor). BYO-JWT for super-app integration.</p></div></div>
+    <div class="ev fade-up"><div class="ico">👮</div><div class="txt"><h4>Defense-in-Depth Authorization</h4><p>Ownership enforced at gateway (cancels own reservations only, cannot create for other drivers) AND usecase layer (GetReservation checks callerID). Fail-closed: uid=="" returns 401. Admin-only endpoints with requireAdmin() middleware. gRPC errors map to PermissionDenied codes.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🛡️</div><div class="txt"><h4>OWASP Top 10 Coverage</h4><p>A01 (Access Control): JWT + ownership. A02 (Crypto): HS256 + pinning. A03 (Injection): parameterized queries throughout. A04 (Design): state machine + idempotency. A05 (Misconfig): 7 security headers (HSTS, CSP, X-Frame DENY, etc.). A07 (Auth): token expiration. A08 (Integrity): gitleaks CI. A09 (Logging): structured logs + traces.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🔍</div><div class="txt"><h4>4 Security Scanners in CI</h4><p>gitleaks (secret scanning) → gosec (static analysis, SonarCloud format) → govulncheck (Go vulnerability scan) → SonarCloud (security hotspots + quality gate). All run on every PR and block merge. Custom .gitleaks.toml with allowlists for go.sum, env.example, mocks, tests.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🏰</div><div class="txt"><h4>Infrastructure Security</h4><p>AWS OIDC (keyless GitHub Actions → AWS, no long-lived creds). RDS encrypted + private subnets. Non-root container users. Let's Encrypt TLS. Traefik proxy. Tailscale-restricted admin UIs. Secrets in env vars only — YAML for non-sensitive config. .dockerignore excludes .env and secrets.</p></div></div>
+    <div class="ev fade-up"><div class="ico">🚧</div><div class="txt"><h4>Gap to Level 4: DAST, Pentest, Compliance</h4><p>Preventive security is Level 4, but Level 4 also requires: OWASP Pentest Checklist integration, automated DAST in CI/CD, security incident post-mortem procedure, data recovery plan after breaches, PCI/DSS or other compliance implementation evidence. These are organizational/process artifacts not yet present.</p></div></div>
+  </div>
+</div>
+
+<!-- ========== SLIDE 24: SUMMARY ========== -->
+<div class="slide slide-summary" data-slide="23">
+  <div class="header"><span class="comp-tag">Summary</span><span class="page">24 / 24</span></div>
+  <div style="display:flex; gap:40px; align-items:flex-start;">
+    <div style="text-align:center; flex-shrink:0;">
+      <div class="summary-level">Level 4</div>
+      <div class="summary-level-label">Overall Competency</div>
+    </div>
+    <div class="summary-grid" style="flex:1;">
+      <div>
+        <ul class="summary-strengths">
+          <li>Full lifecycle: requirements → design → implementation → testing → deployment → security</li>
+          <li>Production-grade distributed system — not a learning project</li>
+          <li>Operational maturity: auto-rollback, circuit breakers, SLO/SLI, alerts</li>
+          <li>277 commits in 23 days — consistent, iterative delivery</li>
+          <li>Comprehensive documentation: architecture, patterns, API, ops, ADRs</li>
+          <li>5 of 6 competencies at solid Level 4 — Security at 3→4</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Growth Areas</h3>
+        <ul class="summary-growth">
+          <li>Formalize incident response &amp; post-mortem process</li>
+          <li>Add DAST / penetration testing to CI/CD pipeline</li>
+          <li>Team scaling artifacts: PR templates, CODEOWNERS, issue tracking integration</li>
+          <li>Error pipeline: centralized aggregation → classification → root cause → preventive changes</li>
+          <li>Security compliance framework (PCI/DSS readiness)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="nav-hint">← → arrow keys  ·  click dots to navigate</div>
+<div class="nav" id="nav"></div>
+
+<script>
+  const deck = document.getElementById('deck');
+  const slides = deck.querySelectorAll('.slide');
+  const nav = document.getElementById('nav');
+  let current = 0;
+
+  slides.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.addEventListener('click', () => go(i));
+    nav.appendChild(dot);
+  });
+
+  function go(i) {
+    slides[current].classList.remove('active');
+    nav.children[current].classList.remove('active');
+    current = i;
+    slides[current].classList.add('active');
+    nav.children[current].classList.add('active');
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      if (current < slides.length - 1) go(current + 1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (current > 0) go(current - 1);
+    }
+    if (e.key === 'Home') { e.preventDefault(); go(0); }
+    if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
+  });
+</script>
+</body>
+</html>

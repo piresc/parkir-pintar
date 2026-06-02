@@ -8,6 +8,10 @@ BEGIN;
 
 -- Drop tables in reverse dependency order (foreign keys first)
 
+-- Analytics schema
+DROP TABLE IF EXISTS analytics.spot_snapshot;
+DROP TABLE IF EXISTS analytics.reservation_events;
+
 -- Presence schema
 DROP TABLE IF EXISTS presence.presence_logs;
 
@@ -27,6 +31,7 @@ DROP TABLE IF EXISTS reservation.parking_spots;
 DROP TABLE IF EXISTS reservation.drivers;
 
 -- Drop schemas (now empty)
+DROP SCHEMA IF EXISTS analytics;
 DROP SCHEMA IF EXISTS presence;
 DROP SCHEMA IF EXISTS search;
 DROP SCHEMA IF EXISTS payment;

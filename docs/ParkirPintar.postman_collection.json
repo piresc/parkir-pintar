@@ -1,0 +1,398 @@
+{
+	"info": {
+		"_postman_id": "parkir-pintar-api-collection",
+		"name": "ParkirPintar API",
+		"description": "ParkirPintar — Smart Parking Solution (Solution Development Assessment 2026)\n\nBase URL: `{{base_url}}` (default: `http://localhost:8082`)\n\n**Auth:** JWT is generated client-side (no login endpoint).\nSet `jwt_secret` collection variable to match your deployment's `JWT_SECRET` env var.\nThe collection-level pre-request script auto-generates a fresh token before each request.\n\nResponse format:\n- Success: `{\"status\": \"success\", \"data\": {...}}`\n- Error: `{\"status\": \"error\", \"error\": \"message\", \"request_id\": \"...\"}`",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "base_url", "value": "http://localhost:8082" },
+		{ "key": "jwt_secret", "value": "your-jwt-secret-here", "description": "Must match JWT_SECRET env var on the gateway" },
+		{ "key": "jwt_issuer", "value": "parkir-pintar", "description": "Must match jwt.issuer in gateway config YAML" },
+		{ "key": "driver_id", "value": "driver-001", "description": "Authenticated user ID — used as driver_id in requests" },
+		{ "key": "driver_role", "value": "driver", "description": "JWT role claim" },
+		{ "key": "token", "value": "" },
+		{ "key": "reservation_id", "value": "" },
+		{ "key": "payment_id", "value": "" }
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{ "key": "token", "value": "{{token}}", "type": "string" }
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-generate JWT before each request",
+					"const secret = pm.collectionVariables.get('jwt_secret');",
+					"const issuer = pm.collectionVariables.get('jwt_issuer') || 'parkir-pintar';",
+					"const userId = pm.collectionVariables.get('driver_id') || 'driver-001';",
+					"const role = pm.collectionVariables.get('driver_role') || 'driver';",
+					"",
+					"if (!secret || secret === 'your-jwt-secret-here') {",
+					"    console.warn('⚠️  Set jwt_secret collection variable to your deployment JWT_SECRET');",
+					"}",
+					"",
+					"// Build JWT manually (Postman sandbox has no crypto-js HS256)",
+					"function base64url(str) {",
+					"    return CryptoJS.enc.Base64.stringify(str)",
+					"        .replace(/=+$/, '')",
+					"        .replace(/\\+/g, '-')",
+					"        .replace(/\\//g, '_');",
+					"}",
+					"",
+					"const header = { alg: 'HS256', typ: 'JWT' };",
+					"const now = Math.floor(Date.now() / 1000);",
+					"const payload = {",
+					"    user_id: userId,",
+					"    role: role,",
+					"    iss: issuer,",
+					"    iat: now,",
+					"    exp: now + 3600",
+					"};",
+					"",
+					"const headerB64 = base64url(CryptoJS.enc.Utf8.parse(JSON.stringify(header)));",
+					"const payloadB64 = base64url(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));",
+					"const signature = base64url(",
+					"    CryptoJS.HmacSHA256(headerB64 + '.' + payloadB64, secret)",
+					");",
+					"",
+					"const token = headerB64 + '.' + payloadB64 + '.' + signature;",
+					"pm.collectionVariables.set('token', token);"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "Search — Availability & Spots",
+			"description": "Search service — find available parking spots and floor maps. No request body needed.",
+			"item": [
+				{
+					"name": "Get Availability",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/availability?vehicle_type=car",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "availability"],
+							"query": [
+								{ "key": "vehicle_type", "value": "car", "description": "car | motorcycle" }
+							]
+						},
+						"description": "Get current parking availability across all floors.\n\nQuery params:\n- `vehicle_type` (optional): `car` or `motorcycle`"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Floor Map",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/floors/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "floors", "1"],
+							"variable": [
+								{ "key": "floor", "value": "1", "description": "Floor number" }
+							]
+						},
+						"description": "Get the full spot layout for a specific floor."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Spot Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/spots/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "spots", "1"],
+							"variable": [
+								{ "key": "id", "value": "1", "description": "Spot ID" }
+							]
+						},
+						"description": "Get detailed info for a specific parking spot."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Reservation — Full Lifecycle",
+			"description": "Reservation service — complete parking reservation lifecycle.\n\nFlow: Create → Confirm → Check-in → Check-out → Complete",
+			"item": [
+				{
+					"name": "Create Reservation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"if (res.data) {",
+									"    const id = res.data.reservation_id || res.data.id;",
+									"    if (id) pm.collectionVariables.set('reservation_id', id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations"]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"driver_id\": \"{{driver_id}}\",\n    \"vehicle_type\": \"car\",\n    \"assignment_mode\": \"auto\",\n    \"spot_id\": \"\",\n    \"idempotency_key\": \"{{$guid}}\"\n}"
+						},
+						"description": "Create a new parking reservation.\n\nBody:\n- `driver_id` (required): Must match authenticated user's JWT `user_id`\n- `vehicle_type` (required): `car` or `motorcycle`\n- `assignment_mode` (required): `auto` or `manual`\n- `spot_id` (optional): Required when `assignment_mode=manual`\n- `idempotency_key` (required): Unique key to prevent duplicate reservations"
+					},
+					"response": []
+				},
+				{
+					"name": "List My Reservations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations?status=confirmed",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations"],
+							"query": [
+								{ "key": "status", "value": "confirmed", "description": "pending | confirmed | checked_in | checked_out | completed | cancelled" }
+							]
+						},
+						"description": "List all reservations for the authenticated driver.\n\nQuery params:\n- `status` (optional): Filter by reservation status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reservation by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}"]
+						},
+						"description": "Get details of a specific reservation."
+					},
+					"response": []
+				},
+				{
+					"name": "Confirm Reservation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}/confirm",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}", "confirm"]
+						},
+						"description": "Confirm a pending reservation.\nTransitions: `pending` → `confirmed`"
+					},
+					"response": []
+				},
+				{
+					"name": "Check In",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}/checkin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}", "checkin"]
+						},
+						"description": "Check in to a confirmed reservation.\nTransitions: `confirmed` → `checked_in`"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Out",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}/checkout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}", "checkout"]
+						},
+						"description": "Check out. Triggers billing calculation.\nTransitions: `checked_in` → `checked_out`"
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Checkout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}", "complete"]
+						},
+						"description": "Complete checkout after payment is confirmed.\nTransitions: `checked_out` → `completed`"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Reservation",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}"]
+						},
+						"description": "Cancel a reservation. Only the owner can cancel.\nAllowed for `pending` or `confirmed` status."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Billing",
+			"description": "Billing service — invoice generation for completed parking sessions.",
+			"item": [
+				{
+					"name": "Get Reservation Billing / Invoice",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"const res = pm.response.json();",
+									"if (res.data && res.data.payment_id) {",
+									"    pm.collectionVariables.set('payment_id', res.data.payment_id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/reservations/{{reservation_id}}/billing",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "reservations", "{{reservation_id}}", "billing"]
+						},
+						"description": "Generate and retrieve the billing invoice for a reservation.\nCalled after check-out to get the parking fee breakdown."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment",
+			"description": "Payment service — check payment status.",
+			"item": [
+				{
+					"name": "Get Payment Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/{{payment_id}}/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "payments", "{{payment_id}}", "status"]
+						},
+						"description": "Check the status of a payment.\nReturns: `pending` | `completed` | `failed`"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Presence",
+			"description": "Presence service — geofence verification for check-in.",
+			"item": [
+				{
+					"name": "Stream Presence / Verify Geofence",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"url": {
+							"raw": "{{base_url}}/api/v1/presence/stream",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "presence", "stream"]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"reservation_id\": \"{{reservation_id}}\",\n    \"latitude\": -6.23827,\n    \"longitude\": 106.62657,\n    \"accuracy\": 10.5\n}"
+						},
+						"description": "Verify that the driver is within the parking geofence.\n\nBody:\n- `reservation_id` (required): Active reservation ID\n- `latitude` (optional): Driver's current latitude\n- `longitude` (optional): Driver's current longitude\n- `accuracy` (optional): GPS accuracy in meters"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Analytics",
+			"description": "Analytics service — parking usage patterns, peak hours, and predictions.",
+			"item": [
+				{
+					"name": "Get Peak Hours",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/peak-hours",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "peak-hours"]
+						},
+						"description": "Get peak parking hours analysis."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Occupancy / Usage Patterns",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/occupancy",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "occupancy"]
+						},
+						"description": "Get parking occupancy and usage patterns."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Predictions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/analytics/predictions?horizon_minutes=60",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "analytics", "predictions"],
+							"query": [
+								{ "key": "horizon_minutes", "value": "60", "description": "Prediction horizon in minutes (default: 60)" }
+							]
+						},
+						"description": "Get parking resource predictions.\n\nQuery params:\n- `horizon_minutes` (optional): How far ahead to predict (default: 60)"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

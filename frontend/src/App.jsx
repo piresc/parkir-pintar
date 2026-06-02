@@ -44,13 +44,22 @@ function AppRoutes() {
   );
 }
 
+function AppInner() {
+  const { driverId } = useAuth();
+  // Force ReservationProvider to unmount/remount when driver changes
+  // so all reservation state resets on logout/login
+  return (
+    <ReservationProvider key={driverId || 'guest'}>
+      <AppRoutes />
+    </ReservationProvider>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ReservationProvider>
-          <AppRoutes />
-        </ReservationProvider>
+        <AppInner />
       </AuthProvider>
     </BrowserRouter>
   );

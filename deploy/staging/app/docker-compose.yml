@@ -26,10 +26,11 @@ services:
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
-      GRPC_RESERVATION_TARGET: reservation:9090
-      GRPC_SEARCH_TARGET: search:9090
-      GRPC_PAYMENT_TARGET: payment:9090
-      GRPC_PRESENCE_TARGET: presence:50054
+      GRPC_RESERVATION_TARGET: reservation:9091
+      GRPC_SEARCH_TARGET: search:9094
+      GRPC_BILLING_TARGET: billing:9092
+      GRPC_PAYMENT_TARGET: payment:9093
+      GRPC_PRESENCE_TARGET: presence:9095
       GRPC_ANALYTICS_TARGET: analytics:9095
     depends_on:
       reservation:
@@ -53,7 +54,7 @@ services:
     environment:
       APP_NAME: parkir-pintar-search
       APP_ENV: staging
-      GRPC_SERVER_PORT: "9090"
+      GRPC_SERVER_PORT: "9094"
       JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
@@ -88,7 +89,7 @@ services:
     environment:
       APP_NAME: parkir-pintar-reservation
       APP_ENV: staging
-      GRPC_SERVER_PORT: "9090"
+      GRPC_SERVER_PORT: "9091"
       JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
@@ -104,8 +105,8 @@ services:
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
-      GRPC_BILLING_TARGET: billing:9090
-      GRPC_PAYMENT_TARGET: payment:9090
+      GRPC_BILLING_TARGET: billing:9092
+      GRPC_PAYMENT_TARGET: payment:9093
       PAYMENT_TIMEOUT_MINUTES: "10"
       RESERVATION_EXPIRY_MINUTES: "60"
       ASYNQ_CONCURRENCY: "10"
@@ -133,7 +134,7 @@ services:
     environment:
       APP_NAME: parkir-pintar-billing
       APP_ENV: staging
-      GRPC_SERVER_PORT: "9090"
+      GRPC_SERVER_PORT: "9092"
       JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
@@ -146,6 +147,7 @@ services:
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
+      GRPC_PAYMENT_TARGET: payment:9093
     networks:
       - app
       - infra-backend
@@ -163,7 +165,7 @@ services:
     environment:
       APP_NAME: parkir-pintar-payment
       APP_ENV: staging
-      GRPC_SERVER_PORT: "9090"
+      GRPC_SERVER_PORT: "9093"
       JWT_SECRET: ${JWT_SECRET}
       DB_HOST: postgres
       DB_PORT: "5432"
@@ -198,12 +200,14 @@ services:
     environment:
       APP_NAME: parkir-pintar-presence
       APP_ENV: staging
-      GRPC_SERVER_PORT: "50054"
+      GRPC_SERVER_PORT: "9095"
       JWT_SECRET: ${JWT_SECRET}
       TRACING_ENABLED: "true"
       TRACING_EXPORTER: "otlp-grpc"
       TRACING_OTLP_ENDPOINT: "alloy:4319"
       TRACING_SAMPLE_RATE: "1.0"
+      GRPC_RESERVATION_TARGET: reservation:9091
+      GRPC_BILLING_TARGET: billing:9092
     networks:
       - app
       - observability

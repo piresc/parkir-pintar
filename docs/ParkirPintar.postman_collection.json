@@ -112,11 +112,11 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/spots/1",
+							"raw": "{{base_url}}/api/v1/spots/fef49675-d4b4-4241-baf8-17e679d7df40",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "spots", "1"],
+							"path": ["api", "v1", "spots", "fef49675-d4b4-4241-baf8-17e679d7df40"],
 							"variable": [
-								{ "key": "id", "value": "1", "description": "Spot ID" }
+								{ "key": "id", "value": "fef49675-d4b4-4241-baf8-17e679d7df40", "description": "Spot UUID (e.g. F1-C-007)" }
 							]
 						},
 						"description": "Get detailed info for a specific parking spot."

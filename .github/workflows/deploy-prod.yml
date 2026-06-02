@@ -58,6 +58,7 @@ jobs:
           for svc in gateway reservation billing payment search presence analytics; do
             echo "Updating $svc to $VERSION"
             kubectl set image deployment/$svc $svc=ghcr.io/${{ github.repository }}/${svc}:${VERSION} -n $K8S_NAMESPACE
+            kubectl rollout restart deployment/$svc -n $K8S_NAMESPACE
           done
 
       - name: Wait for all rollouts

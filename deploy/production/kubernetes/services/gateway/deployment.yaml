@@ -46,7 +46,7 @@ spec:
             - name: GRPC_ANALYTICS_TARGET
               value: "analytics:9095"
             - name: GRPC_PRESENCE_TARGET
-              value: "presence:9095"
+              value: "presence:9096"
           resources:
             requests:
               cpu: 100m

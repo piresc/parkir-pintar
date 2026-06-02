@@ -27,7 +27,7 @@ spec:
         - name: presence
           image: ghcr.io/piresc/parkir-pintar/presence:latest-prod
           ports:
-            - containerPort: 9095
+            - containerPort: 9096
               name: grpc
           envFrom:
             - configMapRef:
@@ -36,7 +36,7 @@ spec:
                 name: app-secrets
           env:
             - name: GRPC_PORT
-              value: "9095"
+              value: "9096"
             - name: DB_SCHEMA
               value: "presence"
             - name: GRPC_RESERVATION_TARGET
@@ -52,12 +52,12 @@ spec:
               memory: 256Mi
           livenessProbe:
             tcpSocket:
-              port: 9095
+              port: 9096
             initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
             tcpSocket:
-              port: 9095
+              port: 9096
             initialDelaySeconds: 5
             periodSeconds: 10
 ---
@@ -70,6 +70,6 @@ spec:
   selector:
     app: presence
   ports:
-    - port: 9095
-      targetPort: 9095
+    - port: 9096
+      targetPort: 9096
       name: grpc

@@ -30,7 +30,7 @@ services:
       GRPC_SEARCH_TARGET: search:9094
       GRPC_BILLING_TARGET: billing:9092
       GRPC_PAYMENT_TARGET: payment:9093
-      GRPC_PRESENCE_TARGET: presence:9095
+      GRPC_PRESENCE_TARGET: presence:9096
       GRPC_ANALYTICS_TARGET: analytics:9095
     depends_on:
       reservation:
@@ -200,7 +200,7 @@ services:
     environment:
       APP_NAME: parkir-pintar-presence
       APP_ENV: staging
-      GRPC_SERVER_PORT: "9095"
+      GRPC_SERVER_PORT: "9096"
       JWT_SECRET: ${JWT_SECRET}
       TRACING_ENABLED: "true"
       TRACING_EXPORTER: "otlp-grpc"
@@ -224,7 +224,7 @@ services:
     environment:
       APP_NAME: parkir-pintar-analytics
       APP_ENV: staging
-      GRPC_SERVER_PORT: "9095"
+      GRPC_SERVER_PORT: "9096"
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USERNAME: ${DB_USERNAME}

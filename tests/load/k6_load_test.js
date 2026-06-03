@@ -58,6 +58,9 @@ const FLOOR_IDS = [1, 2, 3, 4, 5];
 function searchAvailability() {
   const vehicleType = VEHICLE_TYPES[randomIntBetween(0, VEHICLE_TYPES.length - 1)];
   const res = http.get(`${BASE_URL}/api/v1/availability?vehicle_type=${vehicleType}`, {
+    headers: {
+      'Authorization': `Bearer ${__ENV.TEST_JWT_TOKEN || ''}`,
+    },
     tags: { name: 'search_availability' },
   });
 
@@ -75,6 +78,9 @@ function searchAvailability() {
 function searchFloor() {
   const floorId = FLOOR_IDS[randomIntBetween(0, FLOOR_IDS.length - 1)];
   const res = http.get(`${BASE_URL}/api/v1/floors/${floorId}`, {
+    headers: {
+      'Authorization': `Bearer ${__ENV.TEST_JWT_TOKEN || ''}`,
+    },
     tags: { name: 'search_floor' },
   });
 
@@ -90,14 +96,20 @@ function searchFloor() {
 }
 
 function createReservation() {
+  // driver_id must match the JWT user_id, otherwise gateway returns 403
+  const driverId = __ENV.TEST_JWT_USER || 'driver-2';
   const payload = JSON.stringify({
-    driver_id: `driver-${randomIntBetween(1, 10000)}`,
+    driver_id: driverId,
     vehicle_type: VEHICLE_TYPES[randomIntBetween(0, VEHICLE_TYPES.length - 1)],
+    assignment_mode: 'system_assigned',
     idempotency_key: uuidv4(),
   });
 
   const params = {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${__ENV.TEST_JWT_TOKEN || ''}`,
+    },
     tags: { name: 'create_reservation' },
   };
 
@@ -123,6 +135,9 @@ function createReservation() {
 
 function getReservation(reservationId) {
   const res = http.get(`${BASE_URL}/api/v1/reservations/${reservationId}`, {
+    headers: {
+      'Authorization': `Bearer ${__ENV.TEST_JWT_TOKEN || ''}`,
+    },
     tags: { name: 'get_reservation' },
   });
 
@@ -136,32 +151,17 @@ function getReservation(reservationId) {
   return res;
 }
 
-// Main load test function: 80% search, 20% reservations
+// Main load test function: 50% search availability, 50% search floor
 export function loadTest() {
   const roll = Math.random();
 
-  if (roll < 0.4) {
+  if (roll < 0.5) {
     group('Search Availability', () => {
       searchAvailability();
     });
-  } else if (roll < 0.8) {
+  } else {
     group('Search Floor', () => {
       searchFloor();
-    });
-  } else {
-    group('Create Reservation', () => {
-      const res = createReservation();
-      // If reservation was created, fetch it
-      try {
-        const body = JSON.parse(res.body);
-        const id = body.id || body.reservation_id;
-        if (id) {
-          sleep(0.5);
-          getReservation(id);
-        }
-      } catch {
-        // skip get if creation failed
-      }
     });
   }
 

@@ -28,8 +28,8 @@ func (r *sqlxRepository) GetHourlyStats(ctx context.Context, startDate, endDate 
 			), 0) AS avg_occupancy,
 			COUNT(r.id)::int AS avg_reservations,
 			(COUNT(r.id)::float / GREATEST(EXTRACT(EPOCH FROM ($2::timestamp - $1::timestamp)) / 3600, 1)) AS peak_score
-		FROM reservation_events r
-		JOIN spot_snapshot ps ON ps.id = r.spot_id
+		FROM analytics.reservation_events r
+		JOIN analytics.spot_snapshot ps ON ps.id = r.spot_id
 		WHERE r.timestamp >= $1 AND r.timestamp < $2
 		GROUP BY EXTRACT(HOUR FROM r.timestamp), EXTRACT(DOW FROM r.timestamp)
 		ORDER BY peak_score DESC`
@@ -47,13 +47,13 @@ func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 			SELECT
 				DATE(r.timestamp) AS date,
 				COUNT(DISTINCT r.spot_id) AS occupied_spots
-			FROM reservation_events r
+			FROM analytics.reservation_events r
 			WHERE r.timestamp >= NOW() - make_interval(days => $1)
 			  AND r.status IN ('confirmed', 'checked_in', 'checked_out')
 			GROUP BY DATE(r.timestamp)
 		),
 		capacity AS (
-			SELECT COUNT(*) AS total_spots FROM spot_snapshot
+			SELECT COUNT(*) AS total_spots FROM analytics.spot_snapshot
 		)
 		SELECT
 			d.date,
@@ -76,7 +76,7 @@ func (r *sqlxRepository) GetDailyOccupancy(ctx context.Context, days int) ([]mod
 
 func (r *sqlxRepository) RecordEvent(ctx context.Context, event model.ReservationEvent) error {
 	query := `
-		INSERT INTO reservation_events (reservation_id, driver_id, spot_id, vehicle_type, status, timestamp)
+		INSERT INTO analytics.reservation_events (reservation_id, driver_id, spot_id, vehicle_type, status, timestamp)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 
 	_, err := r.db.ExecContext(ctx, query,
@@ -95,7 +95,7 @@ func (r *sqlxRepository) RecordEvent(ctx context.Context, event model.Reservatio
 
 func (r *sqlxRepository) UpsertSpotSnapshot(ctx context.Context, spot model.SpotSnapshot) error {
 	query := `
-		INSERT INTO spot_snapshot (id, floor_number, spot_number, vehicle_type, spot_code, status, updated_at)
+		INSERT INTO analytics.spot_snapshot (id, floor_number, spot_number, vehicle_type, spot_code, status, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			floor_number = EXCLUDED.floor_number,

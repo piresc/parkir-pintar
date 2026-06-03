@@ -15,7 +15,7 @@ server:
   shutdown_timeout: 30
 
 database:
-  schema: reservation
+  schema: analytics
   ssl_mode: require
   max_conns: 25
   idle_conns: 5

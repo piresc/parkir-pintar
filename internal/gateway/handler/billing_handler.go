@@ -44,7 +44,8 @@ func (bh *BillingHandler) GetReservationBilling(c *gin.Context) {
 	}
 
 	resp, err := bh.billing.GenerateInvoice(contextWithAuth(c), &billingv1.GenerateInvoiceRequest{
-		ReservationId: reservationID,
+		ReservationId:  reservationID,
+		IdempotencyKey: "invoice-" + reservationID,
 	})
 	if err != nil {
 		writeGRPCError(c, err)
